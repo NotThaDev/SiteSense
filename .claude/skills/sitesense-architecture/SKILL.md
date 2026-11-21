@@ -60,7 +60,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Folder | Holds |
 |---|---|
-| `data/` | Site JSON, map GeoJSON, download and convert scripts |
+| `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |
 | `docs/adr/` | Architecture decision records |
 | `docs/analysis/` | Analysis notes |
 | `.claude/skills/` | Skills for AI agents |
@@ -68,6 +68,18 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 - Docs files (ADR, assumptions, known issues, data sources, AI log) and their placement: see [AI process](../ai-process/SKILL.md).
 - Root files and their content: see [delivery](../delivery-workflow/SKILL.md).
 - Do not add a folder that is not in this table without updating this file.
+
+### Store location (runtime data)
+
+The document store is never inside `data/` and never in git.
+
+| Where | Path | How it is set |
+|---|---|---|
+| Option | `Store:RootPath` | Read from configuration and validated on start (NF-04). |
+| Local run | `.store/` in the repo root | Default in `appsettings.json`; `.store/` is in `.gitignore`. |
+| Docker | `/var/lib/sitesense/store` on a named volume | Overridden by the `Store__RootPath` environment variable in `docker-compose.yml`, so data survives restarts (NF-05). |
+
+Inside the root, one subfolder per tenant (JDB-07).
 
 ## 5. Host concerns
 
