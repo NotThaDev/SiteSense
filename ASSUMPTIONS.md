@@ -20,6 +20,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: IDN-01, IDN-03, PRV-03, RTM-01
 - Status: Accepted
 
+## Q10 — Wrong role in the right tenant: 403 or 404?
+- Assumption: `403` Forbidden. `404` stays for missing resources and for resources of another tenant.
+- Why: the 404 rule exists to hide another tenant's data; inside the user's own tenant there is nothing to hide, and 403 is the standard answer when a policy is not met.
+- Requirement IDs: IDN-02, IDN-03
+- Status: Accepted
+
 ## Q59 — How does the API know the tenant of a gateway client?
 - Assumption: the gateway access token carries a `tenant_id` claim, added by a hardcoded-claim mapper on each gateway client in the realm. The API reads the tenant from the token for users and gateways alike, never from the request.
 - Why: each gateway belongs to exactly one tenant, but a client-credentials token has no user, so no tenant claim by default. One claim keeps one code path.
