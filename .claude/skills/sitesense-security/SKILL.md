@@ -21,10 +21,12 @@ description: >-
 
 | Role | Can do | Cannot do |
 |---|---|---|
-| `Admin` | Manage sites, maps, devices. Use test endpoints (when test mode is on). | See individual positions, tracks or alerts (**Decided, Q09:** roles are separate, for privacy). A user who needs both gets both roles. |
+| `Admin` | Manage sites, maps, devices. Use test endpoints (when test mode is on). | See individual positions, tracks or alerts (**Decided, Q09:** roles are separate, for privacy). |
 | `Safety` | See individual positions, tracks, alerts. Routing and occupancy. | Manage sites and maps. |
 | `Viewer` | See aggregates only: occupancy. Routing. | See positions, tracks or device IDs. |
 | Gateway client | Post position batches (`positions:write`). | Anything else. |
+
+**Decided (Q61):** each user has exactly one role. No user combines roles and there is no super user. The policies do not depend on this, so allowing several roles later needs only a realm change and an `ASSUMPTIONS.md` update.
 
 ## Policies
 
