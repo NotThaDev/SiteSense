@@ -43,3 +43,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: consistent with the rule that another tenant's resources look like missing ones; a gateway cannot write data for devices outside its tenant.
 - Requirement IDs: IDN-02, TRK-01, API-02
 - Status: Accepted
+
+## Q62 — May logs contain the coordinates of individual devices?
+- Assumption: only at `Debug` level, which is off by default. `Information` and above log the device ID, counts and the correlation id, never coordinates. Positions outside the site perimeter are never logged with coordinates, at any level.
+- Why: logs live outside role checks and retention, so everyday logs must not hold movement data; `Debug` keeps a way to diagnose the filters. Outside-perimeter positions must never be stored, and a log file is storage.
+- Requirement IDs: PRV-01, PRV-02, PRV-04, NF-03
+- Status: Accepted
