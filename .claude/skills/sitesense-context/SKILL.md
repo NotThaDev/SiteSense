@@ -21,18 +21,16 @@ The backend must:
 5. raise and push events in real time;
 6. isolate tenants and protect worker privacy.
 
-Source of truth: the spec. Cite it as "the spec §N".
-
 ## Data flow
 
-| Step | What happens | Spec |
+| Step | What happens | Requirements |
 |---|---|---|
-| 1 | Admin creates a site and uploads a GeoJSON map. Map is validated, converted to a local metric projection (MAP-02), and a path graph is built. | §5.3, §6.1, §6.2 |
-| 2 | Gateway client (client credentials) posts position batches. | IDN-05, §6.3 |
-| 3 | Ingest: dedupe by device + timestamp, order by timestamp, drop positions outside the perimeter, drop implausible jumps, smooth noise. | §5.5, PRV-02 |
-| 4 | Tracking: assign areas with hysteresis at borders, update occupancy, raise intrusion alerts. | §5.5, §5.7 |
-| 5 | Background jobs (Hangfire), e.g. every minute per site: anomaly detection, silent devices, retention. Jobs are idempotent. | §5.6, §5.9 |
-| 6 | Persist to the JSON store first, then emit SignalR events with a per-tenant sequence number. Clients catch up via `GET /api/v1/events?after={seq}`. | §5.10 |
+| 1 | Admin creates a site and uploads a GeoJSON map. Map is validated, converted to a local metric projection (MAP-02), and a path graph is built. | MAP-01, MAP-02, MAP-03 |
+| 2 | Gateway client (client credentials) posts position batches. | IDN-05, API-02 |
+| 3 | Ingest: dedupe by device + timestamp, order by timestamp, drop positions outside the perimeter, drop implausible jumps, smooth noise. | TRK-01, TRK-02, TRK-03, PRV-02 |
+| 4 | Tracking: assign areas with hysteresis at borders, update occupancy, raise intrusion alerts. | TRK-04, EVT-01, EVT-02 |
+| 5 | Background jobs (Hangfire), e.g. every minute per site: anomaly detection, silent devices, retention. Jobs are idempotent. | AI-01, AI-02, JOB-01, JOB-02, JOB-04 |
+| 6 | Persist to the JSON store first, then emit SignalR events with a per-tenant sequence number. Clients catch up via `GET /api/v1/events?after={seq}`. | RTM-01, RTM-03, RTM-05 |
 
 **Rule (RTM-03):** events are emitted only after the state is persisted.
 Never emit an event for state that is not yet saved.
@@ -59,20 +57,20 @@ Area `areaType` values: `perimeter`, `work`, `rest`, `parking`, `restricted`, `h
 Alert `type` values: `AreaIntrusion`, `ZoneAnomaly`, `SuddenImmobility`, `DeviceSilent`.
 Some types depend on requirements that may not be implemented; they may be absent.
 
-## Formats (spec §6)
+## Formats
 
-Full rules live in the spec. Summary:
+Summary:
 
 | Format | Key rules |
 |---|---|
 | Site JSON (§6.1) | Fields: `siteId`, `name`, `timeZone` (IANA), `mapFile`, `navigation` with `walkingSpeedMps`, `unpavedSpeedFactor`, `stepsSpeedFactor`, `connectToleranceM`, `maxSnapDistanceM`. |
-| Map GeoJSON (§6.2) | RFC 7946 `FeatureCollection`, WGS84, order `[lon, lat]`. Element type in property `kind`: `area` (Polygon), `path` (LineString), `assemblyPoint` (Point), `entrance` (Point). Required props per kind are in the spec. |
+| Map GeoJSON (§6.2) | RFC 7946 `FeatureCollection`, WGS84, order `[lon, lat]`. Element type in property `kind`: `area` (Polygon), `path` (LineString), `assemblyPoint` (Point), `entrance` (Point). Required props: `area`: `id`, `name`, `areaType` (`perimeter`, `work`, `rest`, `parking`, `restricted`, `hazard`), optional `capacity`; `path`: `id`, `surface` (`paved`, `unpaved`), `steps` (bool), `slopePercent`, `widthM`; `assemblyPoint`: `id`, `name`, `capacity`; `entrance`: `id`, `name`. |
 | Map guarantees | Test maps guarantee: one perimeter containing all areas, no overlapping non-perimeter areas, valid geometry. Do not spend effort re-checking these. |
-| Map checks we must do | Required props present; perimeter present and single; assembly points lie on a path (entrances: guaranteed by the spec §6.2). Errors go back as 422 (see contract). |
+| Map checks we must do | Required props present; perimeter present and single; assembly points lie on a path (entrances: guaranteed by the input maps). Errors go back as 422 (see contract). |
 | Path rule | A segment (between two consecutive vertices) that crosses a `restricted` or `hazard` area is not walkable. |
 | Position batch (§6.3) | `deviceId`, `positions[{timestampMs, lat, lon, accuracyM}]`. Unordered, duplicates possible, up to 5000 items, may be hours old. Timestamp decides order. |
 
-## Contract (spec §7)
+## Contract
 
 All endpoints need a Bearer token. Errors are ProblemDetails. Who may call which endpoint: see `../sitesense-security/SKILL.md`.
 
@@ -87,9 +85,9 @@ All endpoints need a Bearer token. Errors are ProblemDetails. Who may call which
 | `GET /api/v1/sites/{siteId}/occupancy` | 200 `{ "atMs", "areas": [{ "areaId", "count" }] }` | ProblemDetails |
 | `GET /api/v1/devices/{deviceId}/track?fromMs=&toMs=` | 200 `{ "points": [{ "timestampMs", "lat", "lon", "areaId" }] }`, filtered, sorted by time | ProblemDetails |
 | `GET /api/v1/sites/{siteId}/alerts?fromMs=&toMs=&type=` | 200 `{ "items": [{ "alertId", "type", "eventTimeMs", "deviceId", "areaId", "late" }] }` | ProblemDetails |
-| `PUT /api/v1/test/clock` `{ "nowMs" }` | Sets simulated time. Success code not in spec (2xx). | 404 when test mode is off |
-| `POST /api/v1/test/jobs/{jobName}/run` | Runs the job now, responds when done. `jobName`: `anomaly-detection`, `silent-devices`, `retention`. Success code not in spec (2xx). | 404 when test mode is off |
-| `POST /api/v1/test/drain` | Responds when all positions received so far are processed (filters, areas, events). Success code not in spec (2xx). | 404 when test mode is off |
+| `PUT /api/v1/test/clock` `{ "nowMs" }` | Sets simulated time. Success code not defined (2xx). | 404 when test mode is off |
+| `POST /api/v1/test/jobs/{jobName}/run` | Runs the job now, responds when done. `jobName`: `anomaly-detection`, `silent-devices`, `retention`. Success code not defined (2xx). | 404 when test mode is off |
+| `POST /api/v1/test/drain` | Responds when all positions received so far are processed (filters, areas, events). Success code not defined (2xx). | 404 when test mode is off |
 
 Test mode is on only when `SITESENSE_TEST_MODE=true`.
 
@@ -117,7 +115,7 @@ How to inject it: `../dotnet-coding/SKILL.md`.
 ## Priorities and evaluation
 
 - Priorities: **MUST** first. **SHOULD** and **BONUS** only when MUST is solid.
-- Evaluation (spec §11) gives more weight to:
+- Evaluation gives more weight to:
   - routing and tracking on hard cases (edge cases, border flapping, out-of-order data);
   - anomaly detection: effectiveness and written rationale;
   - correctness under stress: concurrency, crash, duplicate and late data;
