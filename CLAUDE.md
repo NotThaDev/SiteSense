@@ -17,7 +17,7 @@ It pushes real-time events and enforces strict tenant isolation and privacy. Git
 ## Doubt = ask
 - Anything ambiguous: ask before starting. Never assume.
 - Ask short, specific questions. Prefer multiple choice.
-- A spec gap or ambiguity: never pick an assumption yourself. Ask the user, offering options
+- A requirement gap or ambiguity: never pick an assumption yourself. Ask the user, offering options
   with a recommended one. The user decides; only then record their decision in `ASSUMPTIONS.md`
   (format in `ai-process`).
 
