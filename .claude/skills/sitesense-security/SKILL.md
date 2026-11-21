@@ -13,7 +13,7 @@ description: >-
 
 - OIDC/OAuth2. JWTs are validated (IDN-01).
 - Tenant comes from the token claim `tenant_id`. Never take it from the URL or body (IDN-02).
-- **Proposed (assumed, not in the requirements):** the gateway token also carries `tenant_id`, added by an IdP mapper.
+- **Decided:** the gateway token also carries `tenant_id`, added by a hardcoded-claim mapper on each gateway client in the realm. The API reads the tenant the same way for users and gateways, never from the request body.
 - Gateway devices use client credentials with scope `positions:write`. One client = one tenant (IDN-05).
 - IdP config (realm, clients, roles, test users) is versioned in the repo and loaded at startup (IDN-04).
 
