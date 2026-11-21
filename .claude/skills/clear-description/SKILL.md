@@ -32,7 +32,7 @@ Closes #<n>.
 - Store: new document type, index or format change, or none
 - Config: compose, realm export, `.env.example`, or none
 - Endpoints and config keys: new ones listed by name, or none
-- Dependencies: new ones with a reason, see [sitesense-stack](../sitesense-stack/SKILL.md), or none
+- Dependencies: new ones with a reason, see [dotnet-coding](../dotnet-coding/SKILL.md) §14, or none
 
 ## Idea and implementation
 <The design in a few lines, then the diagram(s).>
