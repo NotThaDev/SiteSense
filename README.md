@@ -43,7 +43,3 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
 Identity: OIDC / OAuth2 with JWT; the identity provider is still open (Q03). Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
 Routing, filtering and area-assignment algorithms are written in-house, not taken from ready-made libraries.
 
-## Status
-
-Work in progress. The first step sets up the AI-assisted process: see [`CLAUDE.md`](CLAUDE.md) and the skills in [`.claude/skills/`](.claude/skills/).
-Run instructions, test credentials and benchmark results will be added here as the code lands.
