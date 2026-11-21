@@ -88,7 +88,7 @@ Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 | PRV-02 | Positions outside the site perimeter are dropped before storage. Never stored. Never logged with coordinates. |
 | PRV-03 | `Viewer` sees aggregates only. Never positions, tracks or device IDs. |
 | PRV-04 | Positions are deleted after a per-tenant number of days (retention job). |
-| Logs | **Proposed:** no individual coordinates in logs at Information level. | — |
+| Logs | Individual coordinates only at `Debug` level (off by default), never at `Information` or above. Positions outside the perimeter: never, at any level (PRV-02). | Q62, decided |
 
 ## SignalR
 
@@ -111,6 +111,6 @@ Rules:
 - [ ] Tenant taken from `tenant_id` in the token, not from URL or body.
 - [ ] Foreign-tenant resource returns `404`.
 - [ ] `Viewer` gets no individual data (no positions, tracks, device IDs).
-- [ ] No coordinates or personal data in logs.
+- [ ] No personal data in logs; coordinates only at `Debug`.
 - [ ] Isolation test added: `../sitesense-testing/SKILL.md`.
 - [ ] Endpoint shape matches the contract: `../sitesense-context/SKILL.md`.
