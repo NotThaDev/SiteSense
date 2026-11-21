@@ -14,7 +14,7 @@ Every area below needs at least the listed tests. Each story PR lists the tests 
 
 | Area | Required tests | Requirement IDs | Story |
 |---|---|---|---|
-| Map | Import of a valid map. Paths joined at a shared vertex. Paths joined by endpoints within tolerance. At least one invalid file gives 422 with `elementId` and `reason`. | MAP-01, MAP-03 | SS-x, TBD when the backlog is approved |
+| Map | Import of our own map from `data/`. Paths joined at a shared vertex. Paths joined by endpoints within tolerance. At least one invalid file gives 422 with `elementId` and `reason`. | MAP-01, MAP-03 | SS-x, TBD when the backlog is approved |
 | Navigation | Restricted and hazard areas are avoided. Nearest assembly point is chosen by time, not distance. Unreachable and too-far start return their error codes. | NAV-02, NAV-04 | SS-x, TBD when the backlog is approved |
 | Tracking | Duplicates recorded once. Out-of-order positions handled. Implausible jump dropped. Noisy area border does not flap. | TRK-01, TRK-02, TRK-03, TRK-04 | SS-x, TBD when the backlog is approved |
 | AI | One anomalous scenario is detected. One normal scenario is not flagged. | AI-01 | SS-x, TBD when the backlog is approved |
@@ -22,6 +22,18 @@ Every area below needs at least the listed tests. Each story PR lists the tests 
 | API | At least one end-to-end integration test. At least one tenant-isolation test (other tenant gets 404). | NF-02, IDN-02 | SS-x, TBD when the backlog is approved |
 
 - Error codes (`elementId`, `reason`, `START_TOO_FAR`, `UNREACHABLE`) and their shapes: [context](../sitesense-context/SKILL.md).
+
+### Recommended beyond NF-02
+
+Not required by NF-02, but they cover what the evaluation weighs most: correctness under stress, duplicate and late data, privacy.
+
+| Area | Recommended test | Requirement IDs |
+|---|---|---|
+| Jobs | Running the same job twice (retry) raises no duplicate alert or event. | JOB-02 |
+| Alerts | One intrusion alert per entry into a restricted or hazard area, even with GPS noise at the border. | EVT-02 |
+| Privacy | Positions outside the site perimeter are never stored. | PRV-02 |
+| Privacy | A Viewer gets no individual data (tracks, alerts, `PositionUpdated`). | PRV-03 |
+| Security | Wrong role in the right tenant gets `403`, not `404`. | IDN-03, Q10 |
 
 ## 2. Tools
 
