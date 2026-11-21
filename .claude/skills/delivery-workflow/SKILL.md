@@ -15,7 +15,6 @@ Scope: git, GitHub and delivery only.
 
 | Topic | Owner |
 |---|---|
-| Repo rules: `local/` never committed | [CLAUDE.md](../../../CLAUDE.md) |
 | Docs placement, AI steps, verification subagent | [ai-process](../ai-process/SKILL.md) |
 | PR description text and "Things to check" | [clear-description](../clear-description/SKILL.md) |
 | Tests and build commands | [sitesense-testing](../sitesense-testing/SKILL.md) |
@@ -52,7 +51,7 @@ flowchart LR
 | Style | **Proposed:** Conventional Commits, `feat\|fix\|docs\|test\|chore(scope): <subject>` |
 | Body | 1–3 lines: why, not what |
 | Staging | `git status --porcelain`, then stage only the files of the step |
-| Excluded | `local/` and any secret, never staged |
+| Excluded | any secret, never staged |
 | AI trailer | **Proposed (Q54, open):** keep `Co-Authored-By: Claude <model> <noreply@anthropic.com>` on AI-written commits, for transparency with `AI_LOG.md` |
 
 Example message (blank lines are required):
@@ -153,7 +152,7 @@ A story is done only when all rows pass.
 | 3 | Tag | annotated tag `v1.0` on the final commit: `git tag -a v1.0 -m "v1.0" <sha>`, then `git push origin v1.0` |
 | 4 | Root deliverables | table below complete |
 | 5 | ZIP | `SiteSense_<Surname>_<Name>.zip`, includes `.git` |
-| 6 | Exclusions | no `bin/`, `obj/`, `node_modules/`, large external data, `local/` |
+| 6 | Exclusions | no `bin/`, `obj/`, `node_modules/`, large external data |
 | 7 | Empty-folder check | unzip into an empty folder; `git log` shows full history; `docker compose up` starts the system |
 
 ### Root deliverables
