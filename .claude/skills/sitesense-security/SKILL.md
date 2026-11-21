@@ -13,7 +13,7 @@ description: >-
 
 - OIDC/OAuth2. JWTs are validated (IDN-01).
 - Tenant comes from the token claim `tenant_id`. Never take it from the URL or body (IDN-02).
-- **Proposed (assumed, not in spec):** the gateway token also carries `tenant_id`, added by an IdP mapper.
+- **Proposed (assumed, not in the requirements):** the gateway token also carries `tenant_id`, added by an IdP mapper.
 - Gateway devices use client credentials with scope `positions:write`. One client = one tenant (IDN-05).
 - IdP config (realm, clients, roles, test users) is versioned in the repo and loaded at startup (IDN-04).
 
@@ -70,8 +70,6 @@ Test-mode behaviour: see `../sitesense-context/SKILL.md`.
 
 ## Test identities
 
-Spec §7.1.
-
 - Tenants: `tenant-a`, `tenant-b`.
 - Users, password `Password1!` for all: `admin-a`, `safety-a`, `viewer-a`, `admin-b`, `safety-b`, `viewer-b`.
 - Public client `sitesense-verify`: password flow, for verification only.
@@ -91,7 +89,7 @@ Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 
 ## SignalR
 
-Spec §5.10. **Proposed:** hub groups: one per tenant and site (`tenant:{tenantId}:site:{siteId}`), plus a role sub-group.
+**Proposed:** hub groups: one per tenant and site (`tenant:{tenantId}:site:{siteId}`), plus a role sub-group.
 
 | Event | Audience |
 |---|---|
