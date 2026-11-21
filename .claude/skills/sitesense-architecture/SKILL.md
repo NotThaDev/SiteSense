@@ -8,7 +8,7 @@ description: >-
 
 > **Status: provisional.** The project list is provisional until the structure review is closed (Q01 is decided). Update this file in the same PR that changes the structure.
 
-Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-security/SKILL.md) · [stack](../sitesense-stack/SKILL.md) · [coding](../dotnet-coding/SKILL.md) · [testing](../sitesense-testing/SKILL.md) · [AI process](../ai-process/SKILL.md) · [delivery](../delivery-workflow/SKILL.md)
+Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-security/SKILL.md) · [coding](../dotnet-coding/SKILL.md) · [testing](../sitesense-testing/SKILL.md) · [AI process](../ai-process/SKILL.md) · [delivery](../delivery-workflow/SKILL.md)
 
 ## 1. Process model
 

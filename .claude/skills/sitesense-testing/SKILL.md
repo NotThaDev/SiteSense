@@ -6,7 +6,7 @@ description: >-
 
 # Test strategy
 
-Related: [architecture](../sitesense-architecture/SKILL.md) · [coding](../dotnet-coding/SKILL.md) · [security](../sitesense-security/SKILL.md) · [stack](../sitesense-stack/SKILL.md) · [delivery](../delivery-workflow/SKILL.md)
+Related: [architecture](../sitesense-architecture/SKILL.md) · [coding](../dotnet-coding/SKILL.md) · [security](../sitesense-security/SKILL.md) · [delivery](../delivery-workflow/SKILL.md)
 
 ## 1. Required tests (NF-02)
 
@@ -43,7 +43,7 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 | Fake clock | `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` |
 | HTTP integration | `WebApplicationFactory<Program>` |
 | Auth in tests | A test auth handler that issues fake tokens with `tenant_id`, roles and scope claims |
-| Assertions | xUnit `Assert`, unless [stack](../sitesense-stack/SKILL.md) says otherwise |
+| Assertions | xUnit `Assert` |
 
 - **Proposed:** unit and integration tests use a test auth handler; Keycloak runs only with docker compose.
 - Use `FakeTimeProvider`. Time rule: `../dotnet-coding/SKILL.md`.

@@ -1,12 +1,12 @@
 ---
 name: dotnet-coding
 description: >-
-  C# and .NET coding rules for SiteSense: language settings, naming, async and cancellation, time through TimeProvider, ProblemDetails errors, validation, options, logging, secrets, ML.NET concurrency, the Ponytail minimal-change rules, and which docs sources to query. Use when writing or reviewing C# code, adding a DTO, handling an error or a configuration value, adding logging, touching secrets or credentials, using ML.NET, or looking up a library API.
+  C# and .NET coding rules for SiteSense: language settings, naming, async and cancellation, time through TimeProvider, ProblemDetails errors, validation, options, logging, secrets, ML.NET concurrency, the Ponytail minimal-change rules, which docs sources to query, and which dependencies are allowed or forbidden. Use when writing or reviewing C# code, adding a DTO, handling an error or a configuration value, adding logging, touching secrets or credentials, using ML.NET, looking up a library API, or adding a package.
 ---
 
 # .NET coding rules
 
-Related: [architecture](../sitesense-architecture/SKILL.md) · [security](../sitesense-security/SKILL.md) · [stack](../sitesense-stack/SKILL.md) · [testing](../sitesense-testing/SKILL.md) · [context](../sitesense-context/SKILL.md)
+Related: [architecture](../sitesense-architecture/SKILL.md) · [security](../sitesense-security/SKILL.md) · [testing](../sitesense-testing/SKILL.md) · [context](../sitesense-context/SKILL.md)
 
 ## 1. Language and project settings
 
@@ -125,3 +125,27 @@ Look up the docs before you write code that uses a library API. Prefer the docs 
 - Microsoft Learn MCP: search first, then fetch the page.
 - Context7: resolve the library id, then query it.
 - No result in those: try another docs MCP, then a web search.
+
+## 14. Dependencies
+
+The stack is listed in the README. These rules decide what may be added.
+
+### Forbidden
+
+| Forbidden | Why | Instead |
+|---|---|---|
+| Any database for domain data (SQL, NoSQL, LiteDB, SQLite, EF Core and similar) | Domain data lives only in our JSON document store. | The document store ([architecture](../sitesense-architecture/SKILL.md)). |
+| Ready-made routing or graph libraries (e.g. QuickGraph, routing engines) | We write the algorithms. | Our own graph and Dijkstra or A*. |
+| Ready-made map-matching, Kalman or filter libraries | We write the algorithms. | Our own snapping, filters and hysteresis. |
+| NetTopologySuite graph or routing features | NTS is for geometry primitives only. | `Intersects`, `Distance`, `Contains` and similar. |
+| Any ML library other than ML.NET for anomaly detection | ML.NET is required. | `Microsoft.ML`, `Microsoft.ML.TimeSeries`. |
+
+Hangfire's own job storage is chosen separately (Q08); it never holds domain data.
+
+### Adding a package
+
+1. Not in the forbidden list above.
+2. Justify it under `Dependencies:` in the PR's "What it touches" ([clear-description](../clear-description/SKILL.md)): what it replaces, why the BCL or an existing package does not cover it, its licence.
+3. Exact version, no floating versions (`*`, `1.*`) or open ranges. **Proposed:** all versions in `Directory.Packages.props` (central package management).
+4. Container images pinned by tag, never `latest` (Keycloak included).
+5. A new area (not just a new package) gets an ADR ([AI process](../ai-process/SKILL.md)).
