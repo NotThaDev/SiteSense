@@ -11,7 +11,6 @@ description: >-
 
 # AI process
 
-Source: the spec §2 (rules), §9.2 (docs list) and §10 (AI_LOG format).
 Definition of done, branches and PRs: `../delivery-workflow/SKILL.md`.
 Coding rules for subagents: `../dotnet-coding/SKILL.md`.
 
@@ -178,7 +177,7 @@ ADR file names: four-digit number, then a short slug, for example `docs/adr/0001
 - Status: Open | Accepted | Changed
 ```
 
-### AI_LOG.md entry (spec §10)
+### AI_LOG.md entry
 
 ```markdown
 ## <date> — <story or decision>
