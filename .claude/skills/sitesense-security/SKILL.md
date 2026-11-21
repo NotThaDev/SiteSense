@@ -92,7 +92,12 @@ Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 
 ## SignalR
 
-**Proposed:** hub groups: one per tenant and site (`tenant:{tenantId}:site:{siteId}`), plus a role sub-group.
+**Decided (Q63):** one hub group per tenant, site and role: `tenant:{tenantId}:site:{siteId}:role:{role}`.
+
+- On connect the hub requires `CanSeeAggregates`; tenant and role come from the token only. Browsers send the token as `access_token` in the query string, read only for the hub path.
+- The client asks to join a site; the server checks the site belongs to the caller's tenant (otherwise rejects), then adds the connection to its role group.
+- Events are sent once per target group; SignalR delivers to each connection. A Viewer is never in a Safety group, so individual data cannot reach it.
+- Connections close when the token expires (`CloseOnAuthenticationExpiration`); the client reconnects with a new token and joins again.
 
 | Event | Audience |
 |---|---|
