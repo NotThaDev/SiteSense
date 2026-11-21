@@ -97,7 +97,7 @@ Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 | `PositionUpdated` | `Safety` only |
 | `OccupancyChanged` | All user roles |
 | `AlertRaised` | **Proposed (inferred from PRV-03):** `Safety` only |
-| `ZoneAnomaly` for `Viewer` | **Proposed (Q36, open):** `Viewer` gets only `ZoneAnomaly`, with `deviceId` removed |
+| `AlertRaised` of type `ZoneAnomaly` | **Proposed (Q36, open):** also sent to `Viewer`, with `deviceId` removed. Other alert types stay `Safety` only. |
 
 Rules:
 - A user gets events of its own tenant only (RTM-01).
