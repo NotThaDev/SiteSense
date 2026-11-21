@@ -21,11 +21,6 @@ It pushes real-time events and enforces strict tenant isolation and privacy. Git
   with a recommended one. The user decides; only then record their decision in `ASSUMPTIONS.md`
   (format in `ai-process`).
 
-## Private folder
-- `local/` is a private, git-excluded working folder (notes and the original brief).
-- Never commit anything under `local/`.
-- Never quote it verbatim.
-
 ## Skills live in the repo
 - Skills sit in `.claude/skills/`, so reviewers see the AI process.
 - **Proposed (Q56, open):** personal rules stay in the user's own config, not in the repo.
