@@ -3,7 +3,7 @@
 ## What SiteSense is
 Multi-tenant .NET 10 backend for GPS tracking of workers on outdoor sites.
 It imports site maps, ingests and filters positions, routes pedestrians (including evacuation), and detects anomalies with ML.NET.
-It pushes real-time events and enforces strict tenant isolation and privacy. This is a technical test; git history must be preserved (no squash, no rewrite).
+It pushes real-time events and enforces strict tenant isolation and privacy. Git history must be preserved (no squash, no rewrite).
 
 ## Language
 - Everything in English: code, comments, commits, PRs, issues, reviews, docs, skills.
