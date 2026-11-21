@@ -21,7 +21,7 @@ description: >-
 
 | Role | Can do | Cannot do |
 |---|---|---|
-| `Admin` | Manage sites, maps, devices. Use test endpoints (when test mode is on). | **Proposed (Q09, open):** see individual positions, tracks or alerts by default (privacy). |
+| `Admin` | Manage sites, maps, devices. Use test endpoints (when test mode is on). | See individual positions, tracks or alerts (**Decided, Q09:** roles are separate, for privacy). A user who needs both gets both roles. |
 | `Safety` | See individual positions, tracks, alerts. Routing and occupancy. | Manage sites and maps. |
 | `Viewer` | See aggregates only: occupancy. Routing. | See positions, tracks or device IDs. |
 | Gateway client | Post position batches (`positions:write`). | Anything else. |
@@ -46,7 +46,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
 | `POST /api/v1/positions` | `CanWritePositions` |
-| `POST /api/v1/sites/{siteId}/routes` | `CanSeeAggregates` (covers all user roles; **Proposed (Q09, open):** a separate navigation policy later) |
+| `POST /api/v1/sites/{siteId}/routes` | `CanSeeAggregates` (covers all user roles) |
 | `POST /api/v1/sites/{siteId}/evacuation-route` | `CanSeeAggregates` (same note as routes) |
 | `GET /api/v1/sites/{siteId}/occupancy` | `CanSeeAggregates` |
 | `GET /api/v1/devices/{deviceId}/track` | `CanSeeIndividuals` |
