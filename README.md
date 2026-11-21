@@ -25,18 +25,22 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
 
 ## Tech stack
 
-| Area | Technology |
-|---|---|
-| Runtime | .NET 10 (LTS), C#, ASP.NET Core |
-| Real time | ASP.NET Core SignalR |
-| Background jobs | Hangfire |
-| AI | ML.NET (`Microsoft.ML`, `Microsoft.ML.TimeSeries`) |
-| Geometry | NetTopologySuite, ProjNet |
-| Identity | OIDC / OAuth2 with JWT; Keycloak in a container (proposed, Q03) |
-| Storage | Custom JSON document store on the file system |
-| Infrastructure | Docker Compose |
-| Tests | xUnit, `WebApplicationFactory`, `FakeTimeProvider` |
+<p align="center">
+  <img src="https://img.shields.io/badge/.NET%2010-161b22?style=for-the-badge&logo=dotnet&logoColor=9780E5" alt=".NET 10">
+  <img src="https://img.shields.io/badge/C%23-161b22?style=for-the-badge&logo=dotnet&logoColor=C77DD2" alt="C#">
+  <img src="https://img.shields.io/badge/ASP.NET%20Core-161b22?style=for-the-badge&logo=dotnet&logoColor=9780E5" alt="ASP.NET Core">
+  <img src="https://img.shields.io/badge/SignalR-161b22?style=for-the-badge&logo=dotnet&logoColor=9780E5" alt="SignalR">
+  <img src="https://img.shields.io/badge/ML.NET-161b22?style=for-the-badge&logo=dotnet&logoColor=9780E5" alt="ML.NET">
+  <img src="https://img.shields.io/badge/Hangfire-161b22?style=for-the-badge" alt="Hangfire">
+  <img src="https://img.shields.io/badge/NetTopologySuite-161b22?style=for-the-badge" alt="NetTopologySuite">
+  <img src="https://img.shields.io/badge/ProjNet-161b22?style=for-the-badge" alt="ProjNet">
+  <img src="https://img.shields.io/badge/Keycloak%20%28proposed%29-161b22?style=for-the-badge&logo=keycloak&logoColor=white" alt="Keycloak (proposed)">
+  <img src="https://img.shields.io/badge/Docker%20Compose-161b22?style=for-the-badge&logo=docker&logoColor=2496ED" alt="Docker Compose">
+  <img src="https://img.shields.io/badge/JSON%20document%20store-161b22?style=for-the-badge&logo=json&logoColor=F7DF1E" alt="JSON document store">
+  <img src="https://img.shields.io/badge/xUnit-161b22?style=for-the-badge" alt="xUnit">
+</p>
 
+Identity: OIDC / OAuth2 with JWT; the identity provider is still open (Q03). Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
 Routing, filtering and area-assignment algorithms are written in-house, not taken from ready-made libraries.
 
 ## Status
