@@ -1,10 +1,10 @@
 ---
 name: delivery-workflow
 description: >-
-  Git and delivery process for SiteSense: branches, commits, draft PRs, review
-  before commit, merge strategy, definition of done, and closing steps (tag
+  Git and delivery process for SiteSense: branches, commits, draft PRs, merge
+  strategy, definition of done, and closing steps (tag
   v1.0, delivery ZIP check). Use when creating a branch, committing, opening or
-  merging a PR, running a review, closing a story, or preparing the delivery ZIP.
+  merging a PR, closing a story, or preparing the delivery ZIP.
 ---
 
 # Delivery workflow
@@ -27,8 +27,7 @@ flowchart LR
   A["Issue SS-n"] --> B["Branch from updated main"]
   B --> C["Small commits"]
   C --> D["Draft PR with Closes #n"]
-  D --> E["Review and fixes"]
-  E --> F["Ready, then merge commit"]
+  D --> F["Ready, then merge commit"]
   F --> G["Delete branch"]
 ```
 
@@ -59,7 +58,7 @@ Example message (blank lines are required):
 ```text
 docs(skills): add delivery workflow (SK-9)
 
-Branches, commits, review and closing steps.
+Branches, commits and closing steps.
 ```
 
 ## History
@@ -79,55 +78,8 @@ Branches, commits, review and closing steps.
 
 1. Push the branch. Open the PR as draft against `main`.
 2. Body follows `../clear-description/SKILL.md`.
-3. Review (below). Fix or report every must-fix item.
-4. Tick all "Things to check" items. Mark the PR ready.
-5. Merge (see History).
-
-## Review before commit
-
-Run before every commit, and on request.
-
-1. Run `ponytail:ponytail-review` and `code-review` on the same target (staged diff or PR).
-2. Merge both outputs into one report. Remove duplicates. Sort by severity, most severe first.
-3. Fix the must-fix items, or report them, before committing.
-
-### PR comment format
-
-Post the merged report as one PR comment:
-
-```markdown
-## Code review results
-
-🔴 Must fix
-1. `path:line`: problem, what breaks. Fix: ...
-
-🟡 Should fix
-1. `path:line`: problem. Fix: ...
-
-Follow-up
-- ...
-
----
-✅ Yes · ⚠️ Yes, after the must-fix items · ❌ No: one sentence why
-```
-
-| Rule | Detail |
-|---|---|
-| Empty lists | leave them out |
-| Verdict | exactly one of the three verdict lines |
-| GitHub Action | the tracking comment is the report |
-
-## Deep check
-
-Offer after a feature is finished: "Run a deep check?" If yes:
-
-| Step | Agent | Model | Job |
-|---|---|---|---|
-| 1 | review | opus | full review, all findings |
-| 2 | verify | sonnet | drop wrong or low-value findings |
-| 3 | review | same agent | apply confirmed fixes |
-
-Report: counts of found, dropped and changed findings.
+3. Tick all "Things to check" items. Mark the PR ready.
+4. Merge (see History).
 
 ## Definition of done
 
