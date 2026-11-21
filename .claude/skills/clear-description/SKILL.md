@@ -87,7 +87,7 @@ flowchart LR
 
   | Risk | Example mitigation |
   |---|---|
-  | Contract break (field names in spec §7) | contract test on the changed endpoint |
+  | Contract break (contract field names) | contract test on the changed endpoint |
   | Tenant leak | tenant filter in the query and a test for another tenant |
   | Data loss on crash | atomic write, see [sitesense-architecture](../sitesense-architecture/SKILL.md) |
   | Late data duplicates | idempotency key, see [sitesense-architecture](../sitesense-architecture/SKILL.md) |
@@ -113,7 +113,7 @@ Do this right after each verification step, not once at the end. When everything
 
 ## Screenshots
 
-- Only for visible changes. Demo client and map UI only (see spec §5.12, API-06). Real screens of the page, not a cropped component or a mock-up.
+- Only for visible changes. Demo client and map UI only (API-06). Real screens of the page, not a cropped component or a mock-up.
 - Desktop (800 px viewport) and mobile (375 px preset). Hide dev overlays first.
 - Save the files, then attach them to the PR:
 
