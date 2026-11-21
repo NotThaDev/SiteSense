@@ -26,6 +26,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: IDN-02, IDN-03
 - Status: Accepted
 
+## Q36 — Does `AlertRaised` reach the Viewer?
+- Assumption: no. Alerts are for Safety only, in real time (`AlertRaised`) and over REST, for every alert type including `ZoneAnomaly`. Admin and Viewer get `OccupancyChanged` only.
+- Why: only Safety can list alerts, so a Viewer would receive alerts it can never read back or recover after a disconnect. Occupancy updates already show when an area fills up.
+- Requirement IDs: RTM-01, RTM-02, PRV-03
+- Status: Accepted
+
 ## Q59 — How does the API know the tenant of a gateway client?
 - Assumption: the gateway access token carries a `tenant_id` claim, added by a hardcoded-claim mapper on each gateway client in the realm. The API reads the tenant from the token for users and gateways alike, never from the request.
 - Why: each gateway belongs to exactly one tenant, but a client-credentials token has no user, so no tenant claim by default. One claim keeps one code path.
