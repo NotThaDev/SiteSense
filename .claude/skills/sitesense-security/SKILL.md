@@ -65,7 +65,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 |---|---|---|
 | Resource belongs to another tenant | `404` (same as not found) | IDN-02 |
 | Position batch whose `deviceId` is not registered, or belongs to another tenant | Whole batch rejected with `404`; nothing stored | IDN-02, decided |
-| Right tenant, role too low | `403` **Proposed (Q10, open)** | — |
+| Right tenant, role too low | `403` Forbidden | Q10, decided |
 | Authorization in code | Named policies only (`RequireAuthorization("…")`). Never `IsInRole` or role strings in handlers. | IDN-03 |
 | Tenant filter | In the store or query layer, applied to every read and write. Not ad hoc in handlers. | IDN-02 |
 
