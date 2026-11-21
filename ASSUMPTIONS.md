@@ -9,9 +9,15 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q09 — Does Admin also see individual positions, tracks and alerts?
-- Assumption: no. Roles are separate: Admin manages sites, maps and devices; Safety sees individual data; Viewer sees aggregates only. A user who needs both gets both roles.
+- Assumption: no. Roles are separate: Admin manages sites, maps and devices; Safety sees individual data; Viewer sees aggregates only.
 - Why: the requirements give individual data to Safety only and define no role hierarchy; separate roles expose personal movement data to fewer people.
 - Requirement IDs: IDN-01, IDN-03, PRV-03
+- Status: Accepted
+
+## Q61 — Can a user have more than one role?
+- Assumption: no. Each user has exactly one role: Admin, Safety or Viewer. There is no super user in the realm.
+- Why: the requirements never combine roles and speak of a user's role in the singular (RTM-01); one role per user cannot conflict with "Viewer never sees individual data" (PRV-03). Authorization goes through policies, so allowing several roles later needs no code change.
+- Requirement IDs: IDN-01, IDN-03, PRV-03, RTM-01
 - Status: Accepted
 
 ## Q59 — How does the API know the tenant of a gateway client?
