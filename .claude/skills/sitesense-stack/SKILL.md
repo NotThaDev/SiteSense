@@ -9,7 +9,6 @@ description: >-
 
 # SiteSense stack
 
-Source: the spec §3 (stack) and §9.2 (repository contents).
 Architecture and folder layout: `../sitesense-architecture/SKILL.md`.
 Coding rules: `../dotnet-coding/SKILL.md`. Test tools: `../sitesense-testing/SKILL.md`.
 
@@ -48,11 +47,11 @@ Rules for this table:
 
 | Forbidden | Why | Instead |
 |---|---|---|
-| Any database for domain data (SQL, NoSQL, LiteDB, SQLite, EF Core, and similar) | Spec §3: domain data lives only in the JSON store. | Document store in `sitesense-architecture` (JSON files). |
+| Any database for domain data (SQL, NoSQL, LiteDB, SQLite, EF Core, and similar) | Domain data lives only in the JSON store. | Document store in `sitesense-architecture` (JSON files). |
 | Ready-made routing or graph libraries (for example QuickGraph or routing engines) | We write the algorithms. | Our own graph and Dijkstra or A* code. |
 | Ready-made map-matching, Kalman or filter libraries | We write the algorithms. | Our own snapping, filters and hysteresis. |
 | NetTopologySuite graph or routing features | NTS is for primitives only. | `intersects`, `distance`, `contains` and similar. |
-| Any ML library other than ML.NET for anomaly detection | Spec §3 names ML.NET. | `Microsoft.ML` and `Microsoft.ML.TimeSeries`. |
+| Any ML library other than ML.NET for anomaly detection | ML.NET is required. | `Microsoft.ML` and `Microsoft.ML.TimeSeries`. |
 
 **Proposed:** the NTS reading above (primitives only, no graph or routing features). Accept or change.
 
@@ -60,7 +59,7 @@ Exception: Hangfire's own storage may use a database if §4 chooses one. It neve
 
 ## 4. Hangfire storage
 
-Spec §3 leaves the storage open. It must be justified in the README (spec §9.2).
+The storage choice is open. It must be justified in the README.
 
 **Proposed (Q08, open):** `Hangfire.InMemory`.
 
@@ -75,8 +74,8 @@ Spec §3 leaves the storage open. It must be justified in the README (spec §9.2
 
 **Proposed (Q03, open):** Keycloak in a container.
 
-- The realm export is loaded at startup (IDN-04). It lives in the repo (spec §9.2).
-- Alternative allowed by spec §3: OpenIddict inside the API. Switching is an ADR, not a silent change.
+- The realm export is loaded at startup (IDN-04). It lives in the repo.
+- Allowed alternative: OpenIddict inside the API. Switching is an ADR, not a silent change.
 - Roles, clients and token claims: `../sitesense-security/SKILL.md`.
 
 ## 6. New dependency rule
@@ -96,7 +95,7 @@ If the dependency is a new area (not a new package in an existing area), record 
 ## 7. Docker Compose
 
 - `docker-compose.yml` and the Dockerfiles live in the repo root (layout: `../sitesense-architecture/SKILL.md`).
-- `.env.example` lists every variable the compose file reads (spec §9.2).
+- `.env.example` lists every variable the compose file reads.
 - Images are pinned by tag (§2).
 
 ## 8. Checklist for a stack change
