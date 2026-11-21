@@ -63,12 +63,12 @@ Summary:
 
 | Format | Key rules |
 |---|---|
-| Site JSON (§6.1) | Fields: `siteId`, `name`, `timeZone` (IANA), `mapFile`, `navigation` with `walkingSpeedMps`, `unpavedSpeedFactor`, `stepsSpeedFactor`, `connectToleranceM`, `maxSnapDistanceM`. |
-| Map GeoJSON (§6.2) | RFC 7946 `FeatureCollection`, WGS84, order `[lon, lat]`. Element type in property `kind`: `area` (Polygon), `path` (LineString), `assemblyPoint` (Point), `entrance` (Point). Required props: `area`: `id`, `name`, `areaType` (`perimeter`, `work`, `rest`, `parking`, `restricted`, `hazard`), optional `capacity`; `path`: `id`, `surface` (`paved`, `unpaved`), `steps` (bool), `slopePercent`, `widthM`; `assemblyPoint`: `id`, `name`, `capacity`; `entrance`: `id`, `name`. |
+| Site JSON | Fields: `siteId`, `name`, `timeZone` (IANA), `mapFile`, `navigation` with `walkingSpeedMps`, `unpavedSpeedFactor`, `stepsSpeedFactor`, `connectToleranceM`, `maxSnapDistanceM`. |
+| Map GeoJSON | RFC 7946 `FeatureCollection`, WGS84, order `[lon, lat]`. Element type in property `kind`: `area` (Polygon), `path` (LineString), `assemblyPoint` (Point), `entrance` (Point). Required props: `area`: `id`, `name`, `areaType` (`perimeter`, `work`, `rest`, `parking`, `restricted`, `hazard`), optional `capacity`; `path`: `id`, `surface` (`paved`, `unpaved`), `steps` (bool), `slopePercent`, `widthM`; `assemblyPoint`: `id`, `name`, `capacity`; `entrance`: `id`, `name`. |
 | Map guarantees | Test maps guarantee: one perimeter containing all areas, no overlapping non-perimeter areas, valid geometry. Do not spend effort re-checking these. |
 | Map checks we must do | Required props present; perimeter present and single; assembly points lie on a path (entrances: guaranteed by the input maps). Errors go back as 422 (see contract). |
 | Path rule | A segment (between two consecutive vertices) that crosses a `restricted` or `hazard` area is not walkable. |
-| Position batch (§6.3) | `deviceId`, `positions[{timestampMs, lat, lon, accuracyM}]`. Unordered, duplicates possible, up to 5000 items, may be hours old. Timestamp decides order. |
+| Position batch | `deviceId`, `positions[{timestampMs, lat, lon, accuracyM}]`. Unordered, duplicates possible, up to 5000 items, may be hours old. Timestamp decides order. |
 
 ## Contract
 
@@ -109,7 +109,7 @@ Occupancy is computed at the simulated time, not at wall-clock time.
 | Time instants | milliseconds since Unix epoch, UTC (`long`) |
 | Geometry math | local metric projection (MAP-02) |
 
-All time-dependent logic uses the injected clock, so the test clock drives it (§7.2).
+All time-dependent logic uses the injected clock, so the test clock drives it.
 How to inject it: `../dotnet-coding/SKILL.md`.
 
 ## Priorities and evaluation
@@ -120,26 +120,26 @@ How to inject it: `../dotnet-coding/SKILL.md`.
   - anomaly detection: effectiveness and written rationale;
   - correctness under stress: concurrency, crash, duplicate and late data;
   - design quality and rationale;
-  - exact formats and contract (§6, §7), checked with test data.
+  - exact formats and contract, checked with test data.
 - A small, solid, well-argued subset beats a broad, fragile one. Quantity of features counts least.
 
 ## Requirement ID prefixes
 
 | Prefix | Area |
 |---|---|
-| IDN | Identity and multi-tenancy (§5.1) |
-| JDB | JSON document store (§5.2) |
-| MAP | Site map import and geometry (§5.3) |
-| NAV | Navigation and routing (§5.4) |
-| TRK | Position reception and tracking (§5.5) |
-| AI | Anomaly detection with ML.NET (§5.6) |
-| EVT | Events and alerts (§5.7) |
-| PRV | Privacy (§5.8) |
-| JOB | Background jobs (§5.9) |
-| RTM | Real-time SignalR (§5.10) |
-| SIM | Device simulator (§5.11) |
-| API | HTTP API (§5.12) |
-| NF | Non-functional (§8) |
+| IDN | Identity and multi-tenancy |
+| JDB | JSON document store |
+| MAP | Site map import and geometry |
+| NAV | Navigation and routing |
+| TRK | Position reception and tracking |
+| AI | Anomaly detection with ML.NET |
+| EVT | Events and alerts |
+| PRV | Privacy |
+| JOB | Background jobs |
+| RTM | Real-time SignalR |
+| SIM | Device simulator |
+| API | HTTP API |
+| NF | Non-functional |
 
 Cite requirement IDs in PR descriptions and commit bodies.
 
