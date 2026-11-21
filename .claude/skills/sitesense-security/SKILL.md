@@ -79,12 +79,12 @@ Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 
 ## Privacy
 
-| Rule | Meaning | Source |
-|---|---|---|
-| PRV-01 | Devices are pseudonymous. No worker names or identifying data stored. | §5.8 |
-| PRV-02 | Positions outside the site perimeter are dropped before storage. Never stored. Never logged with coordinates. | §5.8 |
-| PRV-03 | `Viewer` sees aggregates only. Never positions, tracks or device IDs. | §5.8 |
-| PRV-04 | Positions are deleted after a per-tenant number of days (retention job). | §5.8, JOB-04 |
+| Rule | Meaning |
+|---|---|
+| PRV-01 | Devices are pseudonymous. No worker names or identifying data stored. |
+| PRV-02 | Positions outside the site perimeter are dropped before storage. Never stored. Never logged with coordinates. |
+| PRV-03 | `Viewer` sees aggregates only. Never positions, tracks or device IDs. |
+| PRV-04 | Positions are deleted after a per-tenant number of days (retention job). |
 | Logs | **Proposed:** no individual coordinates in logs at Information level. | — |
 
 ## SignalR
