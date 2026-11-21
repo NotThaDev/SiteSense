@@ -161,14 +161,12 @@ A story is done only when all rows pass.
 |---|---|
 | `docker-compose.yml` and Dockerfiles | starts the whole system |
 | IdP realm export (Keycloak) | imported automatically at start (IDN-04) |
-| Simulator | spec §5.11 |
-| Demo client | spec §5.10 |
-| Tests | spec §8 (NF-02) |
+| Simulator | console app, N devices, authenticates as gateway (SIM-01) |
+| Demo client | minimal static HTML page or console app showing real-time events |
+| Tests | automated tests (NF-02) |
 | `verify.env` | repo root |
 | `.env.example` | every variable read by compose; includes `SITESENSE_TEST_MODE=false` |
 | `.http` file or Postman collection | tries the API |
 | `data/` | site JSON, GeoJSON map, download or convert scripts |
 | `README.md` | start, test credentials, tests, simulator, benchmark, Hangfire storage rationale |
 | Docs | docs files: see `../ai-process/SKILL.md` |
-
-Spec §9 is the source for the ZIP and the repo contents.
