@@ -21,7 +21,7 @@ The backend must:
 5. raise and push events in real time;
 6. isolate tenants and protect worker privacy.
 
-Source of truth: the spec (private, git-excluded `local/` folder). Cite it as "the spec §N".
+Source of truth: the spec. Cite it as "the spec §N".
 
 ## Data flow
 
