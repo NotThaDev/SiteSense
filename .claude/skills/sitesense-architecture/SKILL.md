@@ -6,19 +6,19 @@ description: >-
 
 # SiteSense architecture
 
-> **Status: provisional.** The project list is provisional until **Q01** and the structure review are closed. Update this file in the same PR that changes the structure.
+> **Status: provisional.** The project list is provisional until the structure review is closed (Q01 is decided). Update this file in the same PR that changes the structure.
 
 Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-security/SKILL.md) · [stack](../sitesense-stack/SKILL.md) · [coding](../dotnet-coding/SKILL.md) · [testing](../sitesense-testing/SKILL.md) · [AI process](../ai-process/SKILL.md) · [delivery](../delivery-workflow/SKILL.md)
 
 ## 1. Process model
 
-**Proposed (Q01, open):**
+**Decided (Q01):** everything runs in one program.
 
 | Item | Rule |
 |---|---|
-| Store owner | One process owns the document store. |
+| Store owner | One process owns the document store, through a single store service registered as a singleton. Nothing else reads or writes the files. |
 | API process | Hosts ingest, the Hangfire server and SignalR. |
-| Worker process | Add only if some data reaches the store without going through the API. |
+| Worker | Not a separate program. The "worker" (NF-01) is the background processing hosted in the API process: hosted background services for ingest plus the Hangfire server for jobs. Both use the same store singleton. |
 | Simulator and demo client | Separate apps. They talk to the API over HTTP and SignalR only. |
 
 ## 2. Layers and dependency rules
@@ -104,4 +104,4 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 ## 8. Keep this file current
 
 - Same PR: any change to layers, projects, folders or these recipes updates this file.
-- Remove the status banner only after Q01 and the structure review close.
+- Remove the status banner only after the structure review closes.
