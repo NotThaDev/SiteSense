@@ -2,6 +2,12 @@
 
 Points the requirements leave open, and what we decided. Each decision is taken by the project owner before it is recorded here.
 
+## Q01 — Are the API and the worker one process or two?
+- Assumption: one process. The API process hosts the endpoints, the background processing of positions (hosted background services), the Hangfire server and SignalR. The "worker" named in NF-01 is that background processing, not a separate program. One store service, registered as a singleton, is the only code that reads or writes the store files.
+- Why: the store is only required to be thread-safe within a single process (JDB-04); two processes writing the same files would need cross-process locks. One process also keeps the simulated clock, `test/drain`, on-demand job runs and SignalR in one place, with no extra infrastructure.
+- Requirement IDs: NF-01, JDB-02, JDB-03, JDB-04, NF-05
+- Status: Accepted
+
 ## Q03 — Which identity provider: Keycloak or OpenIddict?
 - Assumption: Keycloak in a container, with the realm (tenants, users, roles, clients) imported at startup.
 - Why: password grant and client credentials come from configuration, with no auth server code to write and test.
