@@ -24,7 +24,7 @@ Coding rules: `../dotnet-coding/SKILL.md`. Test tools: `../sitesense-testing/SKI
 | Anomaly detection (AI) | ML.NET | `Microsoft.ML`, `Microsoft.ML.TimeSeries` | pin at scaffold | https://learn.microsoft.com/dotnet/machine-learning/tutorials/phone-calls-anomaly-detection |
 | Geometry primitives | NetTopologySuite | `NetTopologySuite` | pin at scaffold | https://github.com/NetTopologySuite/NetTopologySuite |
 | Projections | ProjNet | `ProjNet` (GeoAPI port) | pin at scaffold | https://github.com/NetTopologySuite/ProjNet4GeoAPI |
-| Identity provider | **Proposed (Q03, open):** Keycloak in a container | Keycloak image | pin at scaffold (image tag) | https://www.keycloak.org/documentation |
+| Identity provider | Keycloak in a container (Q03, decided) | Keycloak image | pin at scaffold (image tag) | https://www.keycloak.org/documentation |
 | Containers | Docker Compose | `docker-compose.yml` + Dockerfiles | pin at scaffold | https://docs.docker.com/compose/ |
 | Tests | xUnit, time testing, HTTP integration | `xunit`, `Microsoft.Extensions.TimeProvider.Testing`, `Microsoft.AspNetCore.Mvc.Testing` | pin at scaffold | see `../sitesense-testing/SKILL.md` |
 
@@ -72,7 +72,7 @@ The storage choice is open. It must be justified in the README.
 
 ## 5. Identity provider
 
-**Proposed (Q03, open):** Keycloak in a container.
+**Decided (Q03):** Keycloak in a container. It gives password grant and client credentials from configuration, with no auth server code to write.
 
 - The realm export is loaded at startup (IDN-04). It lives in the repo.
 - Allowed alternative: OpenIddict inside the API. Switching is an ADR, not a silent change.
