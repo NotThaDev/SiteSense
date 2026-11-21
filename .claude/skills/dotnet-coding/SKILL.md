@@ -83,7 +83,7 @@ Contract-fixed codes and shapes (422, 412, 404): `../sitesense-context/SKILL.md`
 
 - No secrets in code, in `appsettings*.json`, or in any committed file.
 - Read secrets from environment variables. Map them into options.
-- The only credentials allowed in the repository are the test credentials in the spec §7.1 (NF-04).
+- The only credentials allowed in the repository are the test credentials listed in [security](../sitesense-security/SKILL.md) (NF-04).
 - Other files that hold test identities: [security](../sitesense-security/SKILL.md) lists them and links here.
 
 ## 10. Concurrency
