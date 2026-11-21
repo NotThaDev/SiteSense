@@ -40,6 +40,6 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
   <img src="https://img.shields.io/badge/xUnit-161b22?style=for-the-badge" alt="xUnit">
 </p>
 
-Identity: OIDC / OAuth2 with JWT; the identity provider is still open (Q03). Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
+Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
 Routing, filtering and area-assignment algorithms are written in-house, not taken from ready-made libraries.
 
