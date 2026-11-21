@@ -21,7 +21,6 @@ Every area below needs at least the listed tests. Each story PR lists the tests 
 | Store | Concurrent writers with version conflict. Consistency after a crash. | JDB-02, JDB-03, JDB-04 | SS-x, TBD when the backlog is approved |
 | API | At least one end-to-end integration test. At least one tenant-isolation test (other tenant gets 404). | NF-02, IDN-02 | SS-x, TBD when the backlog is approved |
 
-- Requirement IDs and status codes come from the spec §5 and §8. Do not copy the wording.
 - Error codes (`elementId`, `reason`, `START_TOO_FAR`, `UNREACHABLE`) and their shapes: [context](../sitesense-context/SKILL.md).
 
 ## 2. Tools
@@ -80,7 +79,7 @@ Commands are placeholders until the solution exists. Update this section in the 
 | Run one area | `dotnet test --filter "FullyQualifiedName~Tracking"` |
 | Benchmark (JDB-09) | **TBD:** command. Results go to `docs/RESULTS.md`. |
 
-- JDB-09 (SHOULD): 100 positions per second for 10 minutes without losing any position. A device trace for one hour loads in under 200 ms. Provide a repeatable benchmark (spec §5.2).
+- JDB-09 (SHOULD): 100 positions per second for 10 minutes without losing any position. A device trace for one hour loads in under 200 ms. Provide a repeatable benchmark.
 
 ## 8. Definition of done
 
