@@ -49,3 +49,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: logs live outside role checks and retention, so everyday logs must not hold movement data; `Debug` keeps a way to diagnose the filters. Outside-perimeter positions must never be stored, and a log file is storage.
 - Requirement IDs: PRV-01, PRV-02, PRV-04, NF-03
 - Status: Accepted
+
+## Q63 — How are SignalR groups organised?
+- Assumption: one group per tenant, site and role, named `tenant:{tenantId}:site:{siteId}:role:{role}`. The server adds a connection to its role group when the client joins a site, after checking the site belongs to the token's tenant. Each event is sent only to the role groups allowed to see it.
+- Why: site IDs are not unique across tenants, so the tenant must be part of the name; groups cannot be intersected, so the role is part of the name too. Filtering at join time means a send can never reach a role that must not see it.
+- Requirement IDs: RTM-01, RTM-02, PRV-03
+- Status: Accepted
