@@ -12,14 +12,14 @@ Related: [architecture](../sitesense-architecture/SKILL.md) · [coding](../dotne
 
 Every area below needs at least the listed tests. Each story PR lists the tests it adds.
 
-| Area | Required tests | Requirement IDs | Story |
-|---|---|---|---|
-| Map | Import of our own map from `data/`. Paths joined at a shared vertex. Paths joined by endpoints within tolerance. At least one invalid file gives 422 with `elementId` and `reason`. | MAP-01, MAP-03 | SS-x, TBD when the backlog is approved |
-| Navigation | Restricted and hazard areas are avoided. Nearest assembly point is chosen by time, not distance. Unreachable and too-far start return their error codes. | NAV-02, NAV-04 | SS-x, TBD when the backlog is approved |
-| Tracking | Duplicates recorded once. Out-of-order positions handled. Implausible jump dropped. Noisy area border does not flap. | TRK-01, TRK-02, TRK-03, TRK-04 | SS-x, TBD when the backlog is approved |
-| AI | One anomalous scenario is detected. One normal scenario is not flagged. | AI-01 | SS-x, TBD when the backlog is approved |
-| Store | Concurrent writers with version conflict. Consistency after a crash. | JDB-02, JDB-03, JDB-04 | SS-x, TBD when the backlog is approved |
-| API | At least one end-to-end integration test. At least one tenant-isolation test (other tenant gets 404). | NF-02, IDN-02 | SS-x, TBD when the backlog is approved |
+| Area | Required tests | Requirement IDs |
+|---|---|---|
+| Map | Import of our own map from `data/`. Paths joined at a shared vertex. Paths joined by endpoints within tolerance. At least one invalid file gives 422 with `elementId` and `reason`. | MAP-01, MAP-03 |
+| Navigation | Restricted and hazard areas are avoided. Nearest assembly point is chosen by time, not distance. Unreachable and too-far start return their error codes. | NAV-02, NAV-04 |
+| Tracking | Duplicates recorded once. Out-of-order positions handled. Implausible jump dropped. Noisy area border does not flap. | TRK-01, TRK-02, TRK-03, TRK-04 |
+| AI | One anomalous scenario is detected. One normal scenario is not flagged. | AI-01 |
+| Store | Concurrent writers with version conflict. Consistency after a crash. | JDB-02, JDB-03, JDB-04 |
+| API | At least one end-to-end integration test. At least one tenant-isolation test (other tenant gets 404). | NF-02, IDN-02 |
 
 - Error codes (`elementId`, `reason`, `START_TOO_FAR`, `UNREACHABLE`) and their shapes: [context](../sitesense-context/SKILL.md).
 
