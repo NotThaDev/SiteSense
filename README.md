@@ -34,7 +34,7 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
   <img src="https://img.shields.io/badge/Hangfire-161b22?style=for-the-badge" alt="Hangfire">
   <img src="https://img.shields.io/badge/NetTopologySuite-161b22?style=for-the-badge" alt="NetTopologySuite">
   <img src="https://img.shields.io/badge/ProjNet-161b22?style=for-the-badge" alt="ProjNet">
-  <img src="https://img.shields.io/badge/Keycloak%20%28proposed%29-161b22?style=for-the-badge&logo=keycloak&logoColor=white" alt="Keycloak (proposed)">
+  <img src="https://img.shields.io/badge/Keycloak-161b22?style=for-the-badge&logo=keycloak&logoColor=white" alt="Keycloak">
   <img src="https://img.shields.io/badge/Docker%20Compose-161b22?style=for-the-badge&logo=docker&logoColor=2496ED" alt="Docker Compose">
   <img src="https://img.shields.io/badge/JSON%20document%20store-161b22?style=for-the-badge&logo=json&logoColor=F7DF1E" alt="JSON document store">
   <img src="https://img.shields.io/badge/xUnit-161b22?style=for-the-badge" alt="xUnit">
