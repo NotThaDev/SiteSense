@@ -136,7 +136,7 @@ Do not save secrets, credentials or private material the user asked you not to k
 | `ASSUMPTIONS.md` | Each ambiguous point and the assumption taken | When an assumption is taken | Yes |
 | `KNOWN_ISSUES.md` | Known limits and what to do with more time | At the end of each story, and when a limit is found | Yes |
 | `DATA_SOURCES.md` | Source and licence of each external data item | When external data is added | Yes |
-| `AI_LOG.md` | Significant AI use (format in §10) | At the end of each story | Yes |
+| `AI_LOG.md` | Significant AI use (entry format: section 10 below) | At the end of each story | Yes |
 | `docs/RESULTS.md` | Benchmark results (JDB-09) | Only if JDB-09 is implemented | Conditional |
 
 ADR file names: four-digit number, then a short slug, for example `docs/adr/0001-path-graph-structure.md`.
