@@ -60,8 +60,6 @@ Example message (blank lines are required):
 docs(skills): add delivery workflow (SK-9)
 
 Branches, commits, review and closing steps.
-
-Co-Authored-By: Claude <model> <noreply@anthropic.com>
 ```
 
 ## History
