@@ -41,6 +41,6 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
   <img src="https://img.shields.io/badge/xUnit-161b22?style=for-the-badge" alt="xUnit">
 </p>
 
-Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Hangfire stores its jobs in Redis, so scheduled and queued jobs survive a restart; Redis never holds domain data. Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
+Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Hangfire stores its jobs in Redis through an open-source community storage package (the official Redis storage is commercial). Redis runs with append-only persistence on a volume, so queued and scheduled jobs survive a restart; it never holds domain data. Full rationale: [`ASSUMPTIONS.md`](ASSUMPTIONS.md) (Q08). Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
 Routing, filtering and area-assignment algorithms are written in-house, not taken from ready-made libraries.
 
