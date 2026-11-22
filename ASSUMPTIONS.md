@@ -80,3 +80,48 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: site IDs are not unique across tenants, so the tenant must be part of the name; groups cannot be intersected, so the role is part of the name too. Filtering at join time means a send can never reach a role that must not see it.
 - Requirement IDs: RTM-01, RTM-02, PRV-03
 - Status: Accepted
+
+## Q64 — Are compiler warnings treated as errors?
+- Assumption: no. Warnings stay warnings; `Directory.Build.props` does not set `TreatWarningsAsErrors`.
+- Why: a new analyzer or NuGet advisory warning must not break the build or CI with no code change. Warnings are still shown and fixed in the PR that adds them.
+- Requirement IDs: none (build setting)
+- Status: Accepted
+
+## Q65 — Where are package versions declared?
+- Assumption: central package management. Every version is in `Directory.Packages.props`, exact, with no floating versions or ranges; no `PackageReference` carries a `Version`.
+- Why: one place to see and update every dependency, and the same version in every project.
+- Requirement IDs: none (build setting)
+- Status: Accepted
+
+## Q66 — How many projects does the server have?
+- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in the standard type-based ASP.NET Core folders: `Controllers/`, `Models/` (entities and DTOs; persistence pattern in Q67), `Services/`, `Store/`, `Realtime/`, `BackgroundJobs/`, `Auth/`. One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
+- Folders: `backend/` holds the backend projects (`SiteSense.Domain`, `SiteSense.Api`), `simulator/` holds the simulator, `tests/` holds the test project, and `frontend/` is reserved for the demo client (its own story). The simulator is a separate app, not part of the backend, so it does not sit next to the backend projects. The demo client is a separate app too, so it gets its own `frontend/` folder and never goes under `simulator/`.
+- Api folders: type-based (`Controllers/`, `Models/`, `Services/`, ...) instead of feature folders, so the structure is familiar to reviewers. Feature folders were considered and rejected. Hangfire jobs are trigger-only `<What>Job.cs` classes in `BackgroundJobs/` that call a service or a model method; every recurring schedule is registered in `Program.cs`, one line per job.
+- Why: a separate Domain project keeps the domain pure, enforced by the compiler. Separate Application and Infrastructure projects add ceremony and no value in a single-process app (Q01).
+- Alternatives rejected:
+  - Five projects (Domain, Application, Infrastructure, Api, Simulator) with one test project each: more projects and references to maintain, for boundaries one process does not need.
+  - A single server project: nothing stops domain code from using ASP.NET, IO or the clock.
+- Requirement IDs: NF-01, NF-02
+- Status: Accepted
+
+## Q67 — How do entities reach the store?
+- Assumption: Active Record. Each persisted entity in `SiteSense.Api/Models/` carries `Id`, `TenantId` and `Version` and exposes static async methods for its own persistence and single-entity rules (e.g. `Site.CreateAsync(tenantId, site, ct)`). They call the single generic store through the static context `SiteSenseContext.Store` (`Api/Helpers/SiteSenseContext.cs`), a singleton set once in `Program.cs` and shared by HTTP requests, Hangfire jobs and SignalR (one process, Q01). Controllers call model methods directly; `Services/` holds only multi-entity flows and external engines (position ingest, ML.NET anomaly detection, navigation and evacuation). `SiteSense.Domain` keeps only pure algorithms and geometric primitives, which the models use.
+- Clock: `SiteSenseContext` also exposes `Time`, a `TimeProvider`, set to `TimeProvider.System` in `Program.cs` and replaced by a fake in tests. Models and services read the current time only through it, never through `DateTime.Now` or `DateTimeOffset.UtcNow`. Rejected: passing a `TimeProvider` as a parameter to every method.
+- Tenant safety: every persistence method takes `tenantId` as an explicit parameter, never from an ambient or HTTP context; the store rejects a read or write whose `tenantId` does not match the document.
+- Why: simple and familiar (EF-style entities), chosen by the project owner.
+- Alternatives rejected:
+  - A per-entity service plus a store injected through the constructor: one more class per entity and more wiring, for no gain in one process.
+- Known risks:
+  - Static state: parallel tests would share the store. Tests that touch the store run in one xUnit collection, with `SiteSenseContext.Store` on a temp folder and `SiteSenseContext.Time` on a fake clock.
+  - `tenantId` must always be passed explicitly; a missing or wrong one is caught by the store's tenant check.
+- Requirement IDs: JDB-01, JDB-07, IDN-02
+- Status: Accepted
+
+## Q68 — Are appsettings files committed?
+- Assumption: no. Only `backend/SiteSense.Api/appsettings.example.json` is committed, as the template. `appsettings.json` and `appsettings.*.json` are gitignored. The template is updated in the same PR as any new config key.
+- Why: a real config file can never leak a secret into git, and each developer keeps local values out of the history.
+- Alternatives rejected:
+  - Committing `appsettings.json` without secrets: one mistaken edit puts a secret in git, and local overrides show up as diffs.
+- Known cost: a manual copy step before the first run. Docker compose (SS-1) and the delivery ZIP check must also handle it: compose provides the config through environment variables or the template, and the empty-folder check must start without a hand-made `appsettings.json`.
+- Requirement IDs: NF-04
+- Status: Accepted

@@ -23,6 +23,35 @@ SiteSense is the backend that turns those positions into safety information:
 
 Domain data lives in a custom document store built on JSON files: atomic writes, optimistic concurrency and secondary indexes, with no database.
 
+## Structure
+
+```text
+backend/
+  SiteSense.Domain     pure algorithms: geometry, route finder, GPS filters
+  SiteSense.Api        host: Controllers/, Models/ (entities with static persistence
+                       methods, DTOs), Services/ (multi-entity flows, ML.NET),
+                       Store/ (generic JSON store), Realtime/ (SignalR),
+                       BackgroundJobs/ (Hangfire), Auth/,
+                       Helpers/ (SiteSenseContext: store and clock)
+simulator/
+  SiteSense.Simulator  device simulator (console), a separate app
+frontend/              demo client (reserved, added in its own story)
+tests/
+  SiteSense.Tests      all server tests (xUnit)
+```
+
+Build and test from the repository root: `dotnet build`, `dotnet test`. Full page: [`docs/architecture.md`](docs/architecture.md).
+
+### Run locally
+
+1. Create your local config from the committed template (`appsettings*.json` files are not in git):
+
+   ```bash
+   cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
+   ```
+
+2. Run the API: `dotnet run --project backend/SiteSense.Api`.
+
 ## Tech stack
 
 <p align="center">

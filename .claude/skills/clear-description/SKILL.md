@@ -25,7 +25,7 @@ SS-<n>: <title>. Covers <requirement IDs, e.g. TRK-01, TRK-02>. <One or two sent
 Closes #<n>.
 
 ## What it touches
-- `src/...`: <one line>
+- `backend/...`, `simulator/...`: <one line>
 - `tests/...`: <one line>
 - `data/`: <only if any>
 - `docs/`: <ADR, ASSUMPTIONS, AI_LOG: only if any>

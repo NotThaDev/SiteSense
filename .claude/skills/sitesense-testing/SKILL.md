@@ -70,9 +70,10 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 | Time | `FakeTimeProvider`. Advance it in the test. |
 | Randomness | Fixed seed. Log the seed when a test fails. |
 | Sleeps | None. Wait on a condition or a signal, with a timeout. |
-| Test data | Fixed files under `tests/<Project>.Tests/TestData/` or a small fixture in `data/`. |
+| Test data | Fixed files under `tests/SiteSense.Tests/TestData/` or a small fixture in `data/`. |
 | Order | Tests do not depend on each other or on execution order. |
 | Clock and IO | Use temp folders per test. Clean them up. |
+| Static context | `SiteSenseContext` is static (Q67). Tests that touch it set `SiteSenseContext.Store` to a store on a temp folder and `SiteSenseContext.Time` to a `FakeTimeProvider`, and run in one xUnit collection, so they never run in parallel. |
 
 ## 6. Naming and structure
 
@@ -83,11 +84,12 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 
 ## 7. Commands
 
-Commands are placeholders until the solution exists. Update this section in the PR that creates the solution.
+Run from the repository root (where `SiteSense.slnx` is). CI runs the same build and test on every PR (`.github/workflows/ci.yml`).
 
 | Task | Command |
 |---|---|
-| Run all tests | `dotnet test` (from the solution root) |
+| Build | `dotnet build` |
+| Run all tests | `dotnet test` |
 | Run one area | `dotnet test --filter "FullyQualifiedName~Tracking"` |
 | Benchmark (JDB-09) | **TBD:** command. Results go to `docs/RESULTS.md`. |
 

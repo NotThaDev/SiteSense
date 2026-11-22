@@ -1,0 +1,12 @@
+bin/
+obj/
+node_modules/
+.store/
+TestResults/
+.vs/
+.idea/
+*.user
+.DS_Store
+backend/**/appsettings.json
+backend/**/appsettings.*.json
+!backend/**/appsettings.example.json

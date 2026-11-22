@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/backend/">
+    <Project Path="backend/SiteSense.Api/SiteSense.Api.csproj" />
+    <Project Path="backend/SiteSense.Domain/SiteSense.Domain.csproj" />
+  </Folder>
+  <Folder Name="/simulator/">
+    <Project Path="simulator/SiteSense.Simulator/SiteSense.Simulator.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SiteSense.Tests/SiteSense.Tests.csproj" />
+  </Folder>
+</Solution>

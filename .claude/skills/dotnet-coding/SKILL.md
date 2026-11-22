@@ -13,7 +13,7 @@ Related: [architecture](../sitesense-architecture/SKILL.md) · [security](../sit
 | Rule | Status |
 |---|---|
 | `<Nullable>enable</Nullable>` in every project | Required |
-| `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | **Proposed:** warnings as errors. Accept or change. |
+| Warnings stay warnings: no `TreatWarningsAsErrors` | Decided (Q64) |
 | File-scoped namespaces | Required |
 | Classes are `sealed` unless built for inheritance | **Proposed:** sealed by default. Accept or change. |
 | Records for DTOs and value objects | Required |
@@ -37,7 +37,7 @@ Related: [architecture](../sitesense-architecture/SKILL.md) · [security](../sit
 
 ## 4. Time
 
-- Inject `TimeProvider`. Pass it through constructors.
+- Read time only through `SiteSenseContext.Time` (a `TimeProvider`, set in `Program.cs`). Tests replace it with a fake (Q67).
 - Forbidden: `DateTime.Now`, `DateTime.UtcNow`, `DateTimeOffset.UtcNow`, `Task.Delay` without the provider, `Stopwatch` for business time.
 - Reason: the test clock must drive all time-dependent logic (see [testing](../sitesense-testing/SKILL.md)).
 - Timestamps at the boundary: `long` milliseconds UTC. Convert to `DateTimeOffset` inside the domain only if needed.
@@ -67,6 +67,7 @@ Contract-fixed codes and shapes (422, 412, 404): `../sitesense-context/SKILL.md`
 - Strongly typed options class per section. Bind with the options pattern.
 - `ValidateOnStart()` plus data annotations or a custom validator. The app must fail at start on bad config (NF-04).
 - No magic numbers for tunables: filters, detector windows, thresholds, retention. They live in options.
+- `appsettings*.json` are gitignored; `appsettings.example.json` is the committed template and must stay in sync when a config key is added (Q68).
 
 ## 8. Logging
 
@@ -146,6 +147,6 @@ Hangfire's job storage is Redis (Q08, decided). Redis holds only Hangfire jobs, 
 
 1. Not in the forbidden list above.
 2. Justify it under `Dependencies:` in the PR's "What it touches" ([clear-description](../clear-description/SKILL.md)): what it replaces, why the BCL or an existing package does not cover it, its licence.
-3. Exact version, no floating versions (`*`, `1.*`) or open ranges. **Proposed:** all versions in `Directory.Packages.props` (central package management).
+3. Exact version, no floating versions (`*`, `1.*`) or open ranges. **Decided (Q65):** all versions in `Directory.Packages.props` (central package management); no `Version` on `PackageReference`.
 4. Container images pinned by tag, never `latest` (Keycloak included).
 5. A new area (not just a new package) gets an ADR ([AI process](../ai-process/SKILL.md)).
