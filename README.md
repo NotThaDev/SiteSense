@@ -42,6 +42,17 @@ tests/
 
 Build and test from the repository root: `dotnet build`, `dotnet test`. Full page: [`docs/architecture.md`](docs/architecture.md).
 
+### Run locally
+
+1. Create your local config from the committed template (`appsettings*.json` files are not in git):
+
+   ```bash
+   cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
+   ```
+
+2. Put secrets in environment variables or `dotnet user-secrets`, never in `appsettings.json`.
+3. Run the API: `dotnet run --project backend/SiteSense.Api`.
+
 ## Tech stack
 
 <p align="center">

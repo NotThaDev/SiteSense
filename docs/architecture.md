@@ -69,6 +69,16 @@ flowchart LR
 | `.editorconfig` | Formatting and C# style (suggestions) |
 | `.github/workflows/ci.yml` | Restore, build and test on every PR and on `main` |
 
+## Configuration
+
+Only `backend/SiteSense.Api/appsettings.example.json` is committed; `appsettings.json` and `appsettings.*.json` are gitignored (Q68). Before the first run:
+
+```bash
+cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
+```
+
+Secrets go in environment variables or `dotnet user-secrets`. A new config key is added to `appsettings.example.json` in the same PR.
+
 ## Build and test
 
 ```bash

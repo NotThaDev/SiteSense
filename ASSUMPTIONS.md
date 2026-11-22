@@ -116,3 +116,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - `tenantId` must always be passed explicitly; a missing or wrong one is caught by the store's tenant check.
 - Requirement IDs: JDB-01, JDB-07, IDN-02
 - Status: Accepted
+
+## Q68 — Are appsettings files committed?
+- Assumption: no. Only `backend/SiteSense.Api/appsettings.example.json` is committed, as the template. `appsettings.json` and `appsettings.*.json` are gitignored. Secrets go in environment variables or `dotnet user-secrets`. The template is updated in the same PR as any new config key.
+- Why: a real config file can never leak a secret into git, and each developer keeps local values out of the history.
+- Alternatives rejected:
+  - Committing `appsettings.json` without secrets: one mistaken edit puts a secret in git, and local overrides show up as diffs.
+- Known cost: a manual copy step before the first run. Docker compose (SS-1) and the delivery ZIP check must also handle it: compose provides the config through environment variables or the template, and the empty-folder check must start without a hand-made `appsettings.json`.
+- Requirement IDs: NF-04
+- Status: Accepted
