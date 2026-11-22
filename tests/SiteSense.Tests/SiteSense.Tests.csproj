@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SiteSense.Domain\SiteSense.Domain.csproj" />
+    <ProjectReference Include="..\..\src\SiteSense.Api\SiteSense.Api.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,8 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <ProjectReference Include="..\SiteSense.Application\SiteSense.Application.csproj" />
-    <ProjectReference Include="..\SiteSense.Infrastructure\SiteSense.Infrastructure.csproj" />
     <ProjectReference Include="..\SiteSense.Domain\SiteSense.Domain.csproj" />
   </ItemGroup>
 

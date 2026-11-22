@@ -1,16 +1,10 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/SiteSense.Api/SiteSense.Api.csproj" />
-    <Project Path="src/SiteSense.Application/SiteSense.Application.csproj" />
     <Project Path="src/SiteSense.Domain/SiteSense.Domain.csproj" />
-    <Project Path="src/SiteSense.Infrastructure/SiteSense.Infrastructure.csproj" />
     <Project Path="src/SiteSense.Simulator/SiteSense.Simulator.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/SiteSense.Api.Tests/SiteSense.Api.Tests.csproj" />
-    <Project Path="tests/SiteSense.Application.Tests/SiteSense.Application.Tests.csproj" />
-    <Project Path="tests/SiteSense.Domain.Tests/SiteSense.Domain.Tests.csproj" />
-    <Project Path="tests/SiteSense.Infrastructure.Tests/SiteSense.Infrastructure.Tests.csproj" />
-    <Project Path="tests/SiteSense.Simulator.Tests/SiteSense.Simulator.Tests.csproj" />
+    <Project Path="tests/SiteSense.Tests/SiteSense.Tests.csproj" />
   </Folder>
 </Solution>
