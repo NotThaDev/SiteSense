@@ -63,11 +63,11 @@ Branches, commits and closing steps.
 
 ## History
 
-**Proposed (Q55, open):** merge commits only. History is never rewritten.
+**Decided (Q55):** merge commits only. History is never rewritten.
 
 | Action | Rule |
 |---|---|
-| Merge | `gh pr merge <n> --merge` |
+| Merge | Merge commit only: the "Create a merge commit" button on GitHub, or `gh pr merge <n> --merge` |
 | Squash or rebase-merge | never |
 | Force push | never on a pushed branch |
 | Update a branch | merge `main` into it: `git merge main` |
