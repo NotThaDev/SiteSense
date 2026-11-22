@@ -50,9 +50,16 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | `Navigation/` | Routing and evacuation endpoints; they call the graph and routing code in Domain |
 | `Anomalies/` | ML.NET anomaly detectors behind an interface |
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and its implementation |
-| `Jobs/` | Hangfire registration and thin job wrappers |
 
 - A folder is created by the first story that puts code in it. A new feature folder updates this table in the same PR.
+
+### Background jobs
+
+**Decided (Q66):** no `Jobs/` folder. Each Hangfire job lives in the feature it serves.
+
+- Job class: in the feature folder, named `<What>Job.cs`. Examples: `Anomalies/AnomalyScanJob.cs`, `Tracking/SilentDeviceJob.cs`, `Tracking/RetentionJob.cs`.
+- The job class is only the trigger. It calls the feature's own service; the logic lives in that service, not in the job.
+- Every recurring schedule is registered in one place, `Program.cs`, one line per job, so all schedules read together.
 
 ### Projects
 
@@ -74,7 +81,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | Use-case services (ingest, navigation, alerts, tracking) | Api, in the feature folder |
 | Auth wiring, policies | `Api/Auth/`, rules in [security](../sitesense-security/SKILL.md) |
 | SignalR hub and publisher | `Api/Realtime/` |
-| Hangfire job registration and thin job wrappers | `Api/Jobs/`; each wrapper calls a feature service |
+| Hangfire job classes (`<What>Job.cs`, trigger only) | The feature folder they serve; recurring schedules in `Program.cs` (see Background jobs) |
 | Geometry, graph, routing, filters, area assignment | Domain |
 | Business rules and state rules | Domain |
 | Anomaly detectors (ML.NET) | `Api/Anomalies/`, behind an interface |

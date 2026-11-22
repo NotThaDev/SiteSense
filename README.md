@@ -29,7 +29,8 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
 backend/
   SiteSense.Domain     pure domain code: geometry, routing, filters, rules
   SiteSense.Api        host and features: store, auth, sites, tracking, navigation,
-                       anomalies (ML.NET), realtime (SignalR), jobs (Hangfire)
+                       anomalies (ML.NET), realtime (SignalR);
+                       each feature owns its Hangfire jobs
 simulator/
   SiteSense.Simulator  device simulator (console), a separate app
 tests/

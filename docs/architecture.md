@@ -34,7 +34,8 @@ Each folder is created by the first story that needs it.
 | `Navigation/` | Routing and evacuation endpoints, using the graph and routing code in Domain |
 | `Anomalies/` | ML.NET anomaly detectors |
 | `Realtime/` | SignalR hub and `IRealtimePublisher`; the only code that uses `IHubContext` |
-| `Jobs/` | Hangfire registration and job wrappers |
+
+Background jobs have no folder of their own. Each Hangfire job lives in the feature it serves, as `<What>Job.cs` (for example `Tracking/RetentionJob.cs`). The job only triggers the feature's service, where the logic lives. Every recurring schedule is registered in `Program.cs`, one line per job.
 
 ## Build settings
 
