@@ -32,6 +32,7 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
   <img src="https://img.shields.io/badge/SignalR-161b22?style=for-the-badge&logo=dotnet&logoColor=9780E5" alt="SignalR">
   <img src="https://img.shields.io/badge/ML.NET-161b22?style=for-the-badge&logo=dotnet&logoColor=9780E5" alt="ML.NET">
   <img src="https://img.shields.io/badge/Hangfire-161b22?style=for-the-badge" alt="Hangfire">
+  <img src="https://img.shields.io/badge/Redis%20%28Hangfire%20storage%29-161b22?style=for-the-badge&logo=redis&logoColor=FF4438" alt="Redis (Hangfire storage)">
   <img src="https://img.shields.io/badge/NetTopologySuite-161b22?style=for-the-badge" alt="NetTopologySuite">
   <img src="https://img.shields.io/badge/ProjNet-161b22?style=for-the-badge" alt="ProjNet">
   <img src="https://img.shields.io/badge/Keycloak-161b22?style=for-the-badge&logo=keycloak&logoColor=white" alt="Keycloak">
@@ -40,6 +41,6 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
   <img src="https://img.shields.io/badge/xUnit-161b22?style=for-the-badge" alt="xUnit">
 </p>
 
-Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
+Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Hangfire stores its jobs in Redis, so scheduled and queued jobs survive a restart; Redis never holds domain data. Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
 Routing, filtering and area-assignment algorithms are written in-house, not taken from ready-made libraries.
 
