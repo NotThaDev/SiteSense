@@ -73,6 +73,7 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 | Test data | Fixed files under `tests/SiteSense.Tests/TestData/` or a small fixture in `data/`. |
 | Order | Tests do not depend on each other or on execution order. |
 | Clock and IO | Use temp folders per test. Clean them up. |
+| Store context | `Context.Store` is static (Q67). Tests that touch it set it to a store on a temp folder and run in one xUnit collection, so they never run in parallel. |
 
 ## 6. Naming and structure
 

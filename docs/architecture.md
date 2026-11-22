@@ -6,8 +6,8 @@ How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-a
 
 | Project | Holds | References |
 |---|---|---|
-| `backend/SiteSense.Domain` | Pure domain code: core types, geometry, pedestrian graph and routing, GPS filters, area and alarm rules | none |
-| `backend/SiteSense.Api` | Composition root: controllers, DTOs, services, store, auth, ML.NET, SignalR, Hangfire jobs | Domain |
+| `backend/SiteSense.Domain` | Pure algorithms and geometric primitives: `Coordinate`, `Polygon`, geometry (point in area, distance), pedestrian graph and route finder, GPS filters | none |
+| `backend/SiteSense.Api` | Composition root: controllers, entities and DTOs, services, store, auth, ML.NET, SignalR, Hangfire jobs | Domain |
 | `simulator/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only | none |
 | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api |
 
@@ -19,7 +19,7 @@ flowchart BT
   Simulator -. "HTTP, SignalR" .-> Api
 ```
 
-The domain has no package or project references, so the compiler keeps it free of ASP.NET, IO, the clock, logging and ML.NET. It returns results or events and never publishes them itself.
+The domain has no package or project references, so the compiler keeps it free of ASP.NET, IO, persistence, the clock, logging and ML.NET. It returns results or events and never publishes them itself.
 
 ## Api folders
 
@@ -28,14 +28,34 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | Folder | Holds |
 |---|---|
 | `Controllers/` | One controller per area: `SitesController`, `TrackingController`, `NavigationController`, `AuthController` |
-| `Models/` | Request and response DTOs only; domain types stay in `SiteSense.Domain` |
-| `Services/` | Application logic: `PositionIngest`, `AnomalyDetector` (ML.NET), `SiteService` |
-| `Store/` | JSON document store (`IDocumentStore<T>`); takes the place of a `DbContext` |
+| `Models/` | Persisted entities (`Site`, `Device`, ...) with their static persistence methods, plus request and response DTOs |
+| `Services/` | Only multi-entity flows and external engines: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation |
+| `Store/` | The single generic JSON document store and the static `Context` that holds it; takes the place of a `DbContext` |
 | `Realtime/` | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext` |
-| `BackgroundJobs/` | Hangfire jobs, `<What>Job.cs`: trigger only, each calls a service in `Services/` |
+| `BackgroundJobs/` | Hangfire jobs, `<What>Job.cs`: trigger only, each calls a service or a model method |
 | `Auth/` | Authentication and authorization setup and policies |
 
 No `Helpers/` folder: shared code goes in Domain, `Store/` or `Realtime/`. Every recurring job schedule is registered in `Program.cs`, one line per job.
+
+## Models and persistence
+
+Active Record over one generic store (Q67).
+
+```mermaid
+flowchart LR
+  C["SitesController"] -->|"tenantId from token"| M["Site.CreateAsync(tenantId, site, ct)"]
+  M --> S["Context.Store.SaveAsync(tenantId, site, ct)"]
+  S --> F["JSON files, one folder per tenant"]
+  C2["TrackingController"] --> P["PositionIngest service"]
+  P --> M2["Device / Track model methods"]
+  M2 --> S
+```
+
+- Each entity in `Models/` carries `Id`, `TenantId` and `Version`, and exposes static async methods for its own persistence and single-entity rules.
+- `Context.Store` is one singleton, set in `Program.cs` and shared by HTTP requests, Hangfire jobs and SignalR (single process). Tests set it to a store on a temp folder.
+- Controllers call model methods directly; only multi-entity flows and external engines go through `Services/`.
+- `tenantId` is always an explicit parameter, never read from an ambient or HTTP context. The store rejects a read or write whose `tenantId` does not match the document.
+- Models use Domain primitives, e.g. `Site.Boundary` is a Domain `Polygon`.
 
 ## Build settings
 

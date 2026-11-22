@@ -27,9 +27,10 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
 
 ```text
 backend/
-  SiteSense.Domain     pure domain code: geometry, routing, filters, rules
-  SiteSense.Api        host: Controllers/, Models/ (DTOs), Services/ (incl. ML.NET),
-                       Store/ (JSON store), Realtime/ (SignalR),
+  SiteSense.Domain     pure algorithms: geometry, route finder, GPS filters
+  SiteSense.Api        host: Controllers/, Models/ (entities with static persistence
+                       methods, DTOs), Services/ (multi-entity flows, ML.NET),
+                       Store/ (generic JSON store), Realtime/ (SignalR),
                        BackgroundJobs/ (Hangfire), Auth/
 simulator/
   SiteSense.Simulator  device simulator (console), a separate app

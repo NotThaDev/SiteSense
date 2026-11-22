@@ -94,12 +94,24 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q66 — How many projects does the server have?
-- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in the standard type-based ASP.NET Core folders: `Controllers/`, `Models/` (DTOs only), `Services/`, `Store/`, `Realtime/`, `BackgroundJobs/`, `Auth/`. One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
+- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in the standard type-based ASP.NET Core folders: `Controllers/`, `Models/` (entities and DTOs; persistence pattern in Q67), `Services/`, `Store/`, `Realtime/`, `BackgroundJobs/`, `Auth/`. One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
 - Folders: `backend/` holds the backend projects (`SiteSense.Domain`, `SiteSense.Api`), `simulator/` holds the simulator, `tests/` holds the test project. The simulator is a separate app, not part of the backend, so it does not sit next to the backend projects.
-- Api folders: type-based (`Controllers/`, `Models/`, `Services/`, ...) instead of feature folders, so the structure is familiar to reviewers. Feature folders were considered and rejected. Hangfire jobs are trigger-only `<What>Job.cs` classes in `BackgroundJobs/` that call a service in `Services/`; every recurring schedule is registered in `Program.cs`, one line per job.
+- Api folders: type-based (`Controllers/`, `Models/`, `Services/`, ...) instead of feature folders, so the structure is familiar to reviewers. Feature folders were considered and rejected. Hangfire jobs are trigger-only `<What>Job.cs` classes in `BackgroundJobs/` that call a service or a model method; every recurring schedule is registered in `Program.cs`, one line per job.
 - Why: a separate Domain project keeps the domain pure, enforced by the compiler. Separate Application and Infrastructure projects add ceremony and no value in a single-process app (Q01).
 - Alternatives rejected:
   - Five projects (Domain, Application, Infrastructure, Api, Simulator) with one test project each: more projects and references to maintain, for boundaries one process does not need.
   - A single server project: nothing stops domain code from using ASP.NET, IO or the clock.
 - Requirement IDs: NF-01, NF-02
+- Status: Accepted
+
+## Q67 — How do entities reach the store?
+- Assumption: Active Record. Each persisted entity in `SiteSense.Api/Models/` carries `Id`, `TenantId` and `Version` and exposes static async methods for its own persistence and single-entity rules (e.g. `Site.CreateAsync(tenantId, site, ct)`). They call the single generic store through a static context, `Context.Store`, a singleton set once in `Program.cs` and shared by HTTP requests, Hangfire jobs and SignalR (one process, Q01). Controllers call model methods directly; `Services/` holds only multi-entity flows and external engines (position ingest, ML.NET anomaly detection, navigation and evacuation). `SiteSense.Domain` keeps only pure algorithms and geometric primitives, which the models use.
+- Tenant safety: every persistence method takes `tenantId` as an explicit parameter, never from an ambient or HTTP context; the store rejects a read or write whose `tenantId` does not match the document.
+- Why: simple and familiar (EF-style entities), chosen by the project owner.
+- Alternatives rejected:
+  - A per-entity service plus a store injected through the constructor: one more class per entity and more wiring, for no gain in one process.
+- Known risks:
+  - Static state: parallel tests would share the store. Tests that touch the store run in one xUnit collection, with `Context.Store` on a temp folder.
+  - `tenantId` must always be passed explicitly; a missing or wrong one is caught by the store's tenant check.
+- Requirement IDs: JDB-01, JDB-07, IDN-02
 - Status: Accepted
