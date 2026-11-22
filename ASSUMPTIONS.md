@@ -125,3 +125,22 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Known cost: a manual copy step before the first run. Docker compose (SS-1) and the delivery ZIP check must also handle it: compose provides the config through environment variables or the template, and the empty-folder check must start without a hand-made `appsettings.json`.
 - Requirement IDs: NF-04
 - Status: Accepted
+
+## Q72 — Where does the correlation id code live?
+- Assumption: in a new `SiteSense.Api/Diagnostics/` folder: `Correlation.cs` (header name, middleware, log scope helper) and `Correlated.cs` (the carrier, Q73).
+- Why: `Helpers/` holds only `SiteSenseContext`, and keeping the middleware out of `Program.cs` keeps that file short.
+- Alternatives rejected:
+  - `Middleware/`: the carrier and the scope helper are not middleware.
+  - Inline in `Program.cs`: harder to test and a busy shared file.
+- Requirement IDs: NF-03
+- Status: Accepted
+
+## Q73 — How does the correlation id leave the HTTP request?
+- Assumption: the request reads `X-Correlation-Id` (1–64 chars of `[A-Za-z0-9-_.]`, otherwise a new id is generated), returns it in the response header and opens a log scope with it. Work that runs outside the request (ingest queue, SignalR events) carries it in `Correlated<T>(CorrelationId, Payload)` and reopens the scope with `Correlation.BeginScope`.
+- Why: one generic envelope keeps the payload types clean; the scope gives the id to every log line without passing it by hand.
+- Alternatives rejected:
+  - A `CorrelationId` field on every queue item and event: the same field repeated in many types.
+- Known limits:
+  - The ASP.NET Core hosting lines ("Request starting", "Request finished") are written outside the scope.
+- Requirement IDs: NF-03
+- Status: Accepted
