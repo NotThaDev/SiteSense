@@ -79,6 +79,40 @@ cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsetti
 
 A new config key is added to `appsettings.example.json` in the same PR.
 
+| Key | Default | Rule |
+|---|---|---|
+| `Store:RootPath` | `.store` (template) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
+
+## Run with Docker
+
+`docker compose up` from the repository root starts everything. No `appsettings.json` is needed: compose sets the config through environment variables, and the image never contains a local `appsettings*.json` (`.dockerignore`).
+
+| Service | Image | Host port | Volume | Health check |
+|---|---|---|---|---|
+| `api` | built from `backend/SiteSense.Api/Dockerfile` | 8080 | `store-data` at `/var/lib/sitesense/store` | `GET /health` |
+| `keycloak` | `quay.io/keycloak/keycloak:26.5.0`, `start-dev` | 8081 | none yet | `/health/ready` on internal port 9000 |
+| `redis` | `redis:8.4.0-alpine`, `--appendonly yes --appendfsync always` | none | `redis-data` at `/data` | `redis-cli ping` |
+
+```mermaid
+flowchart LR
+  R["redis healthy"] --> A["api starts"]
+  K["keycloak healthy"] --> A
+  A --> H["GET /health 200"]
+```
+
+- The API starts only after Keycloak and Redis are healthy.
+- `Store__RootPath=/var/lib/sitesense/store` overrides the local default, so the store survives restarts (NF-05).
+- Keycloak keeps its data inside the container until the realm import is added; recreating the container resets it.
+- Reset all data: `docker compose down -v` (also fixes a store volume created with the wrong owner by an older image).
+
+Variables compose reads (all have defaults; override them in `.env`, template `.env.example`):
+
+| Variable | Default | Use |
+|---|---|---|
+| `SITESENSE_TEST_MODE` | `false` | Passed to the API; turns on the test endpoints once they exist. |
+| `KC_BOOTSTRAP_ADMIN_USERNAME` | `admin` | Keycloak admin console user, local test credential (Q69). |
+| `KC_BOOTSTRAP_ADMIN_PASSWORD` | `admin` | Keycloak admin console password, local test credential (Q69). |
+
 ## Build and test
 
 ```bash

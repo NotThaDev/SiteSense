@@ -77,6 +77,7 @@ Test-mode behaviour: see `../sitesense-context/SKILL.md`.
 - Users, password `Password1!` for all: `admin-a`, `safety-a`, `viewer-a`, `admin-b`, `safety-b`, `viewer-b`.
 - Public client `sitesense-verify`: password flow, for verification only.
 - `gateway-a` (secret `gateway-secret-a`) → tenant-a; `gateway-b` (secret `gateway-secret-b`) → tenant-b.
+- Keycloak admin console: `admin` / `admin`, compose defaults, local only (Q69).
 
 Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 

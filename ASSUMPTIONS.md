@@ -125,3 +125,23 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Known cost: a manual copy step before the first run. Docker compose (SS-1) and the delivery ZIP check must also handle it: compose provides the config through environment variables or the template, and the empty-folder check must start without a hand-made `appsettings.json`.
 - Requirement IDs: NF-04
 - Status: Accepted
+
+## Q69 — How does compose get the Keycloak admin credentials?
+- Assumption: compose defaults them to `admin` / `admin` (`${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}`), documented as local test credentials. `.env` can override them.
+- Why: `docker compose up` must work with no manual step; the admin console is local only.
+- Alternatives rejected:
+  - Required values from `.env`: no default password in compose, but a copy step before the first run.
+- Requirement IDs: NF-01, NF-04
+- Status: Accepted
+
+## Q70 — What does `/health` check?
+- Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`ValidateOnStart`), not on every call.
+- Why: no extra package; dependency checks (Redis, Keycloak) come with the stories that use them.
+- Requirement IDs: NF-04
+- Status: Accepted
+
+## Q71 — Does CI run docker compose?
+- Assumption: no. CI stays restore, build and test. `docker compose up` and `/health` are checked by hand in each PR that changes compose.
+- Why: keeps CI fast; image pulls would add minutes to every PR.
+- Requirement IDs: NF-01
+- Status: Accepted
