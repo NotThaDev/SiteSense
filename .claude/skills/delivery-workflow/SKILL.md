@@ -91,7 +91,21 @@ A story is done only when all rows pass.
 | Build | verify subagent | build succeeds |
 | Browser | verify subagent, only if the demo client or any frontend changed | feature works in a real browser |
 | Docs | per [ai-process](../ai-process/SKILL.md) | docs files: see `../ai-process/SKILL.md` |
+| README and `docs/` | author, in the same PR | see "Keep README and docs in sync" below |
 | PR | this file and [clear-description](../clear-description/SKILL.md) | every "Things to check" item ticked |
+
+### Keep README and docs in sync
+
+The README gives the essentials of each section (how to start, backend, simulator) and links to the full page under `docs/`.
+
+Any PR that changes one of these updates, in the same PR, both the README summary and the matching `docs/` page:
+
+- structure: projects, services, folders;
+- how to run: commands, ports, Docker services, environment variables, configuration keys;
+- test credentials, test and benchmark commands, simulator usage;
+- stack or dependencies (README badges), Hangfire storage.
+
+A PR that changes them without updating the docs is not done.
 
 ## Closing
 
