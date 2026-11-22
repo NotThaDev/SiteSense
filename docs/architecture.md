@@ -9,6 +9,7 @@ How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-a
 | `backend/SiteSense.Domain` | Pure algorithms and geometric primitives: `Coordinate`, `Polygon`, geometry (point in area, distance), pedestrian graph and route finder, GPS filters | none |
 | `backend/SiteSense.Api` | Composition root: controllers, entities and DTOs, services, store, auth, ML.NET, SignalR, Hangfire jobs | Domain |
 | `simulator/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only | none |
+| `frontend/` (reserved) | The demo client, added in its own story; talks to the API over HTTP and SignalR only. Never under `simulator/`. | none |
 | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api |
 
 ```mermaid

@@ -89,7 +89,7 @@ Tenant safety:
 | `simulator/SiteSense.Simulator` | Console app | none |
 | `tests/SiteSense.Tests` | xUnit test project | Domain, Api |
 
-- The demo client gets its own project in its own story.
+- The demo client gets its own project in its own story, under `frontend/`.
 - Solution file: `SiteSense.slnx` in the repository root.
 
 ## 3. Placement table
@@ -117,7 +117,8 @@ Tenant safety:
 | Folder | Holds |
 |---|---|
 | `backend/` | Backend projects: `SiteSense.Domain`, `SiteSense.Api` (see Projects) |
-| `simulator/` | Device simulator, a separate app: `SiteSense.Simulator` |
+| `simulator/` | Device simulator, a separate app: `SiteSense.Simulator`. Only the simulator, never the demo client. |
+| `frontend/` | The demo client (its own story). Talks to the API over HTTP and SignalR only. Reserved: not created until that story. |
 | `tests/` | One xUnit test project: `tests/SiteSense.Tests` |
 | `.github/workflows/` | CI: restore, build and test on every PR |
 | `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |

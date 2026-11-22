@@ -35,6 +35,7 @@ backend/
                        Helpers/ (SiteSenseContext: store and clock)
 simulator/
   SiteSense.Simulator  device simulator (console), a separate app
+frontend/              demo client (reserved, added in its own story)
 tests/
   SiteSense.Tests      all server tests (xUnit)
 ```
