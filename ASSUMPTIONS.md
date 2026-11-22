@@ -15,8 +15,15 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q08 — Which storage does Hangfire use?
-- Assumption: Redis, in its own container with persistence on a volume. It holds Hangfire jobs only (schedules, queues, retries), never domain data.
-- Why: queued and scheduled jobs survive a restart, so no run is lost. Domain data stays in the JSON document store as required.
+- Assumption: Redis, in its own container, used through an open-source community storage package (planned: `Hangfire.Redis.StackExchange`; licence and .NET 10 support confirmed when it is added). Redis holds Hangfire jobs only (schedules, queues, retries), never domain data.
+- No data loss on restart: Redis runs with append-only persistence written on every command (`appendonly yes`, `appendfsync always`) on a named volume. A restart or a recreated container keeps every queued and scheduled job.
+- Why Redis: queued and scheduled jobs survive a restart, so no run is lost. Domain data stays in the JSON document store as required.
+- Alternatives rejected:
+  - `Hangfire.InMemory`: free and simple, but loses every queued job on restart.
+  - `Hangfire.Pro.Redis` (official Redis storage): commercial licence.
+  - Our own `JobStorage` for Redis: queues, distributed locks, retries and recurring jobs to write and test, on a part that adds no value to the domain.
+  - `Hangfire.SqlServer` or PostgreSQL: a relational database only for jobs, heavier than Redis.
+- Trade-off: `appendfsync always` makes each Redis write slower; the job load (a few runs per site per minute) is far below what that costs.
 - Requirement IDs: JOB-01, JOB-02, NF-01, NF-05
 - Status: Accepted
 
