@@ -38,6 +38,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: RTM-01, RTM-02, PRV-03
 - Status: Accepted
 
+## Q55 — How are PRs merged if history must not be rewritten?
+- Assumption: merge commits only ("Create a merge commit" on GitHub). No squash merge, no rebase merge, no force push on pushed branches, no stacked PRs. A branch is updated by merging `main` into it.
+- Why: squash and rebase merges create new commits and lose the original ones; a merge commit keeps every commit as it was and records when each story entered `main`.
+- Requirement IDs: delivery rules (history preserved, no squash, no rewrite)
+- Status: Accepted
+
 ## Q59 — How does the API know the tenant of a gateway client?
 - Assumption: the gateway access token carries a `tenant_id` claim, added by a hardcoded-claim mapper on each gateway client in the realm. The API reads the tenant from the token for users and gateways alike, never from the request.
 - Why: each gateway belongs to exactly one tenant, but a client-credentials token has no user, so no tenant claim by default. One claim keeps one code path.
