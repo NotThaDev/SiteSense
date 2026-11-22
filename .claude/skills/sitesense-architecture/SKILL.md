@@ -23,42 +23,43 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 ## 2. Layers and dependency rules
 
-**Decided (Q66):** two server projects. Domain is a separate project so the compiler keeps it pure. Everything else lives in Api, by feature folder.
+**Decided (Q66):** two server projects. Domain is a separate project so the compiler keeps it pure. Everything else lives in Api, in the standard type-based folders.
 
 | Layer | Project | Contains | May depend on | Must not depend on |
 |---|---|---|---|---|
 | Domain | `backend/SiteSense.Domain` | Core types, geometry, pedestrian graph and routing, GPS filters, area assignment, area and alarm rules | Nothing: no package and no project reference | ASP.NET, Hangfire, SignalR, ML.NET, the store, file IO, HTTP, a clock, logging |
-| Api | `backend/SiteSense.Api` | Composition root and feature folders (below) | Domain | Nothing (top layer) |
+| Api | `backend/SiteSense.Api` | Composition root and the Api folders (below) | Domain | Nothing (top layer) |
 | Apps | `simulator/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
 | Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api | Nothing else |
 
 - `SiteSense.Domain.csproj` has no `PackageReference` and no `ProjectReference`. Never add one.
 - The domain never reads a clock or does IO. Time arrives as a value from Api. The domain returns results or events. It never publishes anything itself.
 - Storage is behind interfaces (`IDocumentStore<T>`), defined and implemented in `Api/Store/`.
-- Realtime: features publish through a small `IRealtimePublisher` interface in `Api/Realtime/`. Only `Api/Realtime/` touches `IHubContext`.
+- Realtime: services publish through a small `IRealtimePublisher` interface in `Api/Realtime/`. Only `Api/Realtime/` touches `IHubContext`.
 - Apps may share contract types only if the contract is a separate, dependency-free project.
 - Check every new `ProjectReference` against this table.
 
-### Api feature folders
+### Api folders
+
+**Decided (Q66):** the standard type-based ASP.NET Core layout, not feature folders.
 
 | Folder | Holds |
 |---|---|
-| `Store/` | JSON document store: `IDocumentStore<T>`, its implementation, file IO |
-| `Auth/` | Authentication wiring and authorization policies |
-| `Sites/` | Sites and map import: endpoints and services |
-| `Tracking/` | Position ingest, tracks, area occupancy: endpoints and services |
-| `Navigation/` | Routing and evacuation endpoints; they call the graph and routing code in Domain |
-| `Anomalies/` | ML.NET anomaly detectors behind an interface |
-| `Realtime/` | SignalR hub, `IRealtimePublisher` and its implementation |
+| `Controllers/` | One controller per area, e.g. `SitesController`, `TrackingController`, `NavigationController`, `AuthController` |
+| `Models/` | Request and response DTOs only. Domain types stay in `SiteSense.Domain`. |
+| `Services/` | Application logic, e.g. `PositionIngest`, `AnomalyDetector` (ML.NET), `SiteService` |
+| `Store/` | JSON document store: `IDocumentStore<T>`, its implementation, file IO. It takes the place of a `DbContext` (no EF). |
+| `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
+| `BackgroundJobs/` | Hangfire job classes (see Background jobs) |
+| `Auth/` | Authentication and authorization setup and policies |
 
-- A folder is created by the first story that puts code in it. A new feature folder updates this table in the same PR.
+- No `Helpers/` folder. Shared code goes in Domain, `Store/` or `Realtime/`.
+- A folder is created by the first story that puts code in it. A new folder updates this table in the same PR.
 
 ### Background jobs
 
-**Decided (Q66):** no `Jobs/` folder. Each Hangfire job lives in the feature it serves.
-
-- Job class: in the feature folder, named `<What>Job.cs`. Examples: `Anomalies/AnomalyScanJob.cs`, `Tracking/SilentDeviceJob.cs`, `Tracking/RetentionJob.cs`.
-- The job class is only the trigger. It calls the feature's own service; the logic lives in that service, not in the job.
+- Job class: in `BackgroundJobs/`, named `<What>Job.cs`. Examples: `AnomalyScanJob.cs`, `SilentDeviceJob.cs`, `RetentionJob.cs`.
+- The job class is only the trigger. It calls a service in `Services/`; the logic lives in that service, not in the job.
 - Every recurring schedule is registered in one place, `Program.cs`, one line per job, so all schedules read together.
 
 ### Projects
@@ -77,14 +78,15 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Concern | Place |
 |---|---|
-| Endpoints, request and response DTOs | Api, in the feature folder |
-| Use-case services (ingest, navigation, alerts, tracking) | Api, in the feature folder |
+| Endpoints | `Api/Controllers/`, one controller per area |
+| Request and response DTOs | `Api/Models/` |
+| Use-case services (ingest, navigation, alerts, tracking) | `Api/Services/` |
 | Auth wiring, policies | `Api/Auth/`, rules in [security](../sitesense-security/SKILL.md) |
 | SignalR hub and publisher | `Api/Realtime/` |
-| Hangfire job classes (`<What>Job.cs`, trigger only) | The feature folder they serve; recurring schedules in `Program.cs` (see Background jobs) |
+| Hangfire job classes (`<What>Job.cs`, trigger only) | `Api/BackgroundJobs/`; recurring schedules in `Program.cs` (see Background jobs) |
 | Geometry, graph, routing, filters, area assignment | Domain |
 | Business rules and state rules | Domain |
-| Anomaly detectors (ML.NET) | `Api/Anomalies/`, behind an interface |
+| Anomaly detectors (ML.NET) | `Api/Services/`, behind an interface |
 | JSON document store, file IO, store interfaces | `Api/Store/` |
 | Options classes and startup validation | Api, rules in [coding](../dotnet-coding/SKILL.md) |
 | Simulator | Separate console app |
@@ -129,21 +131,22 @@ Inside the root, one subfolder per tenant (JDB-07).
 
 ## 6. Add an endpoint
 
-1. Define request and response records. No domain types on the wire.
-2. Validate the request at the boundary. Rules: [coding](../dotnet-coding/SKILL.md).
-3. Add the authorization policy for the route. Rules: [security](../sitesense-security/SKILL.md).
-4. Call one application service. No business logic in the endpoint.
-5. Map errors to ProblemDetails. Rules: [coding](../dotnet-coding/SKILL.md).
-6. If the endpoint changes a stored document, use the version check (JDB-03). Expose it with `ETag` and `If-Match`. A mismatch returns **412** (JDB-10).
-7. If the endpoint writes data, a job, or an alert, make it idempotent: the same input twice gives one result (TRK-01, JOB-02, EVT-02).
-8. Add OpenAPI metadata.
-9. Add tests: one integration test and one tenant-isolation test. Rules: [testing](../sitesense-testing/SKILL.md).
-10. Add an entry to the `.http` file that tries the API.
+1. Add the action to the area's controller in `Api/Controllers/` (a new area gets a new controller).
+2. Define request and response records in `Api/Models/`. No domain types on the wire.
+3. Validate the request at the boundary. Rules: [coding](../dotnet-coding/SKILL.md).
+4. Add the authorization policy for the route. Rules: [security](../sitesense-security/SKILL.md).
+5. Call one service in `Api/Services/`. No business logic in the controller.
+6. Map errors to ProblemDetails. Rules: [coding](../dotnet-coding/SKILL.md).
+7. If the endpoint changes a stored document, use the version check (JDB-03). Expose it with `ETag` and `If-Match`. A mismatch returns **412** (JDB-10).
+8. If the endpoint writes data, a job, or an alert, make it idempotent: the same input twice gives one result (TRK-01, JOB-02, EVT-02).
+9. Add OpenAPI metadata.
+10. Add tests: one integration test and one tenant-isolation test. Rules: [testing](../sitesense-testing/SKILL.md).
+11. Add an entry to the `.http` file that tries the API.
 
 ## 7. Add a store document type
 
-1. Define a record with `Id`, `Version` and `TenantId`.
-2. Register the collection with the generic store (JDB-01). Do not write per-entity storage code.
+1. Define a record with `Id`, `Version` and `TenantId` in `Api/Store/`.
+2. Register the collection with the generic store in `Api/Store/` (JDB-01). Do not write per-entity storage code. Services in `Api/Services/` use it through `IDocumentStore<T>`; controllers never call the store directly.
 3. Writes are atomic: write to a temp file, flush, then rename over the target (JDB-02).
 4. Updates check the version. A stale version is rejected (JDB-03).
 5. Thread safety inside the process: one lock or immutable snapshots (JDB-04).

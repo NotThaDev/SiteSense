@@ -94,9 +94,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q66 — How many projects does the server have?
-- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in feature folders (store, auth, sites, tracking, navigation, anomalies, realtime). One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
+- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in the standard type-based ASP.NET Core folders: `Controllers/`, `Models/` (DTOs only), `Services/`, `Store/`, `Realtime/`, `BackgroundJobs/`, `Auth/`. One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
 - Folders: `backend/` holds the backend projects (`SiteSense.Domain`, `SiteSense.Api`), `simulator/` holds the simulator, `tests/` holds the test project. The simulator is a separate app, not part of the backend, so it does not sit next to the backend projects.
-- Background jobs: no `Jobs/` folder. Each Hangfire job lives in the feature it serves as `<What>Job.cs`, contains only the trigger and calls that feature's service. Every recurring schedule is registered in `Program.cs`, one line per job. Why: feature cohesion, consistent with the feature-folder layout; the schedules still read together in one place.
+- Api folders: type-based (`Controllers/`, `Models/`, `Services/`, ...) instead of feature folders, so the structure is familiar to reviewers. Feature folders were considered and rejected. Hangfire jobs are trigger-only `<What>Job.cs` classes in `BackgroundJobs/` that call a service in `Services/`; every recurring schedule is registered in `Program.cs`, one line per job.
 - Why: a separate Domain project keeps the domain pure, enforced by the compiler. Separate Application and Infrastructure projects add ceremony and no value in a single-process app (Q01).
 - Alternatives rejected:
   - Five projects (Domain, Application, Infrastructure, Api, Simulator) with one test project each: more projects and references to maintain, for boundaries one process does not need.
