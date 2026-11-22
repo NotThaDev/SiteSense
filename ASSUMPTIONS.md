@@ -14,6 +14,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: IDN-01, IDN-04, IDN-05
 - Status: Accepted
 
+## Q08 — Which storage does Hangfire use?
+- Assumption: Redis, in its own container with persistence on a volume. It holds Hangfire jobs only (schedules, queues, retries), never domain data.
+- Why: queued and scheduled jobs survive a restart, so no run is lost. Domain data stays in the JSON document store as required.
+- Requirement IDs: JOB-01, JOB-02, NF-01, NF-05
+- Status: Accepted
+
 ## Q09 — Does Admin also see individual positions, tracks and alerts?
 - Assumption: no. Roles are separate: Admin manages sites, maps and devices; Safety sees individual data; Viewer sees aggregates only.
 - Why: the requirements give individual data to Safety only and define no role hierarchy; separate roles expose personal movement data to fewer people.
