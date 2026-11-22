@@ -80,3 +80,15 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: site IDs are not unique across tenants, so the tenant must be part of the name; groups cannot be intersected, so the role is part of the name too. Filtering at join time means a send can never reach a role that must not see it.
 - Requirement IDs: RTM-01, RTM-02, PRV-03
 - Status: Accepted
+
+## Q64 — Are compiler warnings treated as errors?
+- Assumption: no. Warnings stay warnings; `Directory.Build.props` does not set `TreatWarningsAsErrors`.
+- Why: a new analyzer or NuGet advisory warning must not break the build or CI with no code change. Warnings are still shown and fixed in the PR that adds them.
+- Requirement IDs: none (build setting)
+- Status: Accepted
+
+## Q65 — Where are package versions declared?
+- Assumption: central package management. Every version is in `Directory.Packages.props`, exact, with no floating versions or ranges; no `PackageReference` carries a `Version`.
+- Why: one place to see and update every dependency, and the same version in every project.
+- Requirement IDs: none (build setting)
+- Status: Accepted

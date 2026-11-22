@@ -23,6 +23,21 @@ SiteSense is the backend that turns those positions into safety information:
 
 Domain data lives in a custom document store built on JSON files: atomic writes, optimistic concurrency and secondary indexes, with no database.
 
+## Structure
+
+```text
+src/
+  SiteSense.Domain          domain model and algorithms
+  SiteSense.Application     use cases, store and detector interfaces
+  SiteSense.Infrastructure  JSON document store, ML.NET detectors
+  SiteSense.Api             host: endpoints, auth, SignalR, Hangfire
+  SiteSense.Simulator       device simulator (console)
+tests/
+  SiteSense.<Project>.Tests one xUnit project per project
+```
+
+Build and test from the repository root: `dotnet build`, `dotnet test`. Full page: [`docs/architecture.md`](docs/architecture.md).
+
 ## Tech stack
 
 <p align="center">

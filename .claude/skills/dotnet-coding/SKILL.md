@@ -13,7 +13,7 @@ Related: [architecture](../sitesense-architecture/SKILL.md) · [security](../sit
 | Rule | Status |
 |---|---|
 | `<Nullable>enable</Nullable>` in every project | Required |
-| `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` | **Proposed:** warnings as errors. Accept or change. |
+| Warnings stay warnings: no `TreatWarningsAsErrors` | Decided (Q64) |
 | File-scoped namespaces | Required |
 | Classes are `sealed` unless built for inheritance | **Proposed:** sealed by default. Accept or change. |
 | Records for DTOs and value objects | Required |
@@ -146,6 +146,6 @@ Hangfire's job storage is Redis (Q08, decided). Redis holds only Hangfire jobs, 
 
 1. Not in the forbidden list above.
 2. Justify it under `Dependencies:` in the PR's "What it touches" ([clear-description](../clear-description/SKILL.md)): what it replaces, why the BCL or an existing package does not cover it, its licence.
-3. Exact version, no floating versions (`*`, `1.*`) or open ranges. **Proposed:** all versions in `Directory.Packages.props` (central package management).
+3. Exact version, no floating versions (`*`, `1.*`) or open ranges. **Decided (Q65):** all versions in `Directory.Packages.props` (central package management); no `Version` on `PackageReference`.
 4. Container images pinned by tag, never `latest` (Keycloak included).
 5. A new area (not just a new package) gets an ADR ([AI process](../ai-process/SKILL.md)).

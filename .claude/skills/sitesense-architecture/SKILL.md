@@ -37,6 +37,20 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 - Apps may share contract types only if the contract is a separate, dependency-free project.
 - Tests mirror the project they test: `tests/<Project>.Tests/`.
 
+### Projects
+
+| Project | Layer | References |
+|---|---|---|
+| `src/SiteSense.Domain` | Domain | none |
+| `src/SiteSense.Application` | Application (core) | Domain |
+| `src/SiteSense.Infrastructure` | Infrastructure (ML.NET detectors in their own folder) | Application, Domain |
+| `src/SiteSense.Api` | Host (API) | Application, Infrastructure, Domain |
+| `src/SiteSense.Simulator` | Apps (console) | none |
+| `tests/SiteSense.<Project>.Tests` | Tests (xUnit) | the project under test |
+
+- The demo client gets its own project in its own story.
+- Solution file: `SiteSense.slnx` in the repository root.
+
 ## 3. Placement table
 
 | Concern | Layer |
@@ -60,9 +74,13 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Folder | Holds |
 |---|---|
+| `src/` | Production projects (see Projects) |
+| `tests/` | One xUnit test project per production project |
+| `.github/workflows/` | CI: restore, build and test on every PR |
 | `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |
 | `docs/adr/` | Architecture decision records |
 | `docs/analysis/` | Analysis notes |
+| `docs/architecture.md` | Solution structure page linked from the README |
 | `.claude/skills/` | Skills for AI agents |
 
 - Docs files (ADR, assumptions, known issues, data sources, AI log) and their placement: see [AI process](../ai-process/SKILL.md).

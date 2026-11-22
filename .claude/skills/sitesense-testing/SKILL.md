@@ -83,11 +83,12 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 
 ## 7. Commands
 
-Commands are placeholders until the solution exists. Update this section in the PR that creates the solution.
+Run from the repository root (where `SiteSense.slnx` is). CI runs the same build and test on every PR (`.github/workflows/ci.yml`).
 
 | Task | Command |
 |---|---|
-| Run all tests | `dotnet test` (from the solution root) |
+| Build | `dotnet build` |
+| Run all tests | `dotnet test` |
 | Run one area | `dotnet test --filter "FullyQualifiedName~Tracking"` |
 | Benchmark (JDB-09) | **TBD:** command. Results go to `docs/RESULTS.md`. |
 
