@@ -118,7 +118,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q68 — Are appsettings files committed?
-- Assumption: no. Only `backend/SiteSense.Api/appsettings.example.json` is committed, as the template. `appsettings.json` and `appsettings.*.json` are gitignored. Secrets go in environment variables or `dotnet user-secrets`. The template is updated in the same PR as any new config key.
+- Assumption: no. Only `backend/SiteSense.Api/appsettings.example.json` is committed, as the template. `appsettings.json` and `appsettings.*.json` are gitignored. The template is updated in the same PR as any new config key.
 - Why: a real config file can never leak a secret into git, and each developer keeps local values out of the history.
 - Alternatives rejected:
   - Committing `appsettings.json` without secrets: one mistaken edit puts a secret in git, and local overrides show up as diffs.

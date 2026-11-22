@@ -50,8 +50,7 @@ Build and test from the repository root: `dotnet build`, `dotnet test`. Full pag
    cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
    ```
 
-2. Put secrets in environment variables or `dotnet user-secrets`, never in `appsettings.json`.
-3. Run the API: `dotnet run --project backend/SiteSense.Api`.
+2. Run the API: `dotnet run --project backend/SiteSense.Api`.
 
 ## Tech stack
 

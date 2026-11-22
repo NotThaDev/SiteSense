@@ -77,7 +77,7 @@ Only `backend/SiteSense.Api/appsettings.example.json` is committed; `appsettings
 cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
 ```
 
-Secrets go in environment variables or `dotnet user-secrets`. A new config key is added to `appsettings.example.json` in the same PR.
+A new config key is added to `appsettings.example.json` in the same PR.
 
 ## Build and test
 
