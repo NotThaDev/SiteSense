@@ -115,7 +115,7 @@ A PR that changes them without updating the docs is not done.
 | 2 | Working tree clean | `git status` is empty |
 | 3 | Tag | annotated tag `v1.0` on the final commit: `git tag -a v1.0 -m "v1.0" <sha>`, then `git push origin v1.0` |
 | 4 | Root deliverables | table below complete |
-| 5 | ZIP | `SiteSense_<Surname>_<Name>.zip`, includes `.git` |
+| 5 | ZIP | `SiteSense_<Surname>_<Name>.zip`, includes `.git`. Build it from a fresh `git clone` of the final commit, not from the working folder, so gitignored files such as `appsettings.json` and `.env` never get in. Before sending, list the ZIP contents and confirm no `appsettings.json`, `appsettings.*.json` (except `appsettings.example.json`) or `.env` is inside. |
 | 6 | Exclusions | no `bin/`, `obj/`, `node_modules/`, large external data |
 | 7 | Empty-folder check | unzip into an empty folder; `git log` shows full history; `docker compose up` starts the system |
 
