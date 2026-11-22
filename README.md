@@ -26,11 +26,12 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
 ## Structure
 
 ```text
-src/
+backend/
   SiteSense.Domain     pure domain code: geometry, routing, filters, rules
-  SiteSense.Api        host and features: store, auth, sites, tracking,
+  SiteSense.Api        host and features: store, auth, sites, tracking, navigation,
                        anomalies (ML.NET), realtime (SignalR), jobs (Hangfire)
-  SiteSense.Simulator  device simulator (console)
+simulator/
+  SiteSense.Simulator  device simulator (console), a separate app
 tests/
   SiteSense.Tests      all server tests (xUnit)
 ```

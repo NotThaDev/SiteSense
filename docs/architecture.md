@@ -6,9 +6,9 @@ How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-a
 
 | Project | Holds | References |
 |---|---|---|
-| `src/SiteSense.Domain` | Pure domain code: core types, geometry, pedestrian graph and routing, GPS filters, area and alarm rules | none |
-| `src/SiteSense.Api` | Composition root and every feature: endpoints, services, store, auth, ML.NET, SignalR, Hangfire | Domain |
-| `src/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only | none |
+| `backend/SiteSense.Domain` | Pure domain code: core types, geometry, pedestrian graph and routing, GPS filters, area and alarm rules | none |
+| `backend/SiteSense.Api` | Composition root and every feature: endpoints, services, store, auth, ML.NET, SignalR, Hangfire | Domain |
+| `simulator/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only | none |
 | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api |
 
 ```mermaid
@@ -31,6 +31,7 @@ Each folder is created by the first story that needs it.
 | `Auth/` | Authentication and authorization policies |
 | `Sites/` | Sites and map import |
 | `Tracking/` | Position ingest, tracks, area occupancy |
+| `Navigation/` | Routing and evacuation endpoints, using the graph and routing code in Domain |
 | `Anomalies/` | ML.NET anomaly detectors |
 | `Realtime/` | SignalR hub and `IRealtimePublisher`; the only code that uses `IHubContext` |
 | `Jobs/` | Hangfire registration and job wrappers |

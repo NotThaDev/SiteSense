@@ -27,9 +27,9 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Layer | Project | Contains | May depend on | Must not depend on |
 |---|---|---|---|---|
-| Domain | `src/SiteSense.Domain` | Core types, geometry, pedestrian graph and routing, GPS filters, area assignment, area and alarm rules | Nothing: no package and no project reference | ASP.NET, Hangfire, SignalR, ML.NET, the store, file IO, HTTP, a clock, logging |
-| Api | `src/SiteSense.Api` | Composition root and feature folders (below) | Domain | Nothing (top layer) |
-| Apps | `src/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
+| Domain | `backend/SiteSense.Domain` | Core types, geometry, pedestrian graph and routing, GPS filters, area assignment, area and alarm rules | Nothing: no package and no project reference | ASP.NET, Hangfire, SignalR, ML.NET, the store, file IO, HTTP, a clock, logging |
+| Api | `backend/SiteSense.Api` | Composition root and feature folders (below) | Domain | Nothing (top layer) |
+| Apps | `simulator/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
 | Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api | Nothing else |
 
 - `SiteSense.Domain.csproj` has no `PackageReference` and no `ProjectReference`. Never add one.
@@ -47,6 +47,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | `Auth/` | Authentication wiring and authorization policies |
 | `Sites/` | Sites and map import: endpoints and services |
 | `Tracking/` | Position ingest, tracks, area occupancy: endpoints and services |
+| `Navigation/` | Routing and evacuation endpoints; they call the graph and routing code in Domain |
 | `Anomalies/` | ML.NET anomaly detectors behind an interface |
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and its implementation |
 | `Jobs/` | Hangfire registration and thin job wrappers |
@@ -57,9 +58,9 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Project | Kind | References |
 |---|---|---|
-| `src/SiteSense.Domain` | Class library | none |
-| `src/SiteSense.Api` | ASP.NET Core web app | Domain |
-| `src/SiteSense.Simulator` | Console app | none |
+| `backend/SiteSense.Domain` | Class library | none |
+| `backend/SiteSense.Api` | ASP.NET Core web app | Domain |
+| `simulator/SiteSense.Simulator` | Console app | none |
 | `tests/SiteSense.Tests` | xUnit test project | Domain, Api |
 
 - The demo client gets its own project in its own story.
@@ -87,7 +88,8 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Folder | Holds |
 |---|---|
-| `src/` | Production projects (see Projects) |
+| `backend/` | Backend projects: `SiteSense.Domain`, `SiteSense.Api` (see Projects) |
+| `simulator/` | Device simulator, a separate app: `SiteSense.Simulator` |
 | `tests/` | One xUnit test project: `tests/SiteSense.Tests` |
 | `.github/workflows/` | CI: restore, build and test on every PR |
 | `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |
