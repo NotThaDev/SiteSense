@@ -1,7 +1,7 @@
 ---
 name: ai-process
 description: >-
-  How AI is used on SiteSense: session start, the direct vs plan/validate/implement/verify
+  How AI is used on SiteSense: session start, the direct vs plan/validate/approve/implement/verify
   workflow with models, subagent prompt rules, context and tool-output economy, claude-mem
   memory, handoff.md, and where decisions and AI usage are recorded (ADR, ASSUMPTIONS,
   KNOWN_ISSUES, DATA_SOURCES, AI_LOG, RESULTS). Use when starting a session, planning a
@@ -21,7 +21,7 @@ Do these before any other tool call:
 | # | Step | Done when |
 |---|---|---|
 | 1 | Check claude-mem for this project: use the `claude-mem:mem-search` skill (search, then timeline, then get_observations). | Relevant past decisions are known or "none found" is noted. |
-| 2 | Say in one line which workflow applies: `direct` or `plan/validate/implement`. | The line is in the reply. |
+| 2 | Say in one line which workflow applies: `direct` or `plan/validate/approve/implement`. | The line is in the reply. |
 
 If you skip the workflow, say why in one line. Example: "direct: single-file edit, 12 lines."
 
@@ -30,17 +30,18 @@ If you skip the workflow, say why in one line. Example: "direct: single-file edi
 | Task | Workflow |
 |---|---|
 | Questions, git or gh operations, single-file edits under ~30 lines | `direct` (no subagents) |
-| Code or config change in more than 1 file, or more than ~30 lines | `plan/validate/implement/verify` |
-| Anything touching the frontend, endpoints or the build | `plan/validate/implement/verify` |
+| Code or config change in more than 1 file, or more than ~30 lines | `plan/validate/approve/implement/verify` |
+| Anything touching the frontend, endpoints or the build | `plan/validate/approve/implement/verify` |
 
-## 3. plan / validate / implement / verify
+## 3. plan / validate / approve / implement / verify
 
 | Step | Who | Output | Rule |
 |---|---|---|---|
 | 1. Plan | Opus | Numbered steps, one file or one concern each, with "done when" per step | Main session. Lists exact file paths. |
 | 2. Validate | Sonnet subagent | Gaps, risks, missing steps | Fix the plan before implementing. |
-| 3. Implement | Haiku subagents | Changed files, one step per subagent | One small, verifiable step each. |
-| 4. Verify | Haiku subagent (Sonnet only if the check needs judgment) | Short pass/fail report | Runs tests, build and browser checks. |
+| 3. Approve | The user | The validated plan: steps, files touched, risks, open questions | Show it and wait for an explicit OK. No implementation without it. A change to the plan needs a new OK. |
+| 4. Implement | Haiku subagents | Changed files, one step per subagent | One small, verifiable step each. |
+| 5. Verify | Haiku subagent (Sonnet only if the check needs judgment) | Short pass/fail report | Runs tests, build and browser checks. |
 
 Rules:
 
@@ -193,7 +194,7 @@ ADR file names: four-digit number, then a short slug, for example `docs/adr/0001
 
 - [ ] Session start done (§1)
 - [ ] Workflow line said (§1, §2)
-- [ ] Plan validated before implementation (§3)
+- [ ] Plan validated and approved by the user before implementation (§3)
 - [ ] Verify report read, not the raw logs (§3)
 - [ ] Decisions in an ADR, assumptions in ASSUMPTIONS.md, AI use in AI_LOG.md (§8)
 - [ ] Context under the limit, or handoff.md written (§6)
