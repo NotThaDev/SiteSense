@@ -4,4 +4,8 @@
     <ProjectReference Include="..\SiteSense.Domain\SiteSense.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SiteSense.Tests" />
+  </ItemGroup>
+
 </Project>
