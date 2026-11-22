@@ -92,3 +92,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: one place to see and update every dependency, and the same version in every project.
 - Requirement IDs: none (build setting)
 - Status: Accepted
+
+## Q66 — How many projects does the server have?
+- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in feature folders (store, auth, sites, tracking, anomalies, realtime, jobs). One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
+- Why: a separate Domain project keeps the domain pure, enforced by the compiler. Separate Application and Infrastructure projects add ceremony and no value in a single-process app (Q01).
+- Alternatives rejected:
+  - Five projects (Domain, Application, Infrastructure, Api, Simulator) with one test project each: more projects and references to maintain, for boundaries one process does not need.
+  - A single server project: nothing stops domain code from using ASP.NET, IO or the clock.
+- Requirement IDs: NF-01, NF-02
+- Status: Accepted

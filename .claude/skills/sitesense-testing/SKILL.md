@@ -70,7 +70,7 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 | Time | `FakeTimeProvider`. Advance it in the test. |
 | Randomness | Fixed seed. Log the seed when a test fails. |
 | Sleeps | None. Wait on a condition or a signal, with a timeout. |
-| Test data | Fixed files under `tests/<Project>.Tests/TestData/` or a small fixture in `data/`. |
+| Test data | Fixed files under `tests/SiteSense.Tests/TestData/` or a small fixture in `data/`. |
 | Order | Tests do not depend on each other or on execution order. |
 | Clock and IO | Use temp folders per test. Clean them up. |
 

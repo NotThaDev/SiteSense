@@ -23,59 +23,72 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 ## 2. Layers and dependency rules
 
-| Layer | Contains | May depend on | Must not depend on |
-|---|---|---|---|
-| Domain | Entities, geometry, graph and routing, filters, area assignment, rules | Nothing outside the domain | ASP.NET, Hangfire, SignalR, the store, file IO |
-| Application (core) | Use-case services, store and detector interfaces | Domain | Infrastructure, host |
-| Infrastructure | JSON document store, file IO, ML.NET detector implementations | Application, Domain | Host |
-| Host (API) | Composition root: DI, auth, endpoints, SignalR hub, Hangfire registration, options | All layers | Nothing (top layer) |
-| Apps | Simulator, demo client | HTTP and SignalR only | Server internals |
-| Tests | Tests for each project | The project under test | Nothing else |
+**Decided (Q66):** two server projects. Domain is a separate project so the compiler keeps it pure. Everything else lives in Api, by feature folder.
 
-- Dependencies point inward. Check every new `ProjectReference` against this table.
-- Storage is behind interfaces (`IDocumentStore<T>`). Core defines them. Infrastructure implements them.
+| Layer | Project | Contains | May depend on | Must not depend on |
+|---|---|---|---|---|
+| Domain | `src/SiteSense.Domain` | Core types, geometry, pedestrian graph and routing, GPS filters, area assignment, area and alarm rules | Nothing: no package and no project reference | ASP.NET, Hangfire, SignalR, ML.NET, the store, file IO, HTTP, a clock, logging |
+| Api | `src/SiteSense.Api` | Composition root and feature folders (below) | Domain | Nothing (top layer) |
+| Apps | `src/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
+| Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api | Nothing else |
+
+- `SiteSense.Domain.csproj` has no `PackageReference` and no `ProjectReference`. Never add one.
+- The domain never reads a clock or does IO. Time arrives as a value from Api. The domain returns results or events. It never publishes anything itself.
+- Storage is behind interfaces (`IDocumentStore<T>`), defined and implemented in `Api/Store/`.
+- Realtime: features publish through a small `IRealtimePublisher` interface in `Api/Realtime/`. Only `Api/Realtime/` touches `IHubContext`.
 - Apps may share contract types only if the contract is a separate, dependency-free project.
-- Tests mirror the project they test: `tests/<Project>.Tests/`.
+- Check every new `ProjectReference` against this table.
+
+### Api feature folders
+
+| Folder | Holds |
+|---|---|
+| `Store/` | JSON document store: `IDocumentStore<T>`, its implementation, file IO |
+| `Auth/` | Authentication wiring and authorization policies |
+| `Sites/` | Sites and map import: endpoints and services |
+| `Tracking/` | Position ingest, tracks, area occupancy: endpoints and services |
+| `Anomalies/` | ML.NET anomaly detectors behind an interface |
+| `Realtime/` | SignalR hub, `IRealtimePublisher` and its implementation |
+| `Jobs/` | Hangfire registration and thin job wrappers |
+
+- A folder is created by the first story that puts code in it. A new feature folder updates this table in the same PR.
 
 ### Projects
 
-| Project | Layer | References |
+| Project | Kind | References |
 |---|---|---|
-| `src/SiteSense.Domain` | Domain | none |
-| `src/SiteSense.Application` | Application (core) | Domain |
-| `src/SiteSense.Infrastructure` | Infrastructure (ML.NET detectors in their own folder) | Application, Domain |
-| `src/SiteSense.Api` | Host (API) | Application, Infrastructure, Domain |
-| `src/SiteSense.Simulator` | Apps (console) | none |
-| `tests/SiteSense.<Project>.Tests` | Tests (xUnit) | the project under test |
+| `src/SiteSense.Domain` | Class library | none |
+| `src/SiteSense.Api` | ASP.NET Core web app | Domain |
+| `src/SiteSense.Simulator` | Console app | none |
+| `tests/SiteSense.Tests` | xUnit test project | Domain, Api |
 
 - The demo client gets its own project in its own story.
 - Solution file: `SiteSense.slnx` in the repository root.
 
 ## 3. Placement table
 
-| Concern | Layer |
+| Concern | Place |
 |---|---|
-| Endpoints, request and response DTOs | Host (API) |
-| Auth wiring, policies | Host (API), rules in [security](../sitesense-security/SKILL.md) |
-| SignalR hub and publisher | Host (API) |
-| Hangfire job registration and thin job wrappers | Host; each wrapper calls an application service |
-| Use-case services (ingest, navigation, alerts, tracking) | Application (core) |
+| Endpoints, request and response DTOs | Api, in the feature folder |
+| Use-case services (ingest, navigation, alerts, tracking) | Api, in the feature folder |
+| Auth wiring, policies | `Api/Auth/`, rules in [security](../sitesense-security/SKILL.md) |
+| SignalR hub and publisher | `Api/Realtime/` |
+| Hangfire job registration and thin job wrappers | `Api/Jobs/`; each wrapper calls a feature service |
 | Geometry, graph, routing, filters, area assignment | Domain |
 | Business rules and state rules | Domain |
-| Anomaly detectors (ML.NET) | Own module behind an interface in Infrastructure |
-| JSON document store, file IO | Infrastructure |
-| Store and detector interfaces | Application (core) |
-| Options classes and startup validation | Host (API), rules in [coding](../dotnet-coding/SKILL.md) |
+| Anomaly detectors (ML.NET) | `Api/Anomalies/`, behind an interface |
+| JSON document store, file IO, store interfaces | `Api/Store/` |
+| Options classes and startup validation | Api, rules in [coding](../dotnet-coding/SKILL.md) |
 | Simulator | Separate console app |
 | Demo client | Separate app |
-| Tests | `tests/`, mirroring the project |
+| Tests | `tests/SiteSense.Tests/`, in `Domain/` or `Api/` |
 
 ## 4. Fixed folders
 
 | Folder | Holds |
 |---|---|
 | `src/` | Production projects (see Projects) |
-| `tests/` | One xUnit test project per production project |
+| `tests/` | One xUnit test project: `tests/SiteSense.Tests` |
 | `.github/workflows/` | CI: restore, build and test on every PR |
 | `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |
 | `docs/adr/` | Architecture decision records |

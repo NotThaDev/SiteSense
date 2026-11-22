@@ -27,13 +27,12 @@ Domain data lives in a custom document store built on JSON files: atomic writes,
 
 ```text
 src/
-  SiteSense.Domain          domain model and algorithms
-  SiteSense.Application     use cases, store and detector interfaces
-  SiteSense.Infrastructure  JSON document store, ML.NET detectors
-  SiteSense.Api             host: endpoints, auth, SignalR, Hangfire
-  SiteSense.Simulator       device simulator (console)
+  SiteSense.Domain     pure domain code: geometry, routing, filters, rules
+  SiteSense.Api        host and features: store, auth, sites, tracking,
+                       anomalies (ML.NET), realtime (SignalR), jobs (Hangfire)
+  SiteSense.Simulator  device simulator (console)
 tests/
-  SiteSense.<Project>.Tests one xUnit project per project
+  SiteSense.Tests      all server tests (xUnit)
 ```
 
 Build and test from the repository root: `dotnet build`, `dotnet test`. Full page: [`docs/architecture.md`](docs/architecture.md).

@@ -1,33 +1,39 @@
 # Architecture
 
-How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-architecture/SKILL.md`.
+How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-architecture/SKILL.md`. Decision: `ASSUMPTIONS.md` (Q66).
 
 ## Projects
 
-| Project | Layer | Holds |
+| Project | Holds | References |
 |---|---|---|
-| `src/SiteSense.Domain` | Domain | Entities, geometry, graph and routing, filters, area assignment, rules |
-| `src/SiteSense.Application` | Application (core) | Use-case services, store and detector interfaces |
-| `src/SiteSense.Infrastructure` | Infrastructure | JSON document store, file IO, ML.NET detectors |
-| `src/SiteSense.Api` | Host | Composition root: endpoints, auth, SignalR hub, Hangfire, options |
-| `src/SiteSense.Simulator` | App | Console device simulator; talks to the API over HTTP and SignalR only |
-
-Each project has a test project at `tests/SiteSense.<Project>.Tests` (xUnit) that references only the project under test.
-
-## References
+| `src/SiteSense.Domain` | Pure domain code: core types, geometry, pedestrian graph and routing, GPS filters, area and alarm rules | none |
+| `src/SiteSense.Api` | Composition root and every feature: endpoints, services, store, auth, ML.NET, SignalR, Hangfire | Domain |
+| `src/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only | none |
+| `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api |
 
 ```mermaid
 flowchart BT
-  Application --> Domain
-  Infrastructure --> Application
-  Infrastructure --> Domain
-  Api --> Application
-  Api --> Infrastructure
   Api --> Domain
+  Tests["SiteSense.Tests"] --> Api
+  Tests --> Domain
   Simulator -. "HTTP, SignalR" .-> Api
 ```
 
-Dependencies point inward. The simulator has no project reference to the server.
+The domain has no package or project references, so the compiler keeps it free of ASP.NET, IO, the clock, logging and ML.NET. It returns results or events and never publishes them itself.
+
+## Api feature folders
+
+Each folder is created by the first story that needs it.
+
+| Folder | Holds |
+|---|---|
+| `Store/` | JSON document store and its interfaces (`IDocumentStore<T>`) |
+| `Auth/` | Authentication and authorization policies |
+| `Sites/` | Sites and map import |
+| `Tracking/` | Position ingest, tracks, area occupancy |
+| `Anomalies/` | ML.NET anomaly detectors |
+| `Realtime/` | SignalR hub and `IRealtimePublisher`; the only code that uses `IHubContext` |
+| `Jobs/` | Hangfire registration and job wrappers |
 
 ## Build settings
 
