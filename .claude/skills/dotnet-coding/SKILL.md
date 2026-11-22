@@ -140,7 +140,7 @@ The stack is listed in the README. These rules decide what may be added.
 | NetTopologySuite graph or routing features | NTS is for geometry primitives only. | `Intersects`, `Distance`, `Contains` and similar. |
 | Any ML library other than ML.NET for anomaly detection | ML.NET is required. | `Microsoft.ML`, `Microsoft.ML.TimeSeries`. |
 
-Hangfire's own job storage is chosen separately (Q08); it never holds domain data.
+Hangfire's job storage is Redis (Q08, decided). Redis holds only Hangfire jobs, never domain data.
 
 ### Adding a package
 
