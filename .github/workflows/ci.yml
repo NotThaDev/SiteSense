@@ -8,7 +8,6 @@ on:
       - '**/*.csproj'
       - '**/*.slnx'
       - '**/*.props'
-      - '**/*.targets'
       - 'global.json'
       - '.github/workflows/ci.yml'
   push:
