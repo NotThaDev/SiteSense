@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.claude/
+.store/
+.env
+local/
+tests/
+simulator/
+docs/
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.example.json
