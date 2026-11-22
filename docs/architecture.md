@@ -30,12 +30,13 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | `Controllers/` | One controller per area: `SitesController`, `TrackingController`, `NavigationController`, `AuthController` |
 | `Models/` | Persisted entities (`Site`, `Device`, ...) with their static persistence methods, plus request and response DTOs |
 | `Services/` | Only multi-entity flows and external engines: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation |
-| `Store/` | The single generic JSON document store and the static `Context` that holds it; takes the place of a `DbContext` |
+| `Store/` | The single generic JSON document store implementation; takes the place of a `DbContext` |
 | `Realtime/` | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext` |
 | `BackgroundJobs/` | Hangfire jobs, `<What>Job.cs`: trigger only, each calls a service or a model method |
 | `Auth/` | Authentication and authorization setup and policies |
+| `Helpers/` | Only the app-wide static context, `SiteSenseContext` (`Store`, `Time`); no general utilities |
 
-No `Helpers/` folder: shared code goes in Domain, `Store/` or `Realtime/`. Every recurring job schedule is registered in `Program.cs`, one line per job.
+Shared logic goes in Domain, `Store/` or `Realtime/`, never in `Helpers/`. Every recurring job schedule is registered in `Program.cs`, one line per job.
 
 ## Models and persistence
 
@@ -44,7 +45,7 @@ Active Record over one generic store (Q67).
 ```mermaid
 flowchart LR
   C["SitesController"] -->|"tenantId from token"| M["Site.CreateAsync(tenantId, site, ct)"]
-  M --> S["Context.Store.SaveAsync(tenantId, site, ct)"]
+  M --> S["SiteSenseContext.Store.SaveAsync(tenantId, site, ct)"]
   S --> F["JSON files, one folder per tenant"]
   C2["TrackingController"] --> P["PositionIngest service"]
   P --> M2["Device / Track model methods"]
@@ -52,7 +53,7 @@ flowchart LR
 ```
 
 - Each entity in `Models/` carries `Id`, `TenantId` and `Version`, and exposes static async methods for its own persistence and single-entity rules.
-- `Context.Store` is one singleton, set in `Program.cs` and shared by HTTP requests, Hangfire jobs and SignalR (single process). Tests set it to a store on a temp folder.
+- `SiteSenseContext` (`Helpers/SiteSenseContext.cs`) holds `Store` and `Time`, both set once in `Program.cs` (`Time` is `TimeProvider.System`) and shared by HTTP requests, Hangfire jobs and SignalR (single process). Models and services read the current time only through `SiteSenseContext.Time`. Tests set a store on a temp folder and a fake `TimeProvider`.
 - Controllers call model methods directly; only multi-entity flows and external engines go through `Services/`.
 - `tenantId` is always an explicit parameter, never read from an ambient or HTTP context. The store rejects a read or write whose `tenantId` does not match the document.
 - Models use Domain primitives, e.g. `Site.Boundary` is a Domain `Polygon`.

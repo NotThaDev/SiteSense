@@ -37,7 +37,7 @@ Related: [architecture](../sitesense-architecture/SKILL.md) · [security](../sit
 
 ## 4. Time
 
-- Inject `TimeProvider`. Pass it through constructors.
+- Read time only through `SiteSenseContext.Time` (a `TimeProvider`, set in `Program.cs`). Tests replace it with a fake (Q67).
 - Forbidden: `DateTime.Now`, `DateTime.UtcNow`, `DateTimeOffset.UtcNow`, `Task.Delay` without the provider, `Stopwatch` for business time.
 - Reason: the test clock must drive all time-dependent logic (see [testing](../sitesense-testing/SKILL.md)).
 - Timestamps at the boundary: `long` milliseconds UTC. Convert to `DateTimeOffset` inside the domain only if needed.

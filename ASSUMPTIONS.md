@@ -105,13 +105,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q67 — How do entities reach the store?
-- Assumption: Active Record. Each persisted entity in `SiteSense.Api/Models/` carries `Id`, `TenantId` and `Version` and exposes static async methods for its own persistence and single-entity rules (e.g. `Site.CreateAsync(tenantId, site, ct)`). They call the single generic store through a static context, `Context.Store`, a singleton set once in `Program.cs` and shared by HTTP requests, Hangfire jobs and SignalR (one process, Q01). Controllers call model methods directly; `Services/` holds only multi-entity flows and external engines (position ingest, ML.NET anomaly detection, navigation and evacuation). `SiteSense.Domain` keeps only pure algorithms and geometric primitives, which the models use.
+- Assumption: Active Record. Each persisted entity in `SiteSense.Api/Models/` carries `Id`, `TenantId` and `Version` and exposes static async methods for its own persistence and single-entity rules (e.g. `Site.CreateAsync(tenantId, site, ct)`). They call the single generic store through the static context `SiteSenseContext.Store` (`Api/Helpers/SiteSenseContext.cs`), a singleton set once in `Program.cs` and shared by HTTP requests, Hangfire jobs and SignalR (one process, Q01). Controllers call model methods directly; `Services/` holds only multi-entity flows and external engines (position ingest, ML.NET anomaly detection, navigation and evacuation). `SiteSense.Domain` keeps only pure algorithms and geometric primitives, which the models use.
+- Clock: `SiteSenseContext` also exposes `Time`, a `TimeProvider`, set to `TimeProvider.System` in `Program.cs` and replaced by a fake in tests. Models and services read the current time only through it, never through `DateTime.Now` or `DateTimeOffset.UtcNow`. Rejected: passing a `TimeProvider` as a parameter to every method.
 - Tenant safety: every persistence method takes `tenantId` as an explicit parameter, never from an ambient or HTTP context; the store rejects a read or write whose `tenantId` does not match the document.
 - Why: simple and familiar (EF-style entities), chosen by the project owner.
 - Alternatives rejected:
   - A per-entity service plus a store injected through the constructor: one more class per entity and more wiring, for no gain in one process.
 - Known risks:
-  - Static state: parallel tests would share the store. Tests that touch the store run in one xUnit collection, with `Context.Store` on a temp folder.
+  - Static state: parallel tests would share the store. Tests that touch the store run in one xUnit collection, with `SiteSenseContext.Store` on a temp folder and `SiteSenseContext.Time` on a fake clock.
   - `tenantId` must always be passed explicitly; a missing or wrong one is caught by the store's tenant check.
 - Requirement IDs: JDB-01, JDB-07, IDN-02
 - Status: Accepted

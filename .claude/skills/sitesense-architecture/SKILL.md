@@ -48,12 +48,12 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | `Controllers/` | One controller per area, e.g. `SitesController`, `TrackingController`, `NavigationController`, `AuthController` |
 | `Models/` | Persisted entities (`Site.cs`, `Device.cs`, ...) with their static persistence methods, and request and response DTOs. Algorithms and geometric primitives stay in `SiteSense.Domain`. |
 | `Services/` | Only flows that span several entities or need an external engine: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation. No per-entity service. |
-| `Store/` | The single generic JSON document store and the static `Context` that holds it, file IO. It takes the place of a `DbContext` (no EF). |
+| `Store/` | The single generic JSON document store implementation and file IO. It takes the place of a `DbContext` (no EF). |
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
 | `BackgroundJobs/` | Hangfire job classes (see Background jobs) |
 | `Auth/` | Authentication and authorization setup and policies |
+| `Helpers/` | Only app-wide static context (`SiteSenseContext`). No general utilities; shared logic goes in Domain, `Store/` or `Realtime/`. |
 
-- No `Helpers/` folder. Shared code goes in Domain, `Store/` or `Realtime/`.
 - A folder is created by the first story that puts code in it. A new folder updates this table in the same PR.
 
 ### Models and persistence
@@ -62,11 +62,12 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 - Each persisted entity in `Models/` carries `Id`, `TenantId` and `Version`, like an EF entity.
 - It exposes static async methods for its own persistence and single-entity rules, e.g. `Site.CreateAsync(tenantId, site, ct)`, `Site.GetAsync(tenantId, id, ct)`.
-- These methods call the single generic store through the static context: `Context.Store.SaveAsync(tenantId, site, ct)`.
-- `Context.Store` is a singleton, set once at startup in `Program.cs`. One process (Q01), so HTTP requests, Hangfire jobs and SignalR share the same instance.
+- These methods call the single generic store through the static context `SiteSenseContext` (`Helpers/SiteSenseContext.cs`): `SiteSenseContext.Store.SaveAsync(tenantId, site, ct)`.
+- `SiteSenseContext` holds `Store` and `Time` (a `TimeProvider`). Both are set once at startup in `Program.cs`; `Time` is `TimeProvider.System`. One process (Q01), so HTTP requests, Hangfire jobs and SignalR share the same instances.
+- Models and services read the current time only through `SiteSenseContext.Time`. Rules: [coding](../dotnet-coding/SKILL.md).
 - Models use the Domain primitives, e.g. `Site.Boundary` is a Domain `Polygon`.
 - Controllers call model methods directly. A flow that spans several entities or needs an external engine goes through a service in `Services/`.
-- Tests set `Context.Store` to a store on a temp folder. Rules: [testing](../sitesense-testing/SKILL.md).
+- Tests set `SiteSenseContext.Store` to a store on a temp folder and `SiteSenseContext.Time` to a fake `TimeProvider`. Rules: [testing](../sitesense-testing/SKILL.md).
 
 Tenant safety:
 
@@ -104,7 +105,8 @@ Tenant safety:
 | Hangfire job classes (`<What>Job.cs`, trigger only) | `Api/BackgroundJobs/`; recurring schedules in `Program.cs` (see Background jobs) |
 | Geometric primitives, geometry, graph, route finder, GPS filters | Domain |
 | Anomaly detectors (ML.NET) | `Api/Services/` |
-| Generic JSON document store, static `Context`, file IO | `Api/Store/` |
+| Generic JSON document store, file IO | `Api/Store/` |
+| App-wide static context (`SiteSenseContext`: `Store`, `Time`) | `Api/Helpers/` |
 | Options classes and startup validation | Api, rules in [coding](../dotnet-coding/SKILL.md) |
 | Simulator | Separate console app |
 | Demo client | Separate app |
@@ -163,7 +165,7 @@ Inside the root, one subfolder per tenant (JDB-07).
 ## 7. Add a store document type
 
 1. Add the entity in `Api/Models/` with `Id`, `Version` and `TenantId`.
-2. Add its static persistence methods (`CreateAsync`, `GetAsync`, ...), each taking `tenantId` explicitly and calling `Context.Store` (JDB-01). Do not write per-entity storage code in the store.
+2. Add its static persistence methods (`CreateAsync`, `GetAsync`, ...), each taking `tenantId` explicitly and calling `SiteSenseContext.Store` (JDB-01). Do not write per-entity storage code in the store.
 3. Writes are atomic: write to a temp file, flush, then rename over the target (JDB-02).
 4. Updates check the version. A stale version is rejected (JDB-03).
 5. Thread safety inside the process: one lock or immutable snapshots (JDB-04).
