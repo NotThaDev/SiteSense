@@ -5,7 +5,7 @@
 <h1 align="center">SiteSense</h1>
 
 <p align="center">
-  Multi-tenant backend for GPS safety tracking on large outdoor sites.
+  Multi-tenant application for GPS safety tracking on large outdoor sites.
 </p>
 
 ## Overview
