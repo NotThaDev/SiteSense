@@ -32,9 +32,8 @@ It pushes real-time events and enforces strict tenant isolation and privacy. Git
 | `.claude/skills/sitesense-context/SKILL.md` | You need the problem, domain terms, data formats or priorities |
 | `.claude/skills/sitesense-security/SKILL.md` | You touch endpoints, roles, tenants, privacy or auth |
 | `.claude/skills/sitesense-architecture/SKILL.md` | You add a project, folder, endpoint or store document |
-| `.claude/skills/dotnet-coding/SKILL.md` | You write or review C# code |
+| `.claude/skills/dotnet-coding/SKILL.md` | You write or review C# code, or add a package or dependency |
 | `.claude/skills/sitesense-testing/SKILL.md` | You write tests, benchmarks or run test commands |
-| `.claude/skills/sitesense-stack/SKILL.md` | You pick a library, a version or a dependency |
 | `.claude/skills/ai-process/SKILL.md` | You plan, delegate to subagents, verify, log decisions or use memory |
 | `.claude/skills/delivery-workflow/SKILL.md` | You branch, commit, open PRs, review or close the project |
 | `.claude/skills/clear-description/SKILL.md` | You write a PR description |
