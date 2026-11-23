@@ -91,19 +91,22 @@ A new config key is added to `appsettings.example.json` in the same PR.
 |---|---|---|---|---|
 | `api` | built from `backend/SiteSense.Api/Dockerfile` | 8080 | `store-data` at `/var/lib/sitesense/store` | `GET /health` |
 | `keycloak` | `quay.io/keycloak/keycloak:26.5.0`, `start-dev` | 8081 | none yet | `/health/ready` on internal port 9000 |
-| `keycloak-init` | same Keycloak image, runs once | none | none | exits 0 after setting the master realm to `sslRequired=NONE` (Q73) |
 | `redis` | `redis:8.4.0-alpine`, `--appendonly yes --appendfsync always` | none | `redis-data` at `/data` | `redis-cli ping` |
 
 ```mermaid
 flowchart LR
   R["redis healthy"] --> A["api starts"]
-  K["keycloak healthy"] --> I["keycloak-init: sslRequired NONE"]
-  I --> A
+  K["keycloak healthy"] --> A
   A --> H["GET /health 200"]
 ```
 
-- The API starts only after Redis is healthy and `keycloak-init` has finished.
+- The API starts only after Keycloak and Redis are healthy.
 - Keycloak runs on plain HTTP: open `http://localhost:8081`, not `https://` (Q73).
+- If the admin console answers "HTTPS required" (Docker forwarded the request from a non-private address), allow HTTP on the master realm once:
+
+  ```bash
+  docker compose exec keycloak bash -c '/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://localhost:8081 --realm master --user admin --password admin && /opt/keycloak/bin/kcadm.sh update realms/master --config /tmp/kcadm.config -s sslRequired=NONE'
+  ```
 - `Store__RootPath=/var/lib/sitesense/store` overrides the local default, so the store survives restarts (NF-05).
 - Keycloak keeps its data inside the container until the realm import is added; recreating the container resets it.
 - Reset all data: `docker compose down -v` (also fixes a store volume created with the wrong owner by an older image).

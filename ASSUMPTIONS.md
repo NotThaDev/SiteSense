@@ -155,10 +155,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q73 — Does Keycloak use HTTPS in compose?
-- Assumption: no. Keycloak runs on plain HTTP, and a one-shot `keycloak-init` service sets the master realm to `sslRequired=NONE` once Keycloak is healthy. The SiteSense realm import (SS-5) sets the same value.
-- Why: Keycloak's default (`external`) asks for HTTPS when a request comes from a non-private address, and Docker Desktop can forward host requests from one (seen behind a VPN). HTTP keeps the local setup free of certificates.
+- Assumption: no. Keycloak runs on plain HTTP (`start-dev`). The SiteSense realm import (SS-5) sets `sslRequired: none`, so the API, the simulator and the evaluator get tokens over HTTP from any source address. The master realm keeps Keycloak's default (`external`); the admin console is for developers only, and the README gives a one-line `kcadm` command for machines where Docker forwards host requests from a non-private address and Keycloak then asks for HTTPS.
+- Why: no certificates to generate or trust, and no extra compose service.
 - Alternatives rejected:
+  - A one-shot `keycloak-init` service that sets the master realm to `sslRequired=NONE`: works, but adds a service only for the admin console.
   - Self-signed certificate: a browser warning, and the API and the simulator must trust the certificate. Too much setup for a local test environment.
-- Consequences: local and test use only; a real deployment puts TLS in front (reverse proxy). Trusting a certificate is infrastructure config (a CA mounted in the containers), not an application feature.
+  - mkcert: a manual install step for the evaluator (NF-01).
+- Consequences: local and test use only; a real deployment puts TLS in front (reverse proxy with a public certificate). Trusting a certificate is infrastructure config (a CA mounted in the containers), not an application feature.
 - Requirement IDs: NF-01, IDN-01
 - Status: Accepted
