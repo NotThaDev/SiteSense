@@ -64,7 +64,7 @@ No setup needed: every variable has a default. To override one, copy `.env.examp
    cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
    ```
 
-2. Run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `.store/` (`Store:RootPath`).
+2. Run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
 
 ## Tech stack
 

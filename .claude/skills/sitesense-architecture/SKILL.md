@@ -138,7 +138,7 @@ The document store is never inside `data/` and never in git.
 | Where | Path | How it is set |
 |---|---|---|
 | Option | `Store:RootPath` | Read from configuration and validated on start (NF-04). |
-| Local run | `.store/` in the repo root | Default in `appsettings.example.json`, copied to `appsettings.json`; `.store/` is in `.gitignore`. |
+| Local run | `backend/SiteSense.Api/.store/` | Template value `.store` in `appsettings.example.json`, copied to `appsettings.json`. Relative to the working directory, which `dotnet run` sets to the project folder (Q72). `.store/` is in `.gitignore`. |
 | Docker | `/var/lib/sitesense/store` on a named volume | Overridden by the `Store__RootPath` environment variable in `docker-compose.yml`, so data survives restarts (NF-05). |
 
 Inside the root, one subfolder per tenant (JDB-07).

@@ -81,7 +81,7 @@ A new config key is added to `appsettings.example.json` in the same PR.
 
 | Key | Default | Rule |
 |---|---|---|
-| `Store:RootPath` | `.store` (template) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
+| `Store:RootPath` | `.store` (template), relative to the working directory: `backend/SiteSense.Api/.store/` with `dotnet run` (Q72) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
 
 ## Run with Docker
 

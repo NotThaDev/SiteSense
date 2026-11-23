@@ -145,3 +145,11 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: keeps CI fast; image pulls would add minutes to every PR.
 - Requirement IDs: NF-01
 - Status: Accepted
+
+## Q72 — Where is the store on a local run?
+- Assumption: `backend/SiteSense.Api/.store/`. The template keeps `"RootPath": ".store"`, a path relative to the working directory, and `dotnet run` sets that to the project folder. The folder is gitignored.
+- Why: a plain relative value, no `../../` that breaks when the DLL is started from another folder.
+- Alternatives rejected:
+  - `../../.store` to keep the store in the repo root: wrong when the app is not started with `dotnet run`.
+- Requirement IDs: NF-04, NF-05
+- Status: Accepted
