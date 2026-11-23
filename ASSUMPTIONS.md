@@ -153,3 +153,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - `../../.store` to keep the store in the repo root: wrong when the app is not started with `dotnet run`.
 - Requirement IDs: NF-04, NF-05
 - Status: Accepted
+
+## Q73 — Does Keycloak use HTTPS in compose?
+- Assumption: no. Keycloak runs on plain HTTP, and a one-shot `keycloak-init` service sets the master realm to `sslRequired=NONE` once Keycloak is healthy. The SiteSense realm import (SS-5) sets the same value.
+- Why: Keycloak's default (`external`) asks for HTTPS when a request comes from a non-private address, and Docker Desktop can forward host requests from one (seen behind a VPN). HTTP keeps the local setup free of certificates.
+- Alternatives rejected:
+  - Self-signed certificate: a browser warning, and the API and the simulator must trust the certificate. Too much setup for a local test environment.
+- Consequences: local and test use only; a real deployment puts TLS in front (reverse proxy). Trusting a certificate is infrastructure config (a CA mounted in the containers), not an application feature.
+- Requirement IDs: NF-01, IDN-01
+- Status: Accepted
