@@ -161,6 +161,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - A one-shot `keycloak-init` service that sets the master realm to `sslRequired=NONE`: works, but adds a service only for the admin console.
   - Self-signed certificate: a browser warning, and the API and the simulator must trust the certificate. Too much setup for a local test environment.
   - mkcert: a manual install step for the evaluator (NF-01).
-- Consequences: local and test use only; a real deployment puts TLS in front (reverse proxy with a public certificate). Trusting a certificate is infrastructure config (a CA mounted in the containers), not an application feature.
+- Consequences: local and test use only. Trusting a certificate is infrastructure config (a CA mounted in the containers), not an application feature.
+- Going online: the real certificate, for the real domain, goes to one service only, an nginx reverse proxy. nginx terminates TLS and forwards each request over the internal network to the right service (Keycloak, the API, the demo client). Behind nginx the services keep plain HTTP; Keycloak is told it runs behind a proxy (`KC_PROXY_HEADERS=xforwarded`, `KC_HOSTNAME` set to the public URL) and its realms go back to `sslRequired: external`.
 - Requirement IDs: NF-01, IDN-01
 - Status: Accepted
