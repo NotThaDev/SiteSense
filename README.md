@@ -43,6 +43,22 @@ tests/
 
 Build and test from the repository root: `dotnet build`, `dotnet test`. Full page: [`docs/architecture.md`](docs/architecture.md).
 
+### Run with Docker
+
+```bash
+docker compose up
+```
+
+| Service | URL | Notes |
+|---|---|---|
+| API | `http://localhost:8080` | `GET /health` returns 200 |
+| Keycloak | `http://localhost:8081` | admin console, test login `admin` / `admin` |
+| Redis | internal only | Hangfire storage, append-only on a volume |
+
+Everything runs on plain HTTP, Keycloak included, so the API reaches it the same way from a container or from `dotnet run`. Details: [`docs/architecture.md`](docs/architecture.md#run-with-docker).
+
+No setup needed: every variable has a default. To override one, copy `.env.example` to `.env`. Full page: [`docs/architecture.md`](docs/architecture.md#run-with-docker).
+
 ### Run locally
 
 1. Create your local config from the committed template (`appsettings*.json` files are not in git):
@@ -51,7 +67,7 @@ Build and test from the repository root: `dotnet build`, `dotnet test`. Full pag
    cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
    ```
 
-2. Run the API: `dotnet run --project backend/SiteSense.Api`.
+2. Run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
 3. Read the API: the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
 ## Tech stack

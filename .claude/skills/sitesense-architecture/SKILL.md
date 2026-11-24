@@ -52,7 +52,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
 | `BackgroundJobs/` | Hangfire job classes (see Background jobs) |
 | `Auth/` | Authentication and authorization setup and policies |
-| `Diagnostics/` | Correlation id (NF-03): the middleware, the log scope helper and the `Correlated<T>` carrier (Q72, Q73) |
+| `Diagnostics/` | Correlation id (NF-03): the middleware, the log scope helper and the `Correlated<T>` carrier (Q75, Q76) |
 | `Helpers/` | Only app-wide static context (`SiteSenseContext`). No general utilities; shared logic goes in Domain, `Store/` or `Realtime/`. |
 
 - A folder is created by the first story that puts code in it. A new folder updates this table in the same PR.
@@ -139,7 +139,7 @@ The document store is never inside `data/` and never in git.
 | Where | Path | How it is set |
 |---|---|---|
 | Option | `Store:RootPath` | Read from configuration and validated on start (NF-04). |
-| Local run | `.store/` in the repo root | Default in `appsettings.example.json`, copied to `appsettings.json`; `.store/` is in `.gitignore`. |
+| Local run | `backend/SiteSense.Api/.store/` | Template value `.store` in `appsettings.example.json`, copied to `appsettings.json`. Relative to the working directory, which `dotnet run` sets to the project folder (Q73). `.store/` is in `.gitignore`. |
 | Docker | `/var/lib/sitesense/store` on a named volume | Overridden by the `Store__RootPath` environment variable in `docker-compose.yml`, so data survives restarts (NF-05). |
 
 Inside the root, one subfolder per tenant (JDB-07).

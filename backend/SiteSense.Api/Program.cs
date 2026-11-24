@@ -1,9 +1,14 @@
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using SiteSense.Api.Diagnostics;
+using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
 
+builder.Services.AddSingleton<IValidateOptions<StoreOptions>, StoreOptionsValidator>();
+builder.Services.AddOptions<StoreOptions>().BindConfiguration(StoreOptions.Section).ValidateOnStart();
+builder.Services.AddHealthChecks();
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
     .AddJsonOptions(o => o.JsonSerializerOptions.RespectRequiredConstructorParameters = true);
@@ -19,6 +24,7 @@ app.Use(Correlation.Middleware);
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+app.MapHealthChecks("/health");
 // Served in every environment (Q69).
 app.MapOpenApi();
 app.MapScalarApiReference();
