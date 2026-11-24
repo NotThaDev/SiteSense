@@ -23,7 +23,7 @@ services:
       retries: 10
       start_period: 10s
 
-  # Plain HTTP on purpose (Q73): the backend reaches Keycloak the same way from a container
+  # Plain HTTP on purpose (Q74): the backend reaches Keycloak the same way from a container
   # (http://keycloak:8081) or from the host with dotnet run (http://localhost:8081),
   # with no certificate to trust. Production puts TLS on an nginx reverse proxy in front.
   keycloak:
@@ -46,7 +46,7 @@ services:
 
   # One-shot: allow plain HTTP on the master realm (admin console). Keycloak's default
   # "external" rule asks for HTTPS when Docker forwards a host request from a non-private
-  # address. No env var or flag sets a realm's sslRequired, so kcadm does it once (Q73).
+  # address. No env var or flag sets a realm's sslRequired, so kcadm does it once (Q74).
   keycloak-init:
     image: quay.io/keycloak/keycloak:26.5.0
     depends_on:

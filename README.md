@@ -67,6 +67,7 @@ No setup needed: every variable has a default. To override one, copy `.env.examp
    ```
 
 2. Run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
+3. Read the API: the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
 ## Tech stack
 

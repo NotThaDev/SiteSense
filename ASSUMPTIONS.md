@@ -126,7 +126,18 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NF-04
 - Status: Accepted
 
-## Q69 — How does compose get the Keycloak admin credentials?
+## Q69 — Where is the API description served?
+- Assumption: the built-in ASP.NET Core OpenAPI document is served at `/openapi/v1.json` in every environment, and the Scalar UI at `/scalar/v1` (`/scalar` redirects there). Scalar is kept so the project owner can review the API; it may be removed later without touching the contract.
+- Why: clients and reviewers can read the contract from any run, docker compose included. The document holds no secrets.
+- Alternatives rejected:
+  - Development only (the template default): the contract would not be visible in the compose run.
+  - No UI: the raw JSON is harder to review by hand.
+- Known risks:
+  - Both endpoints are anonymous. When authentication lands, they need an explicit `AllowAnonymous`, or a fallback policy will block them.
+- Requirement IDs: API-05
+- Status: Accepted
+
+## Q70 — How does compose get the Keycloak admin credentials?
 - Assumption: compose defaults them to `admin` / `admin` (`${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}`), documented as local test credentials. `.env` can override them.
 - Why: `docker compose up` must work with no manual step; the admin console is local only.
 - Alternatives rejected:
@@ -134,19 +145,19 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NF-01, NF-04
 - Status: Accepted
 
-## Q70 — What does `/health` check?
+## Q71 — What does `/health` check?
 - Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`ValidateOnStart`), not on every call.
 - Why: no extra package; dependency checks (Redis, Keycloak) come with the stories that use them.
 - Requirement IDs: NF-04
 - Status: Accepted
 
-## Q71 — Does CI run docker compose?
+## Q72 — Does CI run docker compose?
 - Assumption: no. CI stays restore, build and test. `docker compose up` and `/health` are checked by hand in each PR that changes compose.
 - Why: keeps CI fast; image pulls would add minutes to every PR.
 - Requirement IDs: NF-01
 - Status: Accepted
 
-## Q72 — Where is the store on a local run?
+## Q73 — Where is the store on a local run?
 - Assumption: `backend/SiteSense.Api/.store/`. The template keeps `"RootPath": ".store"`, a path relative to the working directory, and `dotnet run` sets that to the project folder. The folder is gitignored.
 - Why: a plain relative value, no `../../` that breaks when the DLL is started from another folder.
 - Alternatives rejected:
@@ -154,7 +165,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NF-04, NF-05
 - Status: Accepted
 
-## Q73 — Does Keycloak use HTTPS in compose?
+## Q74 — Does Keycloak use HTTPS in compose?
 - Assumption: no. Keycloak runs on plain HTTP (`start-dev`), so the API reaches it the same way from a container (`http://keycloak:8081`) or from the host with `dotnet run` (`http://localhost:8081`), with no certificate to trust.
 - Keycloak's default `sslRequired: external` asks for HTTPS when Docker forwards a host request from a non-private address. So:
   - the SiteSense realm import (SS-5) sets `sslRequired: none`;

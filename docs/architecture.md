@@ -81,7 +81,7 @@ A new config key is added to `appsettings.example.json` in the same PR.
 
 | Key | Default | Rule |
 |---|---|---|
-| `Store:RootPath` | `.store` (template), relative to the working directory: `backend/SiteSense.Api/.store/` with `dotnet run` (Q72) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
+| `Store:RootPath` | `.store` (template), relative to the working directory: `backend/SiteSense.Api/.store/` with `dotnet run` (Q73) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
 
 ## Run with Docker
 
@@ -91,7 +91,7 @@ A new config key is added to `appsettings.example.json` in the same PR.
 |---|---|---|---|---|
 | `api` | built from `backend/SiteSense.Api/Dockerfile` | 8080 | `store-data` at `/var/lib/sitesense/store` | `GET /health` |
 | `keycloak` | `quay.io/keycloak/keycloak:26.5.0`, `start-dev` | 8081 | none yet | `/health/ready` on internal port 9000 |
-| `keycloak-init` | same Keycloak image, runs once | none | none | exits 0 after setting the master realm to `sslRequired=NONE` (Q73) |
+| `keycloak-init` | same Keycloak image, runs once | none | none | exits 0 after setting the master realm to `sslRequired=NONE` (Q74) |
 | `redis` | `redis:8.4.0-alpine`, `--appendonly yes --appendfsync always` | none | `redis-data` at `/data` | `redis-cli ping` |
 
 ```mermaid
@@ -103,7 +103,7 @@ flowchart LR
 ```
 
 - The API starts only after Redis is healthy and `keycloak-init` has finished.
-- Everything runs on plain HTTP, Keycloak included: `http://localhost:8081` from the host (browser, the API started with `dotnet run`, the simulator), `http://keycloak:8081` from other containers. No certificate to trust anywhere (Q73).
+- Everything runs on plain HTTP, Keycloak included: `http://localhost:8081` from the host (browser, the API started with `dotnet run`, the simulator), `http://keycloak:8081` from other containers. No certificate to trust anywhere (Q74).
 - `Store__RootPath=/var/lib/sitesense/store` overrides the local default, so the store survives restarts (NF-05).
 - Keycloak keeps its data inside the container until the realm import is added; recreating the container resets it.
 - Reset all data: `docker compose down -v` (also fixes a store volume created with the wrong owner by an older image).
@@ -113,8 +113,8 @@ Variables compose reads (all have defaults; override them in `.env`, template `.
 | Variable | Default | Use |
 |---|---|---|
 | `SITESENSE_TEST_MODE` | `false` | Passed to the API; turns on the test endpoints once they exist. |
-| `KC_BOOTSTRAP_ADMIN_USERNAME` | `admin` | Keycloak admin console user, local test credential (Q69). |
-| `KC_BOOTSTRAP_ADMIN_PASSWORD` | `admin` | Keycloak admin console password, local test credential (Q69). |
+| `KC_BOOTSTRAP_ADMIN_USERNAME` | `admin` | Keycloak admin console user, local test credential (Q70). |
+| `KC_BOOTSTRAP_ADMIN_PASSWORD` | `admin` | Keycloak admin console password, local test credential (Q70). |
 
 ## Build and test
 
