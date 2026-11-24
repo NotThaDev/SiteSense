@@ -35,6 +35,7 @@ It pushes real-time events and enforces strict tenant isolation and privacy. Git
 | `.claude/skills/dotnet-coding/SKILL.md` | You write or review C# code, or add a package or dependency |
 | `.claude/skills/sitesense-testing/SKILL.md` | You write tests, benchmarks or run test commands |
 | `.claude/skills/ai-process/SKILL.md` | You plan, delegate to subagents, verify, log decisions or use memory |
+| `.claude/skills/planning/SKILL.md` | You write, push or update a plan (plan file, plan PR, review changes) |
 | `.claude/skills/delivery-workflow/SKILL.md` | You branch, commit, open PRs, review or close the project |
 | `.claude/skills/clear-description/SKILL.md` | You write a PR description |
 
