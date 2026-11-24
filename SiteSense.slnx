@@ -7,6 +7,7 @@
     <Project Path="simulator/SiteSense.Simulator/SiteSense.Simulator.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/SiteSense.StoreCrashWriter/SiteSense.StoreCrashWriter.csproj" />
     <Project Path="tests/SiteSense.Tests/SiteSense.Tests.csproj" />
   </Folder>
 </Solution>

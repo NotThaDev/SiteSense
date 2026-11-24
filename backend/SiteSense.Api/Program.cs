@@ -1,13 +1,11 @@
-using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using SiteSense.Api.Diagnostics;
-using SiteSense.Api.Store;
+using SiteSense.Api.Helpers;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
 
-builder.Services.AddSingleton<IValidateOptions<StoreOptions>, StoreOptionsValidator>();
-builder.Services.AddOptions<StoreOptions>().BindConfiguration(StoreOptions.Section).ValidateOnStart();
+SiteSenseContext.Init(builder);
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.

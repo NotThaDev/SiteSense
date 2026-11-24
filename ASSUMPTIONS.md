@@ -145,7 +145,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q71 — What does `/health` check?
-- Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`ValidateOnStart`), not on every call.
+- Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`SiteSenseContext.Init`), not on every call.
 - Why: no extra package; dependency checks (Redis, Keycloak) come with the stories that use them.
 - Requirement IDs: NF-04
 - Status: Accepted
@@ -180,8 +180,33 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NF-01, IDN-01
 - Status: Accepted
 
-## Q75 — Where does the correlation id code live?
-- Assumption: in a new `SiteSense.Api/Diagnostics/` folder: `Correlation.cs` (header name, middleware, log scope helper) and `Correlated.cs` (the carrier, Q76).
+## Q04 — How are documents stored as JSON files?
+- Assumption: one JSON file per document, `<root>/<tenantId>/<type>/<id>.json`. A save replaces the whole file atomically (temp file, fsync, rename) and keeps no history. Data with a history (positions, track points, events) is append-only and gets its own format in SS-12. If a later story needs old map versions, it saves each version as its own document.
+- Why: documents (tenant, site, map, device, alert) are few and read or replaced whole; the requirements ask for no document history. One file per document means one write touches only that document.
+- Alternatives rejected:
+  - One file per type (e.g. `devices.json`): every save rewrites all documents of the type and serializes all writers.
+  - Keeping every version (`<id>.v<n>.json`): more files and a cleanup job, for no requirement.
+- Requirement IDs: JDB-01, JDB-02, JDB-07
+- Status: Accepted (documents). Positions: decided in SS-12.
+
+## Q75 — One persistence interface or two?
+- Assumption: two. `IDocumentStore` for documents (read, replace whole, version) and, from SS-12, a separate interface for append-only records (positions, track points, events). One component still writes to disk.
+- Why: each entity sees only the operations that make sense for it; an append-only record has no update or version, and a document has no append.
+- Alternatives rejected:
+  - One interface that also gets `AppendAsync`: half of its methods would be invalid for half of the entities.
+- Requirement IDs: JDB-01, JDB-06
+- Status: Accepted
+
+## Q76 — Are ids case-sensitive in the store?
+- Assumption: yes, as in JSON and HTTP: `dev-001` and `DEV-001` are two documents. In file and folder names each uppercase letter is written as `!` + lowercase (`DEV-001` → `!d!e!v-001.json`); `!` is not a valid id character, so two ids never map to one file, on any disk. The id inside the file is stored as is.
+- Why: macOS and Windows disks ignore case, Linux does not. Without the encoding a second save of `DEV-001` silently overwrites `dev-001` on a Mac but not in the container.
+- Alternatives rejected:
+  - Case-insensitive ids (a case variant rejected as a duplicate): a rule the requirements do not give.
+  - Lowercase-only ids: a `DEV-001` the requirements allow would get 400.
+- Requirement IDs: JDB-01, JDB-02
+
+## Q77 — Where does the correlation id code live?
+- Assumption: in a new `SiteSense.Api/Diagnostics/` folder: `Correlation.cs` (header name, middleware, log scope helper) and `Correlated.cs` (the carrier, Q78).
 - Why: `Helpers/` holds only `SiteSenseContext`, and keeping the middleware out of `Program.cs` keeps that file short.
 - Alternatives rejected:
   - `Middleware/`: the carrier and the scope helper are not middleware.
@@ -189,7 +214,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NF-03
 - Status: Accepted
 
-## Q76 — How does the correlation id leave the HTTP request?
+## Q78 — How does the correlation id leave the HTTP request?
 - Assumption: the request reads `X-Correlation-Id` (1–64 chars of `[A-Za-z0-9-_.]`, otherwise a new id is generated), returns it in the response header and opens a log scope with it. Work that runs outside the request (ingest queue, SignalR events) carries it in `Correlated<T>(CorrelationId, Payload)` and reopens the scope with `Correlation.BeginScope`.
 - Why: one generic envelope keeps the payload types clean; the scope gives the id to every log line without passing it by hand.
 - Alternatives rejected:

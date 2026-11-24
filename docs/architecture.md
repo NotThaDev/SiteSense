@@ -10,13 +10,16 @@ How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-a
 | `backend/SiteSense.Api`         | Composition root: controllers, entities and DTOs, services, store, auth, ML.NET, SignalR, Hangfire jobs                                               | Domain      |
 | `simulator/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only                                                                                 | none        |
 | `frontend/` (reserved)          | The demo client, added in its own story; talks to the API over HTTP and SignalR only. Never under `simulator/`.                                       | none        |
-| `tests/SiteSense.Tests`         | All server tests, in `Domain/` and `Api/` subfolders                                                                                                  | Domain, Api |
+| `tests/SiteSense.Tests`         | All server tests, in `Domain/` and `Api/` subfolders                                                                                                  | Domain, Api, StoreCrashWriter |
+| `tests/SiteSense.StoreCrashWriter` | Console child process for the store crash test: writes documents until the test kills it                                                        | Api |
 
 ```mermaid
 flowchart BT
   Api --> Domain
   Tests["SiteSense.Tests"] --> Api
   Tests --> Domain
+  Tests --> CrashWriter["SiteSense.StoreCrashWriter"]
+  CrashWriter --> Api
   Simulator -. "HTTP, SignalR" .-> Api
 ```
 
@@ -59,6 +62,18 @@ flowchart LR
 - Controllers call model methods directly; only multi-entity flows and external engines go through `Services/`.
 - `tenantId` is always an explicit parameter, never read from an ambient or HTTP context. The store rejects a read or write whose `tenantId` does not match the document.
 - Models use Domain primitives, e.g. `Site.Boundary` is a Domain `Polygon`.
+
+### Document store
+
+`IDocumentStore` (`Store/`) is the one generic API for every document type (JDB-01): `GetAsync<T>`, `SaveAsync<T>`, `DeleteAsync<T>`, with `T : IDocument` (`Id`, `TenantId`, `Version`). `FileDocumentStore` implements it. Append-only records (positions, events) get their own interface later (Q75).
+
+| Rule | How |
+|---|---|
+| Layout | `<Store:RootPath>/<tenantId>/<type name>/<id>.json`: one folder per tenant (JDB-07), one file per document, overwritten on save (Q04) |
+| Atomic write (JDB-02) | Write `<id>.json.tmp`, fsync, rename over `<id>.json`. A killed process leaves the old or the new file, never half of one. Orphan `.tmp` files are deleted when the store opens. |
+| Thread safety (JDB-04) | One async lock per document. Reads take no lock: the rename is atomic. |
+| Version | Set by the store: stored version + 1, 1 on create. The stale-version check comes with SS-10. |
+| Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. Ids are case-sensitive: in file and folder names each uppercase letter becomes `!` + lowercase (`DEV-001` → `!d!e!v-001.json`), so case-insensitive disks (macOS, Windows) keep them apart (Q76). |
 
 ## Build settings
 
