@@ -13,6 +13,7 @@ description: >-
 
 Definition of done, branches and PRs: `../delivery-workflow/SKILL.md`.
 Coding rules for subagents: `../dotnet-coding/SKILL.md`.
+Plan file, plan PR and review updates: `../planning/SKILL.md`.
 
 ## 1. Session start
 
@@ -37,9 +38,9 @@ If you skip the workflow, say why in one line. Example: "direct: single-file edi
 
 | Step | Who | Output | Rule |
 |---|---|---|---|
-| 1. Plan | Opus | Numbered steps, one file or one concern each, with "done when" per step | Main session. Lists exact file paths. |
+| 1. Plan | Opus | Numbered steps, one file or one concern each, with "done when" per step | Main session. Written as a plan file per `../planning/SKILL.md`. Lists exact file paths. |
 | 2. Validate | Sonnet subagent | Gaps, risks, missing steps | Fix the plan before implementing. |
-| 3. Approve | The user | The validated plan: steps, files touched, risks, open questions | Show it and wait for an explicit OK. No implementation without it. A change to the plan needs a new OK. |
+| 3. Approve | The user | The validated plan: steps, files touched, risks, open questions | Push it as a draft plan PR and wait for an explicit OK. No implementation without it. A change to the plan updates the plan file and needs a new OK. |
 | 4. Implement | Haiku subagents | Changed files, one step per subagent | One small, verifiable step each. |
 | 5. Verify | Haiku subagent (Sonnet only if the check needs judgment) | Short pass/fail report | Runs tests, build and browser checks. |
 

@@ -169,7 +169,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Keycloak's default `sslRequired: external` asks for HTTPS when Docker forwards a host request from a non-private address. So:
   - the SiteSense realm import (SS-5) sets `sslRequired: none`;
   - a one-shot `keycloak-init` service sets the master realm (admin console) to `sslRequired=NONE` once Keycloak is healthy, so `docker compose up` needs no manual step.
-- SS-5 also fixes the token issuer with `KC_HOSTNAME=http://localhost:8081`, so tokens carry the same issuer whether the API runs on the host or in a container.
+- SS-5 also fixes the token issuer with `KC_HOSTNAME=http://localhost:8081`, so tokens carry the same issuer whether the API runs on the host or in a container. `KC_HOSTNAME_BACKCHANNEL_DYNAMIC=true` keeps the jwks and token URLs on the host the caller used, so a container can still reach them at `http://keycloak:8081`.
 - Why: the evaluator runs only `docker compose up`, and the backend must work against the Keycloak container both from the host and from a container.
 - Alternatives rejected:
   - Self-signed certificate made by the Keycloak image: containers trust it through `SSL_CERT_DIR`, but on macOS .NET uses the Keychain, so `dotnet run` needs a manual trust step; the browser shows a warning.
