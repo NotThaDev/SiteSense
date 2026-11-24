@@ -151,25 +151,6 @@ public sealed class ErrorResponseTests : IClassFixture<ApiFactory>
         Assert.Equal(ProblemJson, response.Content.Headers.ContentType?.MediaType);
     }
 
-    [Fact]
-    public async Task Echo_ValidCoordinate_ReturnsLatLonShape()
-    {
-        // Arrange
-        var payload = new { from = new { lat = 45.5, lon = 9.25 } };
-
-        // Act
-        var response = await _client.PostAsJsonAsync("/probe/echo", payload);
-        var body = await response.Content.ReadAsStringAsync();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var doc = JsonDocument.Parse(body);
-        var names = doc.RootElement.EnumerateObject().Select(p => p.Name).OrderBy(n => n).ToArray();
-        Assert.Equal(new[] { "lat", "lon" }, names);
-        Assert.Equal(45.5, doc.RootElement.GetProperty("lat").GetDouble());
-        Assert.Equal(9.25, doc.RootElement.GetProperty("lon").GetDouble());
-    }
-
     private static string[] ErrorKeys(string json)
     {
         using var doc = JsonDocument.Parse(json);

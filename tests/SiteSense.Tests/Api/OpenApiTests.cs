@@ -39,7 +39,7 @@ public sealed class OpenApiTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task GetOpenApi_LatLonSchema_RequiresLatAndLon()
+    public async Task GetOpenApi_CtorParametersWithoutDefault_AreRequired()
     {
         // Arrange
         // Act
@@ -48,7 +48,7 @@ public sealed class OpenApiTests : IClassFixture<ApiFactory>
         // Assert
         using var doc = JsonDocument.Parse(body);
         var required = doc.RootElement.GetProperty("components").GetProperty("schemas")
-            .GetProperty("LatLon").GetProperty("required")
+            .GetProperty("ProbePoint").GetProperty("required")
             .EnumerateArray().Select(e => e.GetString()).ToArray();
         Assert.Equal(new[] { "lat", "lon" }, required.OrderBy(n => n).ToArray());
     }
