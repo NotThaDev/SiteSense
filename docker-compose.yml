@@ -11,8 +11,8 @@ services:
     volumes:
       - store-data:/var/lib/sitesense/store
     depends_on:
-      keycloak:
-        condition: service_healthy
+      keycloak-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
@@ -23,6 +23,9 @@ services:
       retries: 10
       start_period: 10s
 
+  # Plain HTTP on purpose (Q73): the backend reaches Keycloak the same way from a container
+  # (http://keycloak:8081) or from the host with dotnet run (http://localhost:8081),
+  # with no certificate to trust. Production puts TLS on an nginx reverse proxy in front.
   keycloak:
     image: quay.io/keycloak/keycloak:26.5.0
     command: start-dev
@@ -40,6 +43,25 @@ services:
       timeout: 5s
       retries: 15
       start_period: 60s
+
+  # One-shot: allow plain HTTP on the master realm (admin console). Keycloak's default
+  # "external" rule asks for HTTPS when Docker forwards a host request from a non-private
+  # address. No env var or flag sets a realm's sslRequired, so kcadm does it once (Q73).
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:26.5.0
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >-
+        /opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config
+        --server http://keycloak:8081 --realm master
+        --user "$$KC_BOOTSTRAP_ADMIN_USERNAME" --password "$$KC_BOOTSTRAP_ADMIN_PASSWORD"
+        && /opt/keycloak/bin/kcadm.sh update realms/master --config /tmp/kcadm.config -s sslRequired=NONE
 
   redis:
     image: redis:8.4.0-alpine

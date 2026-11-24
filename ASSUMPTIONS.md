@@ -155,13 +155,17 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q73 — Does Keycloak use HTTPS in compose?
-- Assumption: no. Keycloak runs on plain HTTP (`start-dev`). The SiteSense realm import (SS-5) sets `sslRequired: none`, so the API, the simulator and the evaluator get tokens over HTTP from any source address. The master realm keeps Keycloak's default (`external`); the admin console is for developers only, and the README gives a one-line `kcadm` command for machines where Docker forwards host requests from a non-private address and Keycloak then asks for HTTPS.
-- Why: no certificates to generate or trust, and no extra compose service.
+- Assumption: no. Keycloak runs on plain HTTP (`start-dev`), so the API reaches it the same way from a container (`http://keycloak:8081`) or from the host with `dotnet run` (`http://localhost:8081`), with no certificate to trust.
+- Keycloak's default `sslRequired: external` asks for HTTPS when Docker forwards a host request from a non-private address. So:
+  - the SiteSense realm import (SS-5) sets `sslRequired: none`;
+  - a one-shot `keycloak-init` service sets the master realm (admin console) to `sslRequired=NONE` once Keycloak is healthy, so `docker compose up` needs no manual step.
+- SS-5 also fixes the token issuer with `KC_HOSTNAME=http://localhost:8081`, so tokens carry the same issuer whether the API runs on the host or in a container.
+- Why: the evaluator runs only `docker compose up`, and the backend must work against the Keycloak container both from the host and from a container.
 - Alternatives rejected:
-  - A one-shot `keycloak-init` service that sets the master realm to `sslRequired=NONE`: works, but adds a service only for the admin console.
-  - Self-signed certificate: a browser warning, and the API and the simulator must trust the certificate. Too much setup for a local test environment.
+  - Self-signed certificate made by the Keycloak image: containers trust it through `SSL_CERT_DIR`, but on macOS .NET uses the Keychain, so `dotnet run` needs a manual trust step; the browser shows a warning.
+  - Plain HTTP plus a documented `kcadm` command for the master realm: a manual step for the evaluator (NF-01).
   - mkcert: a manual install step for the evaluator (NF-01).
-- Consequences: local and test use only. Trusting a certificate is infrastructure config (a CA mounted in the containers), not an application feature.
-- Going online: the real certificate, for the real domain, goes to one service only, an nginx reverse proxy. nginx terminates TLS and forwards each request over the internal network to the right service (Keycloak, the API, the demo client). Behind nginx the services keep plain HTTP; Keycloak is told it runs behind a proxy (`KC_PROXY_HEADERS=xforwarded`, `KC_HOSTNAME` set to the public URL) and its realms go back to `sslRequired: external`.
+- Consequences: local and test use only. Trusting a certificate is infrastructure config, not an application feature.
+- Going online: the real certificate, for the real domain, goes to one service only, an nginx reverse proxy. nginx terminates TLS and forwards each request over the internal network to the right service (Keycloak, the API, the demo client). Behind nginx the services keep plain HTTP; Keycloak is told it runs behind a proxy (`KC_PROXY_HEADERS=xforwarded`, `KC_HOSTNAME` set to the public URL), its realms go back to `sslRequired: external`, and `keycloak-init` is dropped.
 - Requirement IDs: NF-01, IDN-01
 - Status: Accepted

@@ -54,7 +54,7 @@ docker compose up
 | Keycloak | `http://localhost:8081` | admin console, test login `admin` / `admin` |
 | Redis | internal only | Hangfire storage, append-only on a volume |
 
-Keycloak runs on plain HTTP: open `http://localhost:8081`. If its admin console answers "HTTPS required", run the one-line fix in [`docs/architecture.md`](docs/architecture.md#run-with-docker).
+Everything runs on plain HTTP, Keycloak included, so the API reaches it the same way from a container or from `dotnet run`. Details: [`docs/architecture.md`](docs/architecture.md#run-with-docker).
 
 No setup needed: every variable has a default. To override one, copy `.env.example` to `.env`. Full page: [`docs/architecture.md`](docs/architecture.md#run-with-docker).
 
