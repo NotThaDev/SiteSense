@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #42
-- Plan PR: #54   Implementation PRs: (stacked on this one)
+- Plan PR: #54   Implementation PRs: #57
 - Requirement IDs: JDB-03, JDB-10
 
 ## Problem
