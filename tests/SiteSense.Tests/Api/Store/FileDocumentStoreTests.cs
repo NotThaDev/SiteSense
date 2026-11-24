@@ -64,6 +64,20 @@ public sealed class FileDocumentStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Save_IdsDifferingOnlyByCase_AreSeparateDocuments()
+    {
+        var store = new FileDocumentStore(_root);
+        await store.SaveAsync("tenant-a", new TestDoc { Id = "dev-001", TenantId = "tenant-a", Name = "lower" }, CancellationToken.None);
+        await store.SaveAsync("tenant-a", new TestDoc { Id = "DEV-001", TenantId = "tenant-a", Name = "upper" }, CancellationToken.None);
+
+        var lower = await store.GetAsync<TestDoc>("tenant-a", "dev-001", CancellationToken.None);
+        var upper = await store.GetAsync<TestDoc>("tenant-a", "DEV-001", CancellationToken.None);
+
+        Assert.Equal(("lower", 1L, "dev-001"), (lower!.Name, lower.Version, lower.Id));
+        Assert.Equal(("upper", 1L, "DEV-001"), (upper!.Name, upper.Version, upper.Id));
+    }
+
+    [Fact]
     public async Task Save_TwoTenants_UsesOneDirectoryPerTenant()
     {
         var store = new FileDocumentStore(_root);

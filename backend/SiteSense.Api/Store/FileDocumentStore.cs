@@ -9,7 +9,7 @@ public sealed partial class FileDocumentStore : IDocumentStore
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     // shortcut: one semaphore per document path is never removed; fine for thousands of documents, evict when counts grow
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly string _root;
 
     public FileDocumentStore(string rootPath)
@@ -110,7 +110,10 @@ public sealed partial class FileDocumentStore : IDocumentStore
             throw new ArgumentException($"'{value}' is not a valid name.", paramName);
     }
 
-    // shortcut: ids differing only by case share one file on case-insensitive disks (macOS); Linux containers are case-sensitive
     private string PathOf<T>(string tenantId, string id) =>
-        Path.Combine(_root, tenantId, typeof(T).Name, id + ".json");
+        Path.Combine(_root, FileName(tenantId), typeof(T).Name, FileName(id) + ".json");
+
+    // Ids are case-sensitive but macOS and Windows disks are not: "DEV-1" becomes "!d!e!v-1", and '!' is not a valid id character (Q75).
+    private static string FileName(string name) =>
+        string.Concat(name.Select(c => char.IsAsciiLetterUpper(c) ? $"!{char.ToLowerInvariant(c)}" : c.ToString()));
 }

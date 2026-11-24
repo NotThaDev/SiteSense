@@ -198,3 +198,11 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: JDB-01, JDB-06
 - Status: Accepted
 
+## Q75 — Are ids case-sensitive in the store?
+- Assumption: yes, as in JSON and HTTP: `dev-001` and `DEV-001` are two documents. In file and folder names each uppercase letter is written as `!` + lowercase (`DEV-001` → `!d!e!v-001.json`); `!` is not a valid id character, so two ids never map to one file, on any disk. The id inside the file is stored as is.
+- Why: macOS and Windows disks ignore case, Linux does not. Without the encoding a second save of `DEV-001` silently overwrites `dev-001` on a Mac but not in the container.
+- Alternatives rejected:
+  - Case-insensitive ids (a case variant rejected as a duplicate): a rule the requirements do not give.
+  - Lowercase-only ids: a `DEV-001` the requirements allow would get 400.
+- Requirement IDs: JDB-01, JDB-02
+- Status: Accepted

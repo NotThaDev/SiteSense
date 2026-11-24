@@ -72,7 +72,7 @@ flowchart LR
 | Atomic write (JDB-02) | Write `<id>.json.tmp`, fsync, rename over `<id>.json`. A killed process leaves the old or the new file, never half of one. Orphan `.tmp` files are deleted when the store opens. |
 | Thread safety (JDB-04) | One async lock per document. Reads take no lock: the rename is atomic. |
 | Version | Set by the store: stored version + 1, 1 on create. The stale-version check comes with SS-10. |
-| Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. |
+| Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. Ids are case-sensitive: in file and folder names each uppercase letter becomes `!` + lowercase (`DEV-001` → `!d!e!v-001.json`), so case-insensitive disks (macOS, Windows) keep them apart (Q75). |
 
 ## Build settings
 
