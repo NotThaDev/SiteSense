@@ -16,7 +16,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 
 | Item | Rule |
 |---|---|
-| Store owner | One process owns the document store, through a single store service registered as a singleton. Nothing else reads or writes the files. |
+| Store owner | One process owns the document store, through one store instance, `SiteSenseContext.Store`, created once by `SiteSenseContext.Init` (Q67). Nothing else reads or writes the files. |
 | API process | Hosts ingest, the Hangfire server and SignalR. |
 | Worker | Not a separate program. The "worker" (NF-01) is the background processing hosted in the API process: hosted background services for ingest plus the Hangfire server for jobs. Both use the same store singleton. |
 | Simulator and demo client | Separate apps. They talk to the API over HTTP and SignalR only. |

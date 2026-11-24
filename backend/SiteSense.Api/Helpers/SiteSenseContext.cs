@@ -9,7 +9,7 @@ public static class SiteSenseContext
     public static IDocumentStore Store { get; set; } = null!;
     public static TimeProvider Time { get; set; } = TimeProvider.System;
 
-    // Validates Store:RootPath here too (NF-04): the store is created before the host, so ValidateOnStart alone would come too late.
+    // Validates Store:RootPath here (NF-04): the store is created before the host is built, so ValidateOnStart would come too late.
     public static void Init(WebApplicationBuilder builder)
     {
         var options = builder.Configuration.GetSection(StoreOptions.Section).Get<StoreOptions>() ?? new StoreOptions();
@@ -18,8 +18,5 @@ public static class SiteSenseContext
             throw new OptionsValidationException(StoreOptions.Section, typeof(StoreOptions), result.Failures);
 
         Store = new FileDocumentStore(options.RootPath);
-        builder.Services.AddSingleton(Store);
-        builder.Services.AddSingleton<IValidateOptions<StoreOptions>, StoreOptionsValidator>();
-        builder.Services.AddOptions<StoreOptions>().BindConfiguration(StoreOptions.Section).ValidateOnStart();
     }
 }

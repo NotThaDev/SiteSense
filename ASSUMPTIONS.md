@@ -146,7 +146,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q71 — What does `/health` check?
-- Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`ValidateOnStart`), not on every call.
+- Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`SiteSenseContext.Init`), not on every call.
 - Why: no extra package; dependency checks (Redis, Keycloak) come with the stories that use them.
 - Requirement IDs: NF-04
 - Status: Accepted

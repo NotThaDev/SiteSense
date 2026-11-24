@@ -65,7 +65,7 @@ Contract-fixed codes and shapes (422, 412, 404): `../sitesense-context/SKILL.md`
 ## 7. Options and configuration
 
 - Strongly typed options class per section. Bind with the options pattern.
-- `ValidateOnStart()` plus data annotations or a custom validator. The app must fail at start on bad config (NF-04).
+- `ValidateOnStart()` plus data annotations or a custom validator. The app must fail at start on bad config (NF-04). Exception: `StoreOptions` is validated in `SiteSenseContext.Init`, because the store is created before the host is built.
 - No magic numbers for tunables: filters, detector windows, thresholds, retention. They live in options.
 - `appsettings*.json` are gitignored; `appsettings.example.json` is the committed template and must stay in sync when a config key is added (Q68).
 
