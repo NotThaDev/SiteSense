@@ -113,7 +113,7 @@ public sealed partial class FileDocumentStore : IDocumentStore
     private string PathOf<T>(string tenantId, string id) =>
         Path.Combine(_root, FileName(tenantId), typeof(T).Name, FileName(id) + ".json");
 
-    // Ids are case-sensitive but macOS and Windows disks are not: "DEV-1" becomes "!d!e!v-1", and '!' is not a valid id character (Q75).
+    // Ids are case-sensitive but macOS and Windows disks are not: "DEV-1" becomes "!d!e!v-1", and '!' is not a valid id character (Q76).
     private static string FileName(string name) =>
         string.Concat(name.Select(c => char.IsAsciiLetterUpper(c) ? $"!{char.ToLowerInvariant(c)}" : c.ToString()));
 }

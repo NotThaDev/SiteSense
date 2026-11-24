@@ -12,4 +12,4 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Goal: one generic, crash-safe document store with a lock per document and one folder per tenant.
 - Prompt (summary): implement SS-9 with the plan / validate / approve / implement / verify workflow.
 - AI produced: plan (Opus), plan review (Sonnet), `IDocument`, `IDocumentStore`, `FileDocumentStore`, `SiteSenseContext`, crash writer, unit and crash tests (Haiku), docs (Opus).
-- Corrected or discarded: the review added reading the stored version under the lock, `\z` in the name check, a case-insensitive lock map and a separate crash-writer class to avoid a `Program` clash. The owner chose Q04 (one file per document, no history) and Q74 (two persistence interfaces).
+- Corrected or discarded: the review added reading the stored version under the lock, `\z` in the name check, and a separate crash-writer class to avoid a `Program` clash. The owner chose Q04 (one file per document, no history) and Q75 (two persistence interfaces) and Q76 (case-sensitive ids, uppercase encoded in file names, after the owner flagged the macOS collision).
