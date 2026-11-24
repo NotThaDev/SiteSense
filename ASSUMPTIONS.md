@@ -136,3 +136,47 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Both endpoints are anonymous. When authentication lands, they need an explicit `AllowAnonymous`, or a fallback policy will block them.
 - Requirement IDs: API-05
 - Status: Accepted
+
+## Q70 — How does compose get the Keycloak admin credentials?
+- Assumption: compose defaults them to `admin` / `admin` (`${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}`), documented as local test credentials. `.env` can override them.
+- Why: `docker compose up` must work with no manual step; the admin console is local only.
+- Alternatives rejected:
+  - Required values from `.env`: no default password in compose, but a copy step before the first run.
+- Requirement IDs: NF-01, NF-04
+- Status: Accepted
+
+## Q71 — What does `/health` check?
+- Assumption: liveness only, with the built-in ASP.NET Core health checks (`MapHealthChecks("/health")`). The store root is checked at start (`ValidateOnStart`), not on every call.
+- Why: no extra package; dependency checks (Redis, Keycloak) come with the stories that use them.
+- Requirement IDs: NF-04
+- Status: Accepted
+
+## Q72 — Does CI run docker compose?
+- Assumption: no. CI stays restore, build and test. `docker compose up` and `/health` are checked by hand in each PR that changes compose.
+- Why: keeps CI fast; image pulls would add minutes to every PR.
+- Requirement IDs: NF-01
+- Status: Accepted
+
+## Q73 — Where is the store on a local run?
+- Assumption: `backend/SiteSense.Api/.store/`. The template keeps `"RootPath": ".store"`, a path relative to the working directory, and `dotnet run` sets that to the project folder. The folder is gitignored.
+- Why: a plain relative value, no `../../` that breaks when the DLL is started from another folder.
+- Alternatives rejected:
+  - `../../.store` to keep the store in the repo root: wrong when the app is not started with `dotnet run`.
+- Requirement IDs: NF-04, NF-05
+- Status: Accepted
+
+## Q74 — Does Keycloak use HTTPS in compose?
+- Assumption: no. Keycloak runs on plain HTTP (`start-dev`), so the API reaches it the same way from a container (`http://keycloak:8081`) or from the host with `dotnet run` (`http://localhost:8081`), with no certificate to trust.
+- Keycloak's default `sslRequired: external` asks for HTTPS when Docker forwards a host request from a non-private address. So:
+  - the SiteSense realm import (SS-5) sets `sslRequired: none`;
+  - a one-shot `keycloak-init` service sets the master realm (admin console) to `sslRequired=NONE` once Keycloak is healthy, so `docker compose up` needs no manual step.
+- SS-5 also fixes the token issuer with `KC_HOSTNAME=http://localhost:8081`, so tokens carry the same issuer whether the API runs on the host or in a container.
+- Why: the evaluator runs only `docker compose up`, and the backend must work against the Keycloak container both from the host and from a container.
+- Alternatives rejected:
+  - Self-signed certificate made by the Keycloak image: containers trust it through `SSL_CERT_DIR`, but on macOS .NET uses the Keychain, so `dotnet run` needs a manual trust step; the browser shows a warning.
+  - Plain HTTP plus a documented `kcadm` command for the master realm: a manual step for the evaluator (NF-01).
+  - mkcert: a manual install step for the evaluator (NF-01).
+- Consequences: local and test use only. Trusting a certificate is infrastructure config, not an application feature.
+- Going online: the real certificate, for the real domain, goes to one service only, an nginx reverse proxy. nginx terminates TLS and forwards each request over the internal network to the right service (Keycloak, the API, the demo client). Behind nginx the services keep plain HTTP; Keycloak is told it runs behind a proxy (`KC_PROXY_HEADERS=xforwarded`, `KC_HOSTNAME` set to the public URL), its realms go back to `sslRequired: external`, and `keycloak-init` is dropped.
+- Requirement IDs: NF-01, IDN-01
+- Status: Accepted
