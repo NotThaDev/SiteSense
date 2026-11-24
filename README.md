@@ -51,6 +51,7 @@ Build and test from the repository root: `dotnet build`, `dotnet test`. Full pag
    ```
 
 2. Run the API: `dotnet run --project backend/SiteSense.Api`.
+3. Read the API: the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
 ## Tech stack
 

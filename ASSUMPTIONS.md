@@ -125,3 +125,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Known cost: a manual copy step before the first run. Docker compose (SS-1) and the delivery ZIP check must also handle it: compose provides the config through environment variables or the template, and the empty-folder check must start without a hand-made `appsettings.json`.
 - Requirement IDs: NF-04
 - Status: Accepted
+
+## Q69 — Where is the API description served?
+- Assumption: the built-in ASP.NET Core OpenAPI document is served at `/openapi/v1.json` in every environment, and the Scalar UI at `/scalar/v1` (`/scalar` redirects there). Scalar is kept so the project owner can review the API; it may be removed later without touching the contract.
+- Why: clients and reviewers can read the contract from any run, docker compose included. The document holds no secrets.
+- Alternatives rejected:
+  - Development only (the template default): the contract would not be visible in the compose run.
+  - No UI: the raw JSON is harder to review by hand.
+- Known risks:
+  - Both endpoints are anonymous. When authentication lands, they need an explicit `AllowAnonymous`, or a fallback policy will block them.
+- Requirement IDs: API-05
+- Status: Accepted
