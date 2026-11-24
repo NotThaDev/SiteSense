@@ -1,0 +1,116 @@
+using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+
+namespace SiteSense.Api.Store;
+
+public sealed partial class FileDocumentStore : IDocumentStore
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    // shortcut: one semaphore per document path is never removed; fine for thousands of documents, evict when counts grow
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new(StringComparer.OrdinalIgnoreCase);
+    private readonly string _root;
+
+    public FileDocumentStore(string rootPath)
+    {
+        _root = Path.GetFullPath(rootPath);
+        Directory.CreateDirectory(_root);
+        // Orphans of a crash mid-write; never read as documents.
+        foreach (var tmp in Directory.GetFiles(_root, "*.tmp", SearchOption.AllDirectories))
+            File.Delete(tmp);
+    }
+
+    public async Task<T?> GetAsync<T>(string tenantId, string id, CancellationToken ct) where T : class, IDocument
+    {
+        CheckName(tenantId, nameof(tenantId));
+        CheckName(id, nameof(id));
+        var path = PathOf<T>(tenantId, id);
+        try
+        {
+            // Rename is atomic, so a reader sees the old or the new file, never a partial one.
+            await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.Asynchronous);
+            var doc = await JsonSerializer.DeserializeAsync<T>(fs, Json, ct);
+            if (doc is null || doc.TenantId != tenantId)
+                throw new InvalidOperationException($"Document file '{path}' is missing or belongs to another tenant.");
+            return doc;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<T> SaveAsync<T>(string tenantId, T doc, CancellationToken ct) where T : class, IDocument
+    {
+        CheckName(tenantId, nameof(tenantId));
+        CheckName(doc.Id, nameof(doc.Id));
+        if (doc.TenantId != tenantId)
+            throw new ArgumentException("Document TenantId does not match the tenant it is saved under.", nameof(doc));
+
+        var path = PathOf<T>(tenantId, doc.Id);
+        var gate = _locks.GetOrAdd(path, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            var existing = await GetAsync<T>(tenantId, doc.Id, ct);
+            var callerVersion = doc.Version;
+            doc.Version = (existing?.Version ?? 0) + 1;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                var tmp = path + ".tmp";
+                await using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
+                {
+                    await JsonSerializer.SerializeAsync(fs, doc, Json, ct);
+                    // shortcut: the directory is not fsynced after rename; survives a process kill, not a power loss
+                    fs.Flush(flushToDisk: true);
+                }
+                File.Move(tmp, path, overwrite: true);
+            }
+            catch
+            {
+                doc.Version = callerVersion;
+                throw;
+            }
+            return doc;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    public async Task<bool> DeleteAsync<T>(string tenantId, string id, CancellationToken ct) where T : class, IDocument
+    {
+        CheckName(tenantId, nameof(tenantId));
+        CheckName(id, nameof(id));
+        var path = PathOf<T>(tenantId, id);
+        var gate = _locks.GetOrAdd(path, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            if (!File.Exists(path)) return false;
+            File.Delete(path);
+            return true;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    [GeneratedRegex(@"^[A-Za-z0-9_-]{1,128}\z")]
+    private static partial Regex ValidName();
+
+    // Ids and tenant ids become path segments; this blocks path traversal.
+    private static void CheckName(string value, string paramName)
+    {
+        if (!ValidName().IsMatch(value))
+            throw new ArgumentException($"'{value}' is not a valid name.", paramName);
+    }
+
+    // shortcut: ids differing only by case share one file on case-insensitive disks (macOS); Linux containers are case-sensitive
+    private string PathOf<T>(string tenantId, string id) =>
+        Path.Combine(_root, tenantId, typeof(T).Name, id + ".json");
+}
