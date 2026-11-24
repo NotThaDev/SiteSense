@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SiteSense.Api.Diagnostics;
@@ -51,7 +50,7 @@ public class CorrelationTests
 
     private static async Task<HttpResponseMessage> SendAsync(string? correlationId)
     {
-        using var factory = new WebApplicationFactory<Program>();
+        using var factory = new ApiFactory();
         using var client = factory.CreateClient();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/any-path");
         if (correlationId is not null)
