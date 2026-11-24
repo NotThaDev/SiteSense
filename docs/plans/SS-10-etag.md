@@ -2,7 +2,7 @@
 
 - Status: In review
 - Issue: #42
-- Plan PR: (this PR)   Implementation PRs: (after approval)
+- Plan PR: #54   Implementation PRs: (after approval)
 - Requirement IDs: JDB-03, JDB-10
 
 ## Problem
