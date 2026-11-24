@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\backend\SiteSense.Domain\SiteSense.Domain.csproj" />
     <ProjectReference Include="..\..\backend\SiteSense.Api\SiteSense.Api.csproj" />
+    <ProjectReference Include="..\SiteSense.StoreCrashWriter\SiteSense.StoreCrashWriter.csproj" />
   </ItemGroup>
 
 </Project>
