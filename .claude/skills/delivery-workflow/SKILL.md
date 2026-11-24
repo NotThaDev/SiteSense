@@ -40,7 +40,6 @@ flowchart LR
 | Skill branch | `skill/SK-<n>-<slug>` | `skill/SK-9-delivery-workflow` |
 | Base | updated `main` (`git switch main && git pull`) | |
 | Scope | one story or one skill per branch | |
-| Stacked PRs | only implementation PRs on top of a plan PR ([planning](../planning/SKILL.md)); every other PR targets `main` | |
 
 ## Commits
 
