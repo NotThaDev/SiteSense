@@ -1,13 +1,9 @@
-using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using SiteSense.Api.Helpers;
-using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<IValidateOptions<StoreOptions>, StoreOptionsValidator>();
-builder.Services.AddOptions<StoreOptions>().BindConfiguration(StoreOptions.Section).ValidateOnStart();
-builder.Services.AddSingleton<IDocumentStore>(sp => new FileDocumentStore(sp.GetRequiredService<IOptions<StoreOptions>>().Value.RootPath));
+SiteSenseContext.Init(builder);
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
@@ -18,7 +14,6 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
-SiteSenseContext.Store = app.Services.GetRequiredService<IDocumentStore>();
 
 // First: every unhandled exception becomes a generic 500 ProblemDetails.
 app.UseExceptionHandler();
