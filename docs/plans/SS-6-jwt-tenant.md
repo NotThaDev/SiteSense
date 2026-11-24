@@ -43,6 +43,14 @@ ASP.NET Core JWT bearer authentication, configured from an `Auth` section.
   so another tenant's document is "not found" → `404`.
 - **Default**: a fallback policy requires an authenticated user on every endpoint.
   `/health`, `/openapi/v1.json` and `/scalar` stay anonymous (Q69).
+- **Key cache**: Keycloak is not called per request. The JWT bearer handler downloads the
+  discovery document and the public keys (jwks) once, keeps them in memory, and checks each
+  signature locally. It reloads them every 12 hours, or at once when a token carries an unknown key id
+  (Keycloak rotated its key), at most every 5 minutes. These are the library defaults; no extra code.
+- **Hostile `tenant_id`**: a value that is not a valid store id (for example `../x`) or appears
+  twice fails validation → `401`, so it never reaches the store.
+- **Token lifetime** follows the real clock, not `SiteSenseContext.Time`: moving the test clock
+  (`PUT /test/clock`) must not expire the evaluator's tokens. Clock skew: 30 s.
 - **`GET /api/v1/me`**: returns the caller's tenant and roles, for live checks and the demo client.
 
 ```mermaid
@@ -52,11 +60,20 @@ sequenceDiagram
   participant A as API (container)
   S->>K: POST localhost:8081/.../token (admin-a)
   K-->>S: JWT iss=localhost:8081, aud=sitesense-api, tenant_id=tenant-a, roles=[Admin]
-  S->>A: GET /api/v1/me, Bearer JWT
-  A->>K: GET keycloak:8081/.../openid-configuration, jwks (once, cached)
-  A->>A: check signature, iss, aud, exp, tenant_id
-  A-->>S: 200 {"tenantId":"tenant-a","roles":["Admin"]}
+  Note over A,K: first token only (then cached)
+  A->>K: GET keycloak:8081/.../openid-configuration and jwks
+  K-->>A: issuer + public keys
+  loop every request
+    S->>A: GET /api/v1/me, Bearer JWT
+    A->>A: check signature with the cached key, iss, aud, exp, tenant_id
+    A-->>S: 200 {"tenantId":"tenant-a","roles":["Admin"]}
+  end
 ```
+
+Where the values live: `appsettings.example.json` (template for `appsettings.json`, host run)
+sets `Issuer` and `Audience`; with no `MetadataAddress`, the keys are read from the issuer,
+which on the host is reachable. Compose overrides with environment variables and adds the
+internal `MetadataAddress`. Both point to the same Keycloak.
 
 Example config (compose):
 
@@ -84,10 +101,7 @@ Auth__MetadataAddress=http://keycloak:8081/realms/sitesense/.well-known/openid-c
 | Risk | Impact | Mitigation |
 |---|---|---|
 | Unknown routes now answer `401` without a token (fallback policy runs with no endpoint) | Error tests expecting `404` break | Those tests send a valid token; with a token an unknown route is still `404` |
-| Keycloak not ready when the API starts | First calls 401 | Keys are fetched lazily on the first token and retried; compose already starts the API after `keycloak-init` |
 | Static `SiteSenseContext.Store` shared by parallel test hosts | Flaky isolation test | Isolation test in an xUnit collection with `DisableParallelization` (Q67) |
-| Token lifetime uses the system clock, not `SiteSenseContext.Time` | Test clock (`PUT /test/clock`) does not expire tokens | Wanted: tokens follow real time. Written in Q79's entry in `ASSUMPTIONS.md` |
-| A hostile `tenant_id` (`../x`) reaches the store | Store throws, 500 | Rejected in `OnTokenValidated` → 401, tested |
 | Scalar "Try it" has no Bearer button | Manual calls need curl | Out of scope; OpenAPI security scheme can come with SS-7 |
 | New Q numbers clash with parallel stories | Merge conflict in `ASSUMPTIONS.md` | Renumber at merge, as SS-9 did |
 
@@ -111,4 +125,5 @@ Auth__MetadataAddress=http://keycloak:8081/realms/sitesense/.well-known/openid-c
 | Date | Change | Why (review comment or finding) |
 |---|---|---|
 | 2026-11-24 | First draft | — |
+| 2026-11-24 | Key cache explained and diagram split (first call vs every request); Keycloak-start, clock and hostile-tenant rows moved from Risks to Solution; config location explained | Owner review |
 | 2026-11-24 | Authority vs MetadataAddress branch, `Configure` not `PostConfigure` in tests, ClockSkew 30 s, `tenant_id` format check, middleware order, more tests | Sonnet validation |
