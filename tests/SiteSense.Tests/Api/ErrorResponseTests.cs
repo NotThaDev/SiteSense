@@ -5,6 +5,7 @@ using System.Text.Json;
 
 namespace SiteSense.Tests.Api;
 
+[Collection("Api")]
 public sealed class ErrorResponseTests : IClassFixture<ApiFactory>
 {
     private const string ProblemJson = "application/problem+json";

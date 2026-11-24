@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace SiteSense.Tests.Api;
 
+[Collection("Api")]
 public sealed class HealthTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
