@@ -161,7 +161,7 @@ Inside the root, one subfolder per tenant (JDB-07).
 4. Add the authorization policy for the route. Rules: [security](../sitesense-security/SKILL.md).
 5. Call one model static method (single entity) or one service in `Api/Services/` (multi-entity flow), passing `tenantId` explicitly. No business logic in the controller.
 6. Map errors to ProblemDetails. Rules: [coding](../dotnet-coding/SKILL.md).
-7. If the endpoint changes a stored document, use the version check (JDB-03). Expose it with `ETag` and `If-Match`. A mismatch returns **412** (JDB-10).
+7. If the endpoint changes a stored document, use the version check (JDB-03, Q45): send `ETag: "<Version>"` on every response with the document; on PUT or DELETE copy `If-Match` into `doc.Version` (missing = 0), never the body's version. The store throws `ConcurrencyException`, which returns **412** (JDB-10). Example: `tests/SiteSense.Tests/Api/ETagProbeController.cs`.
 8. If the endpoint writes data, a job, or an alert, make it idempotent: the same input twice gives one result (TRK-01, JOB-02, EVT-02).
 9. Add OpenAPI metadata.
 10. Add tests: one integration test and one tenant-isolation test. Rules: [testing](../sitesense-testing/SKILL.md).

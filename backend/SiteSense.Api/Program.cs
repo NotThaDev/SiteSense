@@ -1,6 +1,7 @@
 using Scalar.AspNetCore;
 using SiteSense.Api.Diagnostics;
 using SiteSense.Api.Helpers;
+using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
@@ -19,7 +20,11 @@ var app = builder.Build();
 app.Use(Correlation.Middleware);
 
 // First: every unhandled exception becomes a generic 500 ProblemDetails.
-app.UseExceptionHandler();
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    // A stale version is the client's conflict, not a server error (JDB-10).
+    StatusCodeSelector = ex => ex is ConcurrencyException ? StatusCodes.Status412PreconditionFailed : StatusCodes.Status500InternalServerError,
+});
 app.UseStatusCodePages();
 
 app.MapHealthChecks("/health");

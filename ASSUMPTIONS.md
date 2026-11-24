@@ -223,3 +223,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - The ASP.NET Core hosting lines ("Request starting", "Request finished") are written outside the scope.
 - Requirement IDs: NF-03
 - Status: Accepted
+
+## Q45 — Which resources get ETag, and is If-Match required?
+- Assumption: every document (tenant, site, map, device, alert). The version is the `ETag` (`"3"`). `If-Match` is required on every change to an existing document: the controller copies it into `doc.Version`, and a missing or unreadable `If-Match` counts as version 0, so the store rejects it like a stale one. A stale version returns 412 ProblemDetails. The version in the request body is never used.
+- Why: the owner chose required over optional; reusing the store check keeps one rule and no separate 428 path.
+- Alternatives rejected:
+  - Optional `If-Match` (missing = last write wins): a client that forgets the header silently overwrites.
+  - 428 for a missing header and 400 for a malformed one: more code paths for the same outcome (the write is refused).
+- Requirement IDs: JDB-03, JDB-10
+- Status: Accepted

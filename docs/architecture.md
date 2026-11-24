@@ -72,7 +72,8 @@ flowchart LR
 | Layout | `<Store:RootPath>/<tenantId>/<type name>/<id>.json`: one folder per tenant (JDB-07), one file per document, overwritten on save (Q04) |
 | Atomic write (JDB-02) | Write `<id>.json.tmp`, fsync, rename over `<id>.json`. A killed process leaves the old or the new file, never half of one. Orphan `.tmp` files are deleted when the store opens. |
 | Thread safety (JDB-04) | One async lock per document. Reads take no lock: the rename is atomic. |
-| Version | Set by the store: stored version + 1, 1 on create. The stale-version check comes with SS-10. |
+| Version (JDB-03) | The caller saves with the version it read (`0` = new); under the lock the store compares it with the stored one. Equal: write, version + 1. Different: `ConcurrencyException`, nothing written. `DeleteAsync` takes the expected version too. |
+| ETag (JDB-10, Q45) | The API sends the version as `ETag: "3"` and copies `If-Match` into `doc.Version` (missing = 0). `ConcurrencyException` becomes 412 ProblemDetails (`StatusCodeSelector` in `Program.cs`). |
 | Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. Ids are case-sensitive: in file and folder names each uppercase letter becomes `!` + lowercase (`DEV-001` → `!d!e!v-001.json`), so case-insensitive disks (macOS, Windows) keep them apart (Q76). |
 
 ## Build settings
