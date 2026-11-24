@@ -124,6 +124,7 @@ Tenant safety:
 | `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |
 | `docs/adr/` | Architecture decision records |
 | `docs/analysis/` | Analysis notes |
+| `docs/plans/` | Plan files, one per planned change (see `../planning/SKILL.md`) |
 | `docs/architecture.md` | Solution structure page linked from the README |
 | `.claude/skills/` | Skills for AI agents |
 

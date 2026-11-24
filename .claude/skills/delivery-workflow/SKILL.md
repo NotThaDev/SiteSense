@@ -17,6 +17,7 @@ Scope: git, GitHub and delivery only.
 |---|---|
 | Docs placement, AI steps, verification subagent | [ai-process](../ai-process/SKILL.md) |
 | PR description text and "Things to check" | [clear-description](../clear-description/SKILL.md) |
+| Plan file, plan PR, stacked implementation PRs | [planning](../planning/SKILL.md) |
 | Tests and build commands | [sitesense-testing](../sitesense-testing/SKILL.md) |
 | Secrets and coding rules | [dotnet-coding](../dotnet-coding/SKILL.md) |
 
@@ -39,7 +40,7 @@ flowchart LR
 | Skill branch | `skill/SK-<n>-<slug>` | `skill/SK-9-delivery-workflow` |
 | Base | updated `main` (`git switch main && git pull`) | |
 | Scope | one story or one skill per branch | |
-| Stacked PRs | never; every PR targets `main` | |
+| Stacked PRs | only implementation PRs on top of a plan PR ([planning](../planning/SKILL.md)); every other PR targets `main` | |
 
 ## Commits
 
