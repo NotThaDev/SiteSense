@@ -1,8 +1,8 @@
 # SS-6 — JWT validation and tenant context
 
-- Status: In review
+- Status: Approved
 - Issue: #38
-- Plan PR: TBD at push   Implementation PRs: stacked on the plan branch
+- Plan PR: #55   Implementation PRs: stacked on the plan branch
 
 ## Problem
 The API accepts every request: there is no authentication. It cannot tell who calls, which
