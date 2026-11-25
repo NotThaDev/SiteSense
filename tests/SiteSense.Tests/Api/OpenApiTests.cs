@@ -53,4 +53,18 @@ public sealed class OpenApiTests : IClassFixture<ApiFactory>
             .EnumerateArray().Select(e => e.GetString()).ToArray();
         Assert.Equal(new[] { "lat", "lon" }, required.OrderBy(n => n).ToArray());
     }
+
+    [Fact]
+    public async Task GetOpenApi_Production_ListsSitesPaths()
+    {
+        // Arrange
+        // Act
+        var body = await _client.GetStringAsync("/openapi/v1.json");
+
+        // Assert
+        using var doc = JsonDocument.Parse(body);
+        var paths = doc.RootElement.GetProperty("paths");
+        Assert.True(paths.TryGetProperty("/api/v1/sites", out _));
+        Assert.True(paths.TryGetProperty("/api/v1/sites/{siteId}", out _));
+    }
 }
