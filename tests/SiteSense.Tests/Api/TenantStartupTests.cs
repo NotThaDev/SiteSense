@@ -3,6 +3,8 @@ using SiteSense.Api.Helpers;
 
 namespace SiteSense.Tests.Api;
 
+// Builds hosts, which reset the static store: must not run in parallel with other host tests.
+[Collection("Api")]
 public sealed class TenantStartupTests
 {
     [Fact]
