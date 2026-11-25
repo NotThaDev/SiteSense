@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
@@ -6,6 +7,7 @@ namespace SiteSense.Tests.Api;
 // Test-only controller: exists in the test assembly, never in production.
 [ApiController]
 [Route("probe")]
+[AllowAnonymous]
 public sealed class ErrorProbeController : ControllerBase
 {
     public sealed record ProbePoint([Range(-90.0, 90.0)] double Lat, [Range(-180.0, 180.0)] double Lon);

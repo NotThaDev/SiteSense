@@ -42,10 +42,10 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 | Test framework | xUnit |
 | Fake clock | `FakeTimeProvider` from `Microsoft.Extensions.TimeProvider.Testing` |
 | HTTP integration | `WebApplicationFactory<Program>` |
-| Auth in tests | A test auth handler that issues fake tokens with `tenant_id`, roles and scope claims |
+| Auth in tests | JWTs signed with a test RSA key, validated by the real JWT bearer handler (`tests/SiteSense.Tests/Api/Auth/TestTokens.cs`) |
 | Assertions | xUnit `Assert` |
 
-- **Proposed:** unit and integration tests use a test auth handler; Keycloak runs only with docker compose.
+- **Decided (Q77):** tests sign real JWTs and send them through the real handler; Keycloak runs only with docker compose.
 - Use `FakeTimeProvider`. Time rule: `../dotnet-coding/SKILL.md`.
 
 ## 3. Store crash test
