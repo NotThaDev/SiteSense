@@ -30,7 +30,10 @@ public sealed class HealthTests : IDisposable
     }
 
     private static WebApplicationFactory<Program> CreateFactory(string rootPath) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseSetting("Store:RootPath", rootPath));
+        new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
+            .UseSetting("Store:RootPath", rootPath)
+            .UseSetting("Tenants:tenant-a:RetentionDays", "30")
+            .UseSetting("Tenants:tenant-a:SilentAfterMinutes", "10"));
 
     public void Dispose()
     {
