@@ -216,6 +216,16 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: JDB-03, JDB-10
 - Status: Accepted
 
+## Q14 — How is a tenant created, and where do its settings live?
+- Assumption: tenants exist only in configuration, section `Tenants`, keyed by tenant id, each with `RetentionDays` (PRV-04) and `SilentAfterMinutes` (TRK-06). Defaults: `tenant-a` and `tenant-b`, 30 days and 10 minutes. Validated at startup in `SiteSenseContext.Init`; read through `SiteSenseContext.Tenants`. In Docker the values come from env vars in `docker-compose.yml`, because the delivery ZIP has no `appsettings.json`. The tenant's store folder is created on its first save (SS-9). Tenant ids are also in the Keycloak realm (`tenant_id` of users and gateway clients) and are kept in sync by hand; a tenant id is never renamed, since it is also the store folder name.
+- Why: no requirement asks for a tenant endpoint or a tenant document; Keycloak only tags who belongs to which tenant, it does not hold the list of valid tenants or their settings.
+- Alternatives rejected:
+  - A tenant document in the store: versioned data that nothing edits.
+  - Keycloak as the only source (Organizations + Admin API at startup): reworks SS-5 and SS-6 and makes startup depend on Keycloak.
+  - One seed file that generates the realm: a generator and a drift test for two tenants that never change.
+- Requirement IDs: NF-04, PRV-04, TRK-06
+- Status: Accepted
+
 ## Q02 — How does a token taken on the host validate in the API container?
 - Assumption: the API accepts exactly one issuer, `http://localhost:8081/realms/sitesense`, which Keycloak always writes (`KC_HOSTNAME`, Q74). In compose the API downloads the signing keys from the internal name (`Auth:MetadataAddress` = `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration`); on the host it reads them from the issuer. HTTPS for the key download is required by default (`Auth:RequireHttpsMetadata = true`); the template and compose set it to `false` for the local plain-HTTP Keycloak (Q74). The keys are cached by the JWT bearer handler and every signature is checked locally.
 - Why: inside the container `localhost:8081` is the container itself; a fixed issuer plus an internal key address keeps one valid issuer and no second code path.
@@ -255,4 +265,39 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Endpoints open until SS-7: every endpoint added in between would be public.
 - Requirement IDs: IDN-01, IDN-03
+
+## Q50 — Which real site is the test map?
+- Assumption: the Cittadella Universitaria in Catania (OSM way 231201634). `data/build_map.py` (Python 3, standard library only) converts a saved, gzipped OSM extract (`data/osm/cittadella.osm.gz`) into `data/map.geojson`; `--download` refreshes the extract. No CI check of the output.
+- Why: a dense, real walk network (footways, 30 step runs, gates on the perimeter) and 5 real `emergency=assembly_point` nodes. The saved extract (about 250 KB) makes a re-run give the same map, since OSM changes daily.
+- Alternatives rejected:
+  - PoliMi Bovisa, CNR Bologna, Kilometro Rosso: smaller walk network or fewer steps.
+  - Always downloading, no saved extract: the map would change whenever OSM is edited.
+- Requirement IDs: D-DATA
+- Status: Accepted
+
+## Q43 — What happens when a site is posted again with the same `siteId`, and how is a site updated?
+- Assumption: `POST /api/v1/sites` only creates; an existing `siteId` in the same tenant gives `409` and changes nothing. Updates go through `PUT /api/v1/sites/{siteId}` with the site JSON and `If-Match` (Q45): current version → `200 { "siteId" }` and the new `ETag`; missing or stale → `412`; a site not in the caller's tenant → `404`; a body `siteId` different from the URL → `400`. Both are Admin only. `siteId` in the body is optional (one DTO for both): on `POST`, absent or null → the server makes a new id (32 hex characters), given → used as is (the contract posts the site JSON with its `siteId`); on `PUT` the URL is the id, and a body `siteId` must be absent or equal to it. The same `siteId` in another tenant is a different site.
+- Why: standard REST (POST creates, PUT replaces a known resource), chosen by the owner. The site JSON carries `siteId`, and the map and device URLs use it, so a given `siteId` must be kept; a UI that has no id leaves it out. `PUT` for a site is not in the API contract; API-01 ("management of sites") covers it.
+- Alternatives rejected:
+  - `POST` as create-or-update with `If-Match`: one verb with two meanings; 409 and 412 mixed on one endpoint.
+  - `POST` with an empty id to create and a given id to update: the contract posts the site JSON with its `siteId` to create it.
+  - `siteId` always required: a UI would have to invent a code before creating a site.
+- Requirement IDs: API-01, C-7.3a, JDB-03
+- Status: Accepted
+
+## Q81 — Who may read a site (`GET /api/v1/sites/{siteId}`)?
+- Assumption: every role (`CanSeeAggregates`: Admin, Safety, Viewer). Another tenant's site, a missing one or an invalid id gives `404`. The response is the site JSON with `ETag`.
+- Why: the site holds only configuration, no personal data, and navigation and occupancy clients of every role need it.
+- Alternatives rejected:
+  - Admin only (`CanManage`): Viewer and Safety clients could not read the site they navigate.
+  - No GET: the cross-tenant `404` and the ETag could not be tested.
+- Requirement IDs: API-01, IDN-02
+- Status: Accepted
+
+## Q82 — How strictly is the site JSON checked on `POST /api/v1/sites`?
+- Assumption: fully, before anything is stored; errors are `400` `ValidationProblemDetails`. All fields required; `siteId` a valid store name (`[A-Za-z0-9_-]`, 1–128); `name` and `mapFile` not empty; `timeZone` a time zone id known to the runtime (IANA on Linux); `walkingSpeedMps`, `connectToleranceM`, `maxSnapDistanceM` > 0; `unpavedSpeedFactor`, `stepsSpeedFactor` in (0, 1].
+- Why: the site settings drive routing and snapping later; a bad value would surface far from its cause.
+- Alternatives rejected:
+  - Required fields and `siteId` only: a zero speed or an unknown zone breaks routing later.
+- Requirement IDs: F-6.1, API-05
 - Status: Accepted
