@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
-using SiteSense.Api.Models;
+using SiteSense.Api.Helpers;
+using SiteSense.Api.Models.Map;
 
 namespace SiteSense.Tests.Api.Maps;
 

@@ -1,7 +1,8 @@
 using System.Text.Json;
+using SiteSense.Api.Models.Map;
 using SiteSense.Domain.Geometry;
 
-namespace SiteSense.Api.Models;
+namespace SiteSense.Api.Helpers;
 
 public static class MapValidator
 {

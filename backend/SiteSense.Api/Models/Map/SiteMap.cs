@@ -1,7 +1,7 @@
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Store;
 
-namespace SiteSense.Api.Models;
+namespace SiteSense.Api.Models.Map;
 
 // Coordinates are WGS84 [lon, lat], as received.
 public sealed record MapArea(string Id, string Name, string AreaType, int? Capacity, double[][][] Coordinates);

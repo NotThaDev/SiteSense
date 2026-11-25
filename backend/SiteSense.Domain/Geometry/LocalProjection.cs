@@ -1,8 +1,11 @@
 namespace SiteSense.Domain.Geometry;
 
 /// <summary>
-/// Local metric projection for one map (MAP-02): east/north meters from a reference point.
-/// Equirectangular on the WGS84 ellipsoid, using the meridional and prime-vertical radii at the origin.
+/// Converts GPS coordinates (degrees of longitude and latitude) into flat x/y meters for one site map (MAP-02),
+/// so distances and tolerances can be computed in meters. It does not hold a position: it is the converter.
+/// The origin (0, 0) is a reference point of the site, usually its centre; x grows east, y grows north.
+/// Example: with the origin at the site centre, a point 10 m north of it becomes (0, 10).
+/// Method: equirectangular on the WGS84 ellipsoid, using the meridional and prime-vertical radii at the origin.
 /// shortcut: distortion grows with distance from the origin (~mm at 1 km); switch to ProjNet/UTM if sites exceed ~10 km.
 /// </summary>
 public sealed class LocalProjection
