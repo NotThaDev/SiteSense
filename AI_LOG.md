@@ -50,6 +50,12 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), `Site` model, DTOs, `SitesController`, `.http` file and tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review added the invalid-id guard (the store throws on bad names → 500), action names without `Async` for `CreatedAtAction`, the shared test collection with unique site ids, and more 400 rows. The owner chose Q81 (GET for all roles) and Q82 (full validation), and settled Q43 after one iteration: POST creates (409), PUT updates with the version check.
 
+## 2026-11-25 — SS-15: Map validation and saving (domain)
+- Goal: read a GeoJSON site map, list every problem as `{ elementId, reason }`, save a valid map with a `mapVersion`.
+- Prompt (summary): implement SS-15 with the plan / validate / approve / implement / verify workflow, domain PR first.
+- AI produced: plan (Opus), plan review (Sonnet), `PlanarGeometry`, `SiteMap`, `MapValidator`, tests (Haiku), docs (Opus).
+- Corrected or discarded: the review added read guards for coordinates and Features (a bad number would have crashed the projection), the version rule, stable error order and inline test maps. The owner chose Q17 (forward only), Q40 (`null` / `features[i]`) and Q41 (extended checks).
+
 ## 2026-11-24 — SS-4: Structured logs with correlation id
 - Goal: JSON console logs, and a correlation id that is read from or added to `X-Correlation-Id`, sits in the log scope, and can travel to the ingest queue and SignalR events (NF-03).
 - Prompt (summary): implement issue SS-4 with the plan / validate / approve / implement / verify workflow.
