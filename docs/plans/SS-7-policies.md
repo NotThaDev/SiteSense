@@ -2,7 +2,7 @@
 
 - Status: In review
 - Issue: #39
-- Plan PR: #TBD-plan   Implementation PRs: #TBD-impl
+- Plan PR: #71   Implementation PRs: #73
 - Requirement IDs: IDN-03, PRV-03
 
 ## Problem
