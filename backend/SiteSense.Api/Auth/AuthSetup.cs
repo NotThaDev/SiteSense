@@ -48,6 +48,16 @@ public static class AuthSetup
 
         // Every endpoint needs a valid token unless it says AllowAnonymous (Q80).
         builder.Services.AddAuthorizationBuilder()
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
+            // Named policies only (IDN-03). Admin does not see individuals (Q09); Viewer only aggregates (PRV-03).
+            .AddPolicy(SiteSensePolicies.CanManage, p => p.RequireAuthenticatedUser().RequireRole(SiteSensePolicies.AdminRole))
+            .AddPolicy(SiteSensePolicies.CanSeeIndividuals, p => p.RequireAuthenticatedUser().RequireRole(SiteSensePolicies.SafetyRole))
+            .AddPolicy(SiteSensePolicies.CanSeeAggregates, p => p.RequireAuthenticatedUser()
+                .RequireRole(SiteSensePolicies.AdminRole, SiteSensePolicies.SafetyRole, SiteSensePolicies.ViewerRole))
+            // Keycloak sends all scopes in one space-separated "scope" claim.
+            .AddPolicy(SiteSensePolicies.CanWritePositions, p => p.RequireAuthenticatedUser().RequireAssertion(ctx =>
+                ctx.User.FindAll(SiteSensePolicies.ScopeClaim)
+                    .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    .Contains(SiteSensePolicies.PositionsWriteScope, StringComparer.Ordinal)));
     }
 }

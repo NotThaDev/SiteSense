@@ -20,11 +20,29 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), version check, 412 mapping, probe controller and tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review grew the plan (428/400 paths, ETag helper, folder choice); the owner cut it to the minimal version ("check the version before saving, if it differs return an error"). The owner chose Q45 (ETag on every document, If-Match required, expected version from `doc.Version`).
 
+## 2026-11-25 — SS-43: Tenants from configuration
+- Goal: configured tenants with per-tenant retention and silence threshold, validated at startup; unknown `tenant_id` → 403 after SS-6.
+- Prompt (summary): implement SS-43 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), tenant options, validator, `SiteSenseContext.Tenants`, config and tests (Haiku), docs (Opus).
+- Corrected or discarded: the review moved tenant validation before the store is created and fixed test names. The owner chose Q14 (configuration only, 30 days / 10 minutes) and discarded a single seed file with a realm generator: tenant ids stay in config and realm, kept in sync by hand.
+
 ## 2026-11-25 — SS-6: JWT validation and tenant context
 - Goal: validate Keycloak tokens, take the tenant from `tenant_id`, map realm roles, return 404 for another tenant's resource.
 - Prompt (summary): implement SS-6 with the plan / validate / approve / implement / verify workflow.
 - AI produced: plan (Opus), plan review (Sonnet), auth setup, `/api/v1/me`, signed-token tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review fixed the Authority vs MetadataAddress branch, `Configure` instead of `PostConfigure` for the test key, a 30 s clock skew and the `tenant_id` format check. The owner removed non-risks from the plan, asked how keys are cached (handler default, no extra code) and chose Q77–Q80.
+
+## 2026-11-25 — SS-7: Authorization policies
+- Goal: named policies `CanManage`, `CanSeeIndividuals`, `CanSeeAggregates`, `CanWritePositions`; no role checks in endpoint code.
+- Prompt (summary): implement SS-7 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), policy registration, probe controller and per-role tests (Haiku), docs (Opus).
+- Corrected or discarded: the Sonnet review added an explicit authenticated requirement, exact scope matching with look-alike and array tests, 401 rows, and a source scan that fails when it finds no files. An endpoint-metadata test was not taken (fallback policy already blocks anonymous callers).
+
+## 2026-11-25 — SS-14: Sites API
+- Goal: `POST /api/v1/sites` with the site JSON (201, Admin), 409 on a duplicate `siteId`, 404 for another tenant's site, `GET /api/v1/sites/{siteId}` with ETag.
+- Prompt (summary): implement SS-14 with the plan / validate / approve / implement / verify workflow, stacked on SS-7 and SS-43.
+- AI produced: plan (Opus), plan review (Sonnet), `Site` model, DTOs, `SitesController`, `.http` file and tests (Haiku), docs (Opus).
+- Corrected or discarded: the Sonnet review added the invalid-id guard (the store throws on bad names → 500), action names without `Async` for `CreatedAtAction`, the shared test collection with unique site ids, and more 400 rows. The owner chose Q81 (GET for all roles) and Q82 (full validation).
 
 ## 2026-11-25 — SS-15: Map validation and saving (domain)
 - Goal: read a GeoJSON site map, list every problem as `{ elementId, reason }`, save a valid map with a `mapVersion`.
