@@ -146,4 +146,21 @@ public sealed class MapEndpointTests : IClassFixture<ApiFactory>
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Put_RealSiteMap_Returns200()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-real");
+        var content = new StringContent(MapFixtures.RealMap, Encoding.UTF8, GeoJson);
+
+        // Act
+        var response = await client.PutAsync(MapUrl("site-real"), content);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(1, body.RootElement.GetProperty("mapVersion").GetInt64());
+    }
 }
