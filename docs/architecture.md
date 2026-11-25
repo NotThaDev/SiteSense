@@ -101,6 +101,7 @@ A new config key is added to `appsettings.example.json` in the same PR.
 | `Auth:Issuer` | `http://localhost:8081/realms/sitesense` | Required; the only accepted `iss` (Q02). |
 | `Auth:Audience` | `sitesense-api` | Required; the token `aud` must contain it. |
 | `Auth:MetadataAddress` | empty (template); compose: `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration` | Where the signing keys are read; empty means the issuer (Q02). |
+| `Auth:RequireHttpsMetadata` | `true` (code); `false` in the template and compose | Keys only over HTTPS unless turned off; off only for the local plain-HTTP Keycloak (Q74). |
 
 ## Run with Docker
 

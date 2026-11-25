@@ -217,7 +217,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q02 — How does a token taken on the host validate in the API container?
-- Assumption: the API accepts exactly one issuer, `http://localhost:8081/realms/sitesense`, which Keycloak always writes (`KC_HOSTNAME`, Q74). In compose the API downloads the signing keys from the internal name (`Auth:MetadataAddress` = `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration`); on the host it reads them from the issuer. The keys are cached by the JWT bearer handler and every signature is checked locally.
+- Assumption: the API accepts exactly one issuer, `http://localhost:8081/realms/sitesense`, which Keycloak always writes (`KC_HOSTNAME`, Q74). In compose the API downloads the signing keys from the internal name (`Auth:MetadataAddress` = `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration`); on the host it reads them from the issuer. HTTPS for the key download is required by default (`Auth:RequireHttpsMetadata = true`); the template and compose set it to `false` for the local plain-HTTP Keycloak (Q74). The keys are cached by the JWT bearer handler and every signature is checked locally.
 - Why: inside the container `localhost:8081` is the container itself; a fixed issuer plus an internal key address keeps one valid issuer and no second code path.
 - Alternatives rejected:
   - Accepting both `localhost:8081` and `keycloak:8081` as issuers: two valid issuers for one realm, and the token never carries the second one anyway.
