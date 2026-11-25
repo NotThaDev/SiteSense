@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #38
-- Plan PR: #55   Implementation PRs: stacked on the plan branch
+- Plan PR: #55   Implementation PRs: #63
 
 ## Problem
 The API accepts every request: there is no authentication. It cannot tell who calls, which
