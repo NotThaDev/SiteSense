@@ -54,8 +54,11 @@ public sealed partial class FileDocumentStore : IDocumentStore
         try
         {
             var existing = await GetAsync<T>(tenantId, doc.Id, ct);
+            var stored = existing?.Version ?? 0;
+            if (doc.Version != stored)
+                throw new ConcurrencyException($"{typeof(T).Name} '{doc.Id}' is at version {stored}, not {doc.Version}.");
             var callerVersion = doc.Version;
-            doc.Version = (existing?.Version ?? 0) + 1;
+            doc.Version = stored + 1;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -81,7 +84,7 @@ public sealed partial class FileDocumentStore : IDocumentStore
         }
     }
 
-    public async Task<bool> DeleteAsync<T>(string tenantId, string id, CancellationToken ct) where T : class, IDocument
+    public async Task<bool> DeleteAsync<T>(string tenantId, string id, long expectedVersion, CancellationToken ct) where T : class, IDocument
     {
         CheckName(tenantId, nameof(tenantId));
         CheckName(id, nameof(id));
@@ -90,7 +93,10 @@ public sealed partial class FileDocumentStore : IDocumentStore
         await gate.WaitAsync(ct);
         try
         {
-            if (!File.Exists(path)) return false;
+            var existing = await GetAsync<T>(tenantId, id, ct);
+            if (existing is null) return false;
+            if (existing.Version != expectedVersion)
+                throw new ConcurrencyException($"{typeof(T).Name} '{id}' is at version {existing.Version}, not {expectedVersion}.");
             File.Delete(path);
             return true;
         }

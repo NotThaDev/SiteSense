@@ -3,6 +3,7 @@ using System.Text.Json;
 
 namespace SiteSense.Tests.Api;
 
+[Collection("Api")]
 public sealed class OpenApiTests : IClassFixture<ApiFactory>
 {
     private readonly HttpClient _client;
