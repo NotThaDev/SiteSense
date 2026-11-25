@@ -115,7 +115,7 @@ public sealed partial class FileDocumentStore : IDocumentStore
     // Ids and tenant ids become path segments; this blocks path traversal.
     private static void CheckName(string value, string paramName)
     {
-        if (!ValidName().IsMatch(value))
+        if (!IsValidName(value))
             throw new ArgumentException($"'{value}' is not a valid name.", paramName);
     }
 
