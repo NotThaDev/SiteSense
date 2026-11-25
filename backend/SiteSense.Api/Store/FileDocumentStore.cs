@@ -54,8 +54,11 @@ public sealed partial class FileDocumentStore : IDocumentStore
         try
         {
             var existing = await GetAsync<T>(tenantId, doc.Id, ct);
+            var stored = existing?.Version ?? 0;
+            if (doc.Version != stored)
+                throw new ConcurrencyException($"{typeof(T).Name} '{doc.Id}' is at version {stored}, not {doc.Version}.");
             var callerVersion = doc.Version;
-            doc.Version = (existing?.Version ?? 0) + 1;
+            doc.Version = stored + 1;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -81,7 +84,7 @@ public sealed partial class FileDocumentStore : IDocumentStore
         }
     }
 
-    public async Task<bool> DeleteAsync<T>(string tenantId, string id, CancellationToken ct) where T : class, IDocument
+    public async Task<bool> DeleteAsync<T>(string tenantId, string id, long expectedVersion, CancellationToken ct) where T : class, IDocument
     {
         CheckName(tenantId, nameof(tenantId));
         CheckName(id, nameof(id));
@@ -90,7 +93,10 @@ public sealed partial class FileDocumentStore : IDocumentStore
         await gate.WaitAsync(ct);
         try
         {
-            if (!File.Exists(path)) return false;
+            var existing = await GetAsync<T>(tenantId, id, ct);
+            if (existing is null) return false;
+            if (existing.Version != expectedVersion)
+                throw new ConcurrencyException($"{typeof(T).Name} '{id}' is at version {existing.Version}, not {expectedVersion}.");
             File.Delete(path);
             return true;
         }
@@ -102,6 +108,9 @@ public sealed partial class FileDocumentStore : IDocumentStore
 
     [GeneratedRegex(@"^[A-Za-z0-9_-]{1,128}\z")]
     private static partial Regex ValidName();
+
+    // Same rule for callers that must reject a bad id before it reaches the store (e.g. tenant_id in a token).
+    public static bool IsValidName(string value) => ValidName().IsMatch(value);
 
     // Ids and tenant ids become path segments; this blocks path traversal.
     private static void CheckName(string value, string paramName)

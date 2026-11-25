@@ -12,7 +12,9 @@ description: >-
 ## Identity basics
 
 - OIDC/OAuth2. JWTs are validated (IDN-01).
-- Tenant comes from the token claim `tenant_id`. Never take it from the URL or body (IDN-02).
+- Tenant comes from the token claim `tenant_id`, read with `User.TenantId()` (`Api/Auth/SiteSenseClaims.cs`). Never take it from the URL or body (IDN-02).
+- **Decided (Q79):** a token without exactly one valid `tenant_id` is rejected with `401`. Issuer, keys and config: Q02.
+- **Decided (Q80):** every endpoint needs a valid token (fallback policy) unless it is `AllowAnonymous`: only `/health`, `/openapi/v1.json`, `/scalar`.
 - **Decided:** the gateway token also carries `tenant_id`, added by a hardcoded-claim mapper on each gateway client in the realm. The API reads the tenant the same way for users and gateways, never from the request body.
 - Gateway devices use client credentials with scope `positions:write`. One client = one tenant (IDN-05).
 - IdP config (realm, clients, roles, test users) is versioned in the repo and loaded at startup (IDN-04).
@@ -57,6 +59,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `PUT /api/v1/test/clock` | `TestMode` |
 | `POST /api/v1/test/jobs/{jobName}/run` | `TestMode` |
 | `POST /api/v1/test/drain` | `TestMode` |
+| `GET /api/v1/me` | Authenticated (fallback policy, Q78) |
 | SignalR hub | Authenticated; groups and audiences in the SignalR section |
 
 ## Fixed rules

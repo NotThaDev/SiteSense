@@ -24,9 +24,9 @@ public sealed class FileDocumentStoreTests : IDisposable
     public async Task Save_Existing_IncrementsVersion()
     {
         var store = new FileDocumentStore(_root);
-        await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
+        var first = await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
 
-        var saved = await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
+        var saved = await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a", Version = first.Version }, CancellationToken.None);
 
         Assert.Equal(2L, saved.Version);
     }
@@ -90,27 +90,68 @@ public sealed class FileDocumentStoreTests : IDisposable
     }
 
     [Fact]
-    public async Task Save_ParallelSameDocument_EndsAtVersionN()
+    public async Task Save_StaleVersion_ThrowsConcurrencyException()
     {
         var store = new FileDocumentStore(_root);
+        var v1 = await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a", Name = "first" }, CancellationToken.None);
+        await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a", Version = v1.Version, Name = "second" }, CancellationToken.None);
 
-        var saves = Enumerable.Range(0, 100)
-            .Select(_ => store.SaveAsync("tenant-a", new TestDoc { Id = "p", TenantId = "tenant-a" }, CancellationToken.None))
-            .ToArray();
-        await Task.WhenAll(saves);
-        var loaded = await store.GetAsync<TestDoc>("tenant-a", "p", CancellationToken.None);
+        var stale = new TestDoc { Id = "x", TenantId = "tenant-a", Version = 1, Name = "stale" };
+        await Assert.ThrowsAsync<ConcurrencyException>(() => store.SaveAsync("tenant-a", stale, CancellationToken.None));
+        var loaded = await store.GetAsync<TestDoc>("tenant-a", "x", CancellationToken.None);
 
-        Assert.NotNull(loaded);
-        Assert.Equal(100L, loaded.Version);
+        Assert.Equal(1L, stale.Version);
+        Assert.Equal(("second", 2L), (loaded!.Name, loaded.Version));
+    }
+
+    [Fact]
+    public async Task Delete_StaleVersion_ThrowsConcurrencyException()
+    {
+        var store = new FileDocumentStore(_root);
+        var v1 = await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
+        await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a", Version = v1.Version }, CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConcurrencyException>(() => store.DeleteAsync<TestDoc>("tenant-a", "x", 1, CancellationToken.None));
+
+        Assert.NotNull(await store.GetAsync<TestDoc>("tenant-a", "x", CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Save_ConcurrentWritersSameVersion_ExactlyOneWins()
+    {
+        const int writers = 16;
+        var store = new FileDocumentStore(_root);
+        await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a", Name = "start" }, CancellationToken.None);
+        using var barrier = new Barrier(writers);
+
+        var results = await Task.WhenAll(Enumerable.Range(0, writers).Select(i => Task.Run(async () =>
+        {
+            var read = await store.GetAsync<TestDoc>("tenant-a", "x", CancellationToken.None);
+            barrier.SignalAndWait();
+            try
+            {
+                await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a", Version = read!.Version, Name = $"w{i}" }, CancellationToken.None);
+                return $"w{i}";
+            }
+            catch (ConcurrencyException)
+            {
+                return null;
+            }
+        })));
+        var loaded = await store.GetAsync<TestDoc>("tenant-a", "x", CancellationToken.None);
+
+        var winners = results.Where(r => r is not null).ToArray();
+        Assert.Single(winners);
+        Assert.Equal((winners[0], 2L), (loaded!.Name, loaded.Version));
     }
 
     [Fact]
     public async Task Delete_Existing_ReturnsTrueThenGetNull()
     {
         var store = new FileDocumentStore(_root);
-        await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
+        var saved = await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
 
-        var first = await store.DeleteAsync<TestDoc>("tenant-a", "x", CancellationToken.None);
+        var first = await store.DeleteAsync<TestDoc>("tenant-a", "x", saved.Version, CancellationToken.None);
         var loaded = await store.GetAsync<TestDoc>("tenant-a", "x", CancellationToken.None);
 
         Assert.True(first);
