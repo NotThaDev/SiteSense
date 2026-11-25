@@ -3,14 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SiteSense.Api.Auth;
 using SiteSense.Api.Dtos;
+using SiteSense.Api.Models;
 using SiteSense.Api.Models.Map;
 
 namespace SiteSense.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/sites/{siteId}/map")]
-// shortcut: any authenticated user; switch to the Admin policy (SS-7) when it reaches main.
-[Authorize]
+[Authorize(Policy = SiteSensePolicies.CanManage)]
 public sealed class MapController : ControllerBase
 {
     [HttpPut]
@@ -43,8 +43,7 @@ public sealed class MapController : ControllerBase
         return Ok(new MapVersionResponse(result.MapVersion!.Value));
     }
 
-    // Returns the site's connectToleranceM, or null when the site does not exist in this tenant (404, also across tenants).
-    // Sites come with SS-14: until then this throws.
-    private static Task<double?> GetConnectToleranceAsync(string tenantId, string siteId, CancellationToken ct) =>
-        throw new NotImplementedException("Site lookup comes with SS-14 (sites API).");
+    // Null when the site does not exist in this tenant: 404, also for another tenant's site.
+    private static async Task<double?> GetConnectToleranceAsync(string tenantId, string siteId, CancellationToken ct) =>
+        (await Site.GetAsync(tenantId, siteId, ct))?.Navigation.ConnectToleranceM;
 }
