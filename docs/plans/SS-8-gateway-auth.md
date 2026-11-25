@@ -36,7 +36,7 @@ Out of scope: accepting and storing positions (SS-22). Until SS-22 the route ans
 ## Solution
 
 SS-7 owns the policy names and their registration (`SiteSensePolicies.CanWritePositions`, the
-`scope` split on spaces). SS-8 is stacked on SS-7 and adds only the guarded route and the proof.
+`scope` split on spaces), now on `main`. SS-8 adds only the guarded route and the proof.
 
 `backend/SiteSense.Api/Controllers/PositionsController.cs`:
 
@@ -77,7 +77,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $T" h
 
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | Merge `story/SS-7-policies`. Constants are merged; the policy registration and the `scope` parameter of `TestTokens` must land on that branch first (an unregistered policy is a 500, not a 403). Step 2 starts only after that merge. | — | `AddAuthorizationBuilder` registers `CanWritePositions`; SS-7 tests green. | plan, impl |
+| 1 | Merge `main` (SS-7 policies and `TestTokens` `scope` are there). | — | `AddAuthorizationBuilder` registers `CanWritePositions`; tests green. | plan |
 | 2 | Guarded route, 501 body. | `backend/SiteSense.Api/Controllers/PositionsController.cs` | Builds. | impl |
 | 3 | Tests (below). | `tests/SiteSense.Tests/Api/Auth/GatewayAuthTests.cs` | `dotnet test` green. | impl |
 | 4 | Docs: Q12 in `ASSUMPTIONS.md`, `AI_LOG.md` entry, live check line in `README.md`. | those files | Q12 recorded as decided. | impl |
@@ -87,7 +87,7 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H "Authorization: Bearer $T" h
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| SS-7 changes the policy name or registration after the merge. | Build break or wrong guard. | Use only `SiteSensePolicies.CanWritePositions`; merge SS-7 again on each update. |
+| The policy name or registration changes later. | Build break or wrong guard. | Use only `SiteSensePolicies.CanWritePositions`. |
 | Keycloak adds scopes (`profile email …`) or sends `scope` differently. | Gateway gets 403. | Live check with a real token (step 5). |
 | The 501 stub is mistaken for a finished endpoint. | Evaluator sees 501. | `shortcut:` comment; SS-22 depends on SS-8 and replaces the body. |
 
@@ -116,3 +116,4 @@ All non-2xx answers assert `Content-Type: application/problem+json` and the `sta
 |---|---|---|
 | 2026-11-25 | First draft. | — |
 | 2026-11-25 | Step 1 waits for SS-7 registration; ProblemDetails asserts; tenant-b and role+scope cases; tenant checks moved to SS-22. | Sonnet plan review. |
+| 2026-11-25 | SS-7 merged into `main`; plan PR retargeted to `main`. | SS-7 #71, #73 merged. |
