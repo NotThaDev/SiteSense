@@ -35,8 +35,10 @@ Out of scope: delete of a site, list of sites, the map (SS-15), reading `mapFile
 ## Solution
 
 One `Site` document per site in the caller's tenant folder, id = `siteId`. The controller takes
-the tenant from the token (`User.TenantId()`), never from the body. The client chooses
-`siteId` (it is in the site JSON, and the map and device URLs use it), so the server never makes one.
+the tenant from the token (`User.TenantId()`), never from the body. `siteId` in the
+body is optional, so one DTO serves POST and PUT: on POST, absent or null → the server makes a new id
+(`Guid` "N", 32 hex), given → kept as is (the contract posts the site JSON with its `siteId`, and the
+map and device URLs use it); on PUT the URL is the id, a body `siteId` must be absent or equal to it.
 
 - Create: save with version 0. The store rejects it with `ConcurrencyException` when the site exists,
   under its per-document lock, so parallel creates give one 201 and the rest 409.
@@ -98,8 +100,8 @@ Validation (Q82), at the boundary, before any write:
 
 | Field | Rule |
 |---|---|
-| all fields | required (missing → 400) |
-| `siteId` | valid store name (`FileDocumentStore.IsValidName`) |
+| all fields except `siteId` | required (missing → 400) |
+| `siteId` | optional; when given, a valid store name (`FileDocumentStore.IsValidName`) |
 | `name`, `mapFile` | not empty |
 | `timeZone` | time zone id known to the runtime (`TimeZoneInfo.TryFindSystemTimeZoneById`; IANA on Linux and macOS) |
 | `walkingSpeedMps`, `connectToleranceM`, `maxSnapDistanceM` | > 0 |
@@ -139,15 +141,16 @@ The PUT copies `If-Match` into `doc.Version`, never a version from the body (rec
 checked by `AbsolutePath`. "Nothing stored" = a GET of that `siteId` gives 404.
 
 - `Create_Admin_Returns201WithSiteIdLocationAndETag`
+- `Create_WithoutSiteId_Returns201WithServerId` (absent, null)
 - `Create_DuplicateSiteId_Returns409Problem`
 - `Create_ParallelSameSiteId_OneCreatedRestConflict`
 - `Update_CurrentIfMatch_Returns200AndUpdates` (new ETag "2", GET shows the new name)
 - `Update_MissingIfMatch_Returns412Problem`, `Update_StaleIfMatch_Returns412Problem`
 - `Update_OtherTenantOrMissingSite_Returns404`
-- `Update_BodySiteIdDiffersFromUrl_Returns400Problem`
+- `Update_BodySiteIdDiffersFromUrl_Returns400Problem`, `Update_WithoutBodySiteId_Returns200`
 - `Update_NonAdmin_Returns403`
 - `Create_NonAdmin_Returns403` (theory: Safety, Viewer, gateway)
-- `Create_InvalidBody_Returns400Problem` (theory: unknown time zone, zero speed, factor 0, factor > 1, invalid `siteId`, missing `siteId`, missing or null `navigation`, empty `name`); nothing stored
+- `Create_InvalidBody_Returns400Problem` (theory: unknown time zone, zero speed, factor 0, factor > 1, invalid `siteId`, missing or null `navigation`, empty `name`); nothing stored
 - `Create_SameSiteIdOtherTenant_Returns201`
 - `Get_OwnSite_Returns200WithBodyAndETag` (Viewer; all fields round-trip)
 - `Get_OtherTenantSite_Returns404`
@@ -157,7 +160,7 @@ checked by `AbsolutePath`. "Nothing stored" = a GET of that `siteId` gives 404.
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| Q43 | Same `siteId` twice in one tenant; how is a site updated? | POST create only (409) + `PUT /sites/{siteId}` with `If-Match` (200, 412); POST as create-or-update | POST create (409) + PUT update (owner) |
+| Q43 | Same `siteId` twice in one tenant; how is a site updated? | POST create only (409) + `PUT /sites/{siteId}` with `If-Match` (200, 412); POST as create-or-update | POST create (409) + PUT update; `siteId` optional, server id when absent (owner) |
 | Q81 | Who may read a site (`GET /api/v1/sites/{siteId}`)? | All roles (`CanSeeAggregates`); Admin only; no GET | All roles (owner) |
 | Q82 | How strict is the site JSON check? | Full (required, IANA zone, ranges); required fields only | Full (owner) |
 
@@ -170,3 +173,4 @@ checked by `AbsolutePath`. "Nothing stored" = a GET of that `siteId` gives 404.
 | 2026-11-25 | Valid test body = real site from `data/site.json` (inlined, then read from the file after merging `main`) | SS-18 on `main` |
 | 2026-11-25 | Q43 changed: same `siteId` = update with `If-Match` (200 / 412), no 409 | Owner review |
 | 2026-11-25 | Q43 final: POST create only (409) + `PUT /api/v1/sites/{siteId}` with `If-Match` for update | Owner: standard REST, client-chosen `siteId` |
+| 2026-11-25 | `siteId` optional in the request: server-made id on POST without one; PUT takes the id from the URL | Owner: one DTO, UI needs no id |
