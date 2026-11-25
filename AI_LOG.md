@@ -20,11 +20,23 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), version check, 412 mapping, probe controller and tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review grew the plan (428/400 paths, ETag helper, folder choice); the owner cut it to the minimal version ("check the version before saving, if it differs return an error"). The owner chose Q45 (ETag on every document, If-Match required, expected version from `doc.Version`).
 
+## 2026-11-25 — SS-43: Tenants from configuration
+- Goal: configured tenants with per-tenant retention and silence threshold, validated at startup; unknown `tenant_id` → 403 after SS-6.
+- Prompt (summary): implement SS-43 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), tenant options, validator, `SiteSenseContext.Tenants`, config and tests (Haiku), docs (Opus).
+- Corrected or discarded: the review moved tenant validation before the store is created and fixed test names. The owner chose Q14 (configuration only, 30 days / 10 minutes) and discarded a single seed file with a realm generator: tenant ids stay in config and realm, kept in sync by hand.
+
 ## 2026-11-25 — SS-6: JWT validation and tenant context
 - Goal: validate Keycloak tokens, take the tenant from `tenant_id`, map realm roles, return 404 for another tenant's resource.
 - Prompt (summary): implement SS-6 with the plan / validate / approve / implement / verify workflow.
 - AI produced: plan (Opus), plan review (Sonnet), auth setup, `/api/v1/me`, signed-token tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review fixed the Authority vs MetadataAddress branch, `Configure` instead of `PostConfigure` for the test key, a 30 s clock skew and the `tenant_id` format check. The owner removed non-risks from the plan, asked how keys are cached (handler default, no extra code) and chose Q77–Q80.
+
+## 2026-11-25 — SS-18: Real site map from OpenStreetMap
+- Goal: a real site map in the SiteSense map format, rebuilt by a reproducible script, as the real-world input for map import (SS-15).
+- Prompt (summary): implement SS-18 with the plan / validate / approve / implement / verify workflow; the owner picks the site.
+- AI produced: candidate sites from OSM counts (Opus), plan (Opus), plan review (Sonnet), `data/build_map.py`, extract, `map.geojson`, `site.json`, `data/README.md`, `DATA_SOURCES.md` (Sonnet), independent output check (Haiku).
+- Corrected or discarded: the review added the walkable-graph connectivity check, snapping assembly points only to walkable segments, T-touch and collinear joins, no joins across layers or bridges, and rounding before any geometry. The owner chose Catania (Q50), Python, a saved extract and no CI check.
 
 ## 2026-11-25 — SS-7: Authorization policies
 - Goal: named policies `CanManage`, `CanSeeIndividuals`, `CanSeeAggregates`, `CanWritePositions`; no role checks in endpoint code.

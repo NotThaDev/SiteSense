@@ -33,6 +33,8 @@ public sealed class HealthTests : IDisposable
     private static WebApplicationFactory<Program> CreateFactory(string rootPath) =>
         new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
             .UseSetting("Store:RootPath", rootPath)
+            .UseSetting("Tenants:tenant-a:RetentionDays", "30")
+            .UseSetting("Tenants:tenant-a:SilentAfterMinutes", "10")
             .UseSetting("Auth:Issuer", Auth.TestTokens.Issuer)
             .UseSetting("Auth:Audience", Auth.TestTokens.Audience)
             // Plain-HTTP issuer and no static keys here, as in the local template.

@@ -58,6 +58,20 @@ public sealed class AuthTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Me_UnknownTenant_Returns403Problem()
+    {
+        // Arrange (valid signature, tenant not in configuration)
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-x", ["Admin"]));
+
+        // Act
+        var response = await client.GetAsync("/api/v1/me");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(ProblemJson, response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
     public async Task Me_NoToken_Returns401Problem()
     {
         // Arrange
