@@ -25,3 +25,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-6 with the plan / validate / approve / implement / verify workflow.
 - AI produced: plan (Opus), plan review (Sonnet), auth setup, `/api/v1/me`, signed-token tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review fixed the Authority vs MetadataAddress branch, `Configure` instead of `PostConfigure` for the test key, a 30 s clock skew and the `tenant_id` format check. The owner removed non-risks from the plan, asked how keys are cached (handler default, no extra code) and chose Q77–Q80.
+
+## 2026-11-25 — SS-7: Authorization policies
+- Goal: named policies `CanManage`, `CanSeeIndividuals`, `CanSeeAggregates`, `CanWritePositions`; no role checks in endpoint code.
+- Prompt (summary): implement SS-7 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), policy registration, probe controller and per-role tests (Haiku), docs (Opus).
+- Corrected or discarded: the Sonnet review added an explicit authenticated requirement, exact scope matching with look-alike and array tests, 401 rows, and a source scan that fails when it finds no files. An endpoint-metadata test was not taken (fallback policy already blocks anonymous callers).

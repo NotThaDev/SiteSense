@@ -32,13 +32,15 @@ description: >-
 
 ## Policies
 
+Names, roles and the scope string are constants in `Api/Auth/SiteSensePolicies.cs`; policies are registered in `AuthSetup.AddSiteSenseAuth`.
+
 | Policy | Granted to |
 |---|---|
 | `CanManage` | Admin |
 | `CanSeeIndividuals` | Safety |
 | `CanSeeAggregates` | Admin, Safety, Viewer |
-| `CanWritePositions` | Gateway client (scope `positions:write`) |
-| `TestMode` | Admin, only when test mode is on |
+| `CanWritePositions` | Gateway client (scope `positions:write`, exact match in the space-separated `scope` claim) |
+| `TestMode` | Admin, only when test mode is on (**pending:** registered with the test-mode story) |
 
 ## Endpoint to policy
 
