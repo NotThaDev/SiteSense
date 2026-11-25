@@ -20,8 +20,14 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), version check, 412 mapping, probe controller and tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review grew the plan (428/400 paths, ETag helper, folder choice); the owner cut it to the minimal version ("check the version before saving, if it differs return an error"). The owner chose Q45 (ETag on every document, If-Match required, expected version from `doc.Version`).
 
+## 2026-11-25 — SS-6: JWT validation and tenant context
+- Goal: validate Keycloak tokens, take the tenant from `tenant_id`, map realm roles, return 404 for another tenant's resource.
+- Prompt (summary): implement SS-6 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), auth setup, `/api/v1/me`, signed-token tests (Haiku), docs (Opus).
+- Corrected or discarded: the Sonnet review fixed the Authority vs MetadataAddress branch, `Configure` instead of `PostConfigure` for the test key, a 30 s clock skew and the `tenant_id` format check. The owner removed non-risks from the plan, asked how keys are cached (handler default, no extra code) and chose Q77–Q80.
+
 ## 2026-11-24 — SS-4: Structured logs with correlation id
 - Goal: JSON console logs, and a correlation id that is read from or added to `X-Correlation-Id`, sits in the log scope, and can travel to the ingest queue and SignalR events (NF-03).
 - Prompt (summary): implement issue SS-4 with the plan / validate / approve / implement / verify workflow.
-- AI produced: plan (Opus), plan review (Sonnet), `Diagnostics/Correlation.cs`, `Diagnostics/Correlated.cs`, `Program.cs` wiring, 4 tests (Haiku), docs and Q77–Q78 (Opus), verify run (Haiku).
+- AI produced: plan (Opus), plan review (Sonnet), `Diagnostics/Correlation.cs`, `Diagnostics/Correlated.cs`, `Program.cs` wiring, 4 tests (Haiku), docs and Q81–Q82 (Opus), verify run (Haiku).
 - Corrected or discarded: the review removed setting `TraceIdentifier` (ProblemDetails uses the Activity id) and added the known limit that hosting lines stay outside the scope. The owner chose the `Diagnostics/` folder and the `Correlated<T>` carrier. The Q numbers moved twice to avoid clashes with SS-1 and SS-3.

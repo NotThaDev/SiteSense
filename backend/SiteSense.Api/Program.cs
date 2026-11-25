@@ -1,4 +1,5 @@
 using Scalar.AspNetCore;
+using SiteSense.Api.Auth;
 using SiteSense.Api.Diagnostics;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Store;
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
 
 SiteSenseContext.Init(builder);
+builder.AddSiteSenseAuth();
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
@@ -26,11 +28,13 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     StatusCodeSelector = ex => ex is ConcurrencyException ? StatusCodes.Status412PreconditionFailed : StatusCodes.Status500InternalServerError,
 });
 app.UseStatusCodePages();
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 // Served in every environment (Q69).
-app.MapOpenApi();
-app.MapScalarApiReference();
+app.MapOpenApi().AllowAnonymous();
+app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
 
 app.Run();

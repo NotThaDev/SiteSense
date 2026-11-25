@@ -32,7 +32,8 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | Folder            | Holds                                                                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Controllers/`    | One controller per area: `SitesController`, `TrackingController`, `NavigationController`, `AuthController`                                     |
-| `Models/`         | Persisted entities (`Site`, `Device`, ...) with their static persistence methods, plus request and response DTOs                               |
+| `Models/`         | Persisted entities (`Site`, `Device`, ...) with their static persistence methods                               |
+| `Dtos/`           | Request and response records on the wire (`<Name>Request`, `<Name>Response`)                                                                   |
 | `Services/`       | Only multi-entity flows and external engines: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation |
 | `Store/`          | The single generic JSON document store implementation; takes the place of a `DbContext`                                                        |
 | `Realtime/`       | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext`                                                   |
@@ -99,6 +100,10 @@ A new config key is added to `appsettings.example.json` in the same PR.
 | Key              | Default                                                                                                         | Rule                                                                               |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `Store:RootPath` | `.store` (template), relative to the working directory: `backend/SiteSense.Api/.store/` with `dotnet run` (Q73) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
+| `Auth:Issuer` | `http://localhost:8081/realms/sitesense` | Required; the only accepted `iss` (Q02). |
+| `Auth:Audience` | `sitesense-api` | Required; the token `aud` must contain it. |
+| `Auth:MetadataAddress` | empty (template); compose: `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration` | Where the signing keys are read; empty means the issuer (Q02). |
+| `Auth:RequireHttpsMetadata` | `true` (code); `false` in the template and compose | Keys only over HTTPS unless turned off; off only for the local plain-HTTP Keycloak (Q74). |
 
 ## Run with Docker
 
