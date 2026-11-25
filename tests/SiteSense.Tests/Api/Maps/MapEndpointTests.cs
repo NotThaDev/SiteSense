@@ -24,7 +24,7 @@ public sealed class MapEndpointTests : IClassFixture<ApiFactory>
 
     // Creating the host resets the static store, so seed after CreateClient.
     private static Task SeedSiteAsync(string tenantId, string siteId) =>
-        Site.CreateAsync(tenantId, new Site
+        Site.SaveAsync(tenantId, new Site
         {
             Id = siteId,
             TenantId = tenantId,
