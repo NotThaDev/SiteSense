@@ -109,10 +109,13 @@ public sealed partial class FileDocumentStore : IDocumentStore
     [GeneratedRegex(@"^[A-Za-z0-9_-]{1,128}\z")]
     private static partial Regex ValidName();
 
+    // Same rule for callers that must reject a bad id before it reaches the store (e.g. tenant_id in a token).
+    public static bool IsValidName(string value) => ValidName().IsMatch(value);
+
     // Ids and tenant ids become path segments; this blocks path traversal.
     private static void CheckName(string value, string paramName)
     {
-        if (!ValidName().IsMatch(value))
+        if (!IsValidName(value))
             throw new ArgumentException($"'{value}' is not a valid name.", paramName);
     }
 

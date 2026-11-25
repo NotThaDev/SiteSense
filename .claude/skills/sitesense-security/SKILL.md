@@ -12,7 +12,9 @@ description: >-
 ## Identity basics
 
 - OIDC/OAuth2. JWTs are validated (IDN-01).
-- Tenant comes from the token claim `tenant_id`. Never take it from the URL or body (IDN-02).
+- Tenant comes from the token claim `tenant_id`, read with `User.TenantId()` (`Api/Auth/SiteSenseClaims.cs`). Never take it from the URL or body (IDN-02).
+- **Decided (Q79):** a token without exactly one valid `tenant_id` is rejected with `401`. Issuer, keys and config: Q02.
+- **Decided (Q80):** every endpoint needs a valid token (fallback policy) unless it is `AllowAnonymous`: only `/health`, `/openapi/v1.json`, `/scalar`.
 - **Decided:** the gateway token also carries `tenant_id`, added by a hardcoded-claim mapper on each gateway client in the realm. The API reads the tenant the same way for users and gateways, never from the request body.
 - Gateway devices use client credentials with scope `positions:write`. One client = one tenant (IDN-05).
 - IdP config (realm, clients, roles, test users) is versioned in the repo and loaded at startup (IDN-04).
@@ -30,13 +32,15 @@ description: >-
 
 ## Policies
 
+Names, roles and the scope string are constants in `Api/Auth/SiteSensePolicies.cs`; policies are registered in `AuthSetup.AddSiteSenseAuth`.
+
 | Policy | Granted to |
 |---|---|
 | `CanManage` | Admin |
 | `CanSeeIndividuals` | Safety |
 | `CanSeeAggregates` | Admin, Safety, Viewer |
-| `CanWritePositions` | Gateway client (scope `positions:write`) |
-| `TestMode` | Admin, only when test mode is on |
+| `CanWritePositions` | Gateway client (scope `positions:write`, exact match in the space-separated `scope` claim) |
+| `TestMode` | Admin, only when test mode is on (**pending:** registered with the test-mode story) |
 
 ## Endpoint to policy
 
@@ -57,6 +61,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `PUT /api/v1/test/clock` | `TestMode` |
 | `POST /api/v1/test/jobs/{jobName}/run` | `TestMode` |
 | `POST /api/v1/test/drain` | `TestMode` |
+| `GET /api/v1/me` | Authenticated (fallback policy, Q78) |
 | SignalR hub | Authenticated; groups and audiences in the SignalR section |
 
 ## Fixed rules
@@ -66,6 +71,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | Resource belongs to another tenant | `404` (same as not found) | IDN-02 |
 | Position batch whose `deviceId` is not registered, or belongs to another tenant | Whole batch rejected with `404`; nothing stored | IDN-02, decided |
 | Right tenant, role too low | `403` Forbidden | Q10, decided |
+| Valid token whose `tenant_id` is not in the `Tenants` configuration | `403` ProblemDetails, on every endpoint | Q14, decided |
 | Authorization in code | Named policies only (`RequireAuthorization("…")`). Never `IsInRole` or role strings in handlers. | IDN-03 |
 | Tenant filter | In the store or query layer, applied to every read and write. Not ad hoc in handlers. | IDN-02 |
 
