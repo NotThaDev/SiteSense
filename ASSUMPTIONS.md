@@ -274,3 +274,30 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Always downloading, no saved extract: the map would change whenever OSM is edited.
 - Requirement IDs: D-DATA
 - Status: Accepted
+
+## Q43 — What happens when a site is posted again with the same `siteId`, and how is a site updated?
+- Assumption: `POST /api/v1/sites` only creates; an existing `siteId` in the same tenant gives `409` and changes nothing. Updates go through `PUT /api/v1/sites/{siteId}` with the site JSON and `If-Match` (Q45): current version → `200 { "siteId" }` and the new `ETag`; missing or stale → `412`; a site not in the caller's tenant → `404`; a body `siteId` different from the URL → `400`. Both are Admin only. `siteId` in the body is optional (one DTO for both): on `POST`, absent or null → the server makes a new id (32 hex characters), given → used as is (the contract posts the site JSON with its `siteId`); on `PUT` the URL is the id, and a body `siteId` must be absent or equal to it. The same `siteId` in another tenant is a different site.
+- Why: standard REST (POST creates, PUT replaces a known resource), chosen by the owner. The site JSON carries `siteId`, and the map and device URLs use it, so a given `siteId` must be kept; a UI that has no id leaves it out. `PUT` for a site is not in the API contract; API-01 ("management of sites") covers it.
+- Alternatives rejected:
+  - `POST` as create-or-update with `If-Match`: one verb with two meanings; 409 and 412 mixed on one endpoint.
+  - `POST` with an empty id to create and a given id to update: the contract posts the site JSON with its `siteId` to create it.
+  - `siteId` always required: a UI would have to invent a code before creating a site.
+- Requirement IDs: API-01, C-7.3a, JDB-03
+- Status: Accepted
+
+## Q81 — Who may read a site (`GET /api/v1/sites/{siteId}`)?
+- Assumption: every role (`CanSeeAggregates`: Admin, Safety, Viewer). Another tenant's site, a missing one or an invalid id gives `404`. The response is the site JSON with `ETag`.
+- Why: the site holds only configuration, no personal data, and navigation and occupancy clients of every role need it.
+- Alternatives rejected:
+  - Admin only (`CanManage`): Viewer and Safety clients could not read the site they navigate.
+  - No GET: the cross-tenant `404` and the ETag could not be tested.
+- Requirement IDs: API-01, IDN-02
+- Status: Accepted
+
+## Q82 — How strictly is the site JSON checked on `POST /api/v1/sites`?
+- Assumption: fully, before anything is stored; errors are `400` `ValidationProblemDetails`. All fields required; `siteId` a valid store name (`[A-Za-z0-9_-]`, 1–128); `name` and `mapFile` not empty; `timeZone` a time zone id known to the runtime (IANA on Linux); `walkingSpeedMps`, `connectToleranceM`, `maxSnapDistanceM` > 0; `unpavedSpeedFactor`, `stepsSpeedFactor` in (0, 1].
+- Why: the site settings drive routing and snapping later; a bad value would surface far from its cause.
+- Alternatives rejected:
+  - Required fields and `siteId` only: a zero speed or an unknown zone breaks routing later.
+- Requirement IDs: F-6.1, API-05
+- Status: Accepted
