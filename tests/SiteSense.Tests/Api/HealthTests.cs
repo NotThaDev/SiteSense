@@ -2,9 +2,11 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Options;
+using SiteSense.Tests.Api.Auth;
 
 namespace SiteSense.Tests.Api;
 
+[Collection("Api")]
 public sealed class HealthTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
@@ -29,7 +31,12 @@ public sealed class HealthTests : IDisposable
     }
 
     private static WebApplicationFactory<Program> CreateFactory(string rootPath) =>
-        new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseSetting("Store:RootPath", rootPath));
+        new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
+            .UseSetting("Store:RootPath", rootPath)
+            .UseSetting("Auth:Issuer", Auth.TestTokens.Issuer)
+            .UseSetting("Auth:Audience", Auth.TestTokens.Audience)
+            // Plain-HTTP issuer and no static keys here, as in the local template.
+            .UseSetting("Auth:RequireHttpsMetadata", "false"));
 
     public void Dispose()
     {

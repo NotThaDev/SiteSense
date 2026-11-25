@@ -17,6 +17,7 @@ public static class CrashWriter
             {
                 Id = id,
                 TenantId = "tenant-a",
+                Version = current?.Version ?? 0,
                 Counter = (current?.Version ?? 0) + 1,
                 Payload = payload,
             }, CancellationToken.None);

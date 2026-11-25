@@ -32,7 +32,8 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | Folder            | Holds                                                                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Controllers/`    | One controller per area: `SitesController`, `TrackingController`, `NavigationController`, `AuthController`                                     |
-| `Models/`         | Persisted entities (`Site`, `Device`, ...) with their static persistence methods, plus request and response DTOs                               |
+| `Models/`         | Persisted entities (`Site`, `Device`, ...) with their static persistence methods                               |
+| `Dtos/`           | Request and response records on the wire (`<Name>Request`, `<Name>Response`)                                                                   |
 | `Services/`       | Only multi-entity flows and external engines: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation |
 | `Store/`          | The single generic JSON document store implementation; takes the place of a `DbContext`                                                        |
 | `Realtime/`       | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext`                                                   |
@@ -71,7 +72,8 @@ flowchart LR
 | Layout | `<Store:RootPath>/<tenantId>/<type name>/<id>.json`: one folder per tenant (JDB-07), one file per document, overwritten on save (Q04) |
 | Atomic write (JDB-02) | Write `<id>.json.tmp`, fsync, rename over `<id>.json`. A killed process leaves the old or the new file, never half of one. Orphan `.tmp` files are deleted when the store opens. |
 | Thread safety (JDB-04) | One async lock per document. Reads take no lock: the rename is atomic. |
-| Version | Set by the store: stored version + 1, 1 on create. The stale-version check comes with SS-10. |
+| Version (JDB-03) | The caller saves with the version it read (`0` = new); under the lock the store compares it with the stored one. Equal: write, version + 1. Different: `ConcurrencyException`, nothing written. `DeleteAsync` takes the expected version too. |
+| ETag (JDB-10, Q45) | The API sends the version as `ETag: "3"` and copies `If-Match` into `doc.Version` (missing = 0). `ConcurrencyException` becomes 412 ProblemDetails (`StatusCodeSelector` in `Program.cs`). |
 | Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. Ids are case-sensitive: in file and folder names each uppercase letter becomes `!` + lowercase (`DEV-001` → `!d!e!v-001.json`), so case-insensitive disks (macOS, Windows) keep them apart (Q76). |
 
 ## Build settings
@@ -97,6 +99,10 @@ A new config key is added to `appsettings.example.json` in the same PR.
 | Key              | Default                                                                                                         | Rule                                                                               |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `Store:RootPath` | `.store` (template), relative to the working directory: `backend/SiteSense.Api/.store/` with `dotnet run` (Q73) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
+| `Auth:Issuer` | `http://localhost:8081/realms/sitesense` | Required; the only accepted `iss` (Q02). |
+| `Auth:Audience` | `sitesense-api` | Required; the token `aud` must contain it. |
+| `Auth:MetadataAddress` | empty (template); compose: `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration` | Where the signing keys are read; empty means the issuer (Q02). |
+| `Auth:RequireHttpsMetadata` | `true` (code); `false` in the template and compose | Keys only over HTTPS unless turned off; off only for the local plain-HTTP Keycloak (Q74). |
 
 ## Run with Docker
 
