@@ -215,3 +215,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - 428 for a missing header and 400 for a malformed one: more code paths for the same outcome (the write is refused).
 - Requirement IDs: JDB-03, JDB-10
 - Status: Accepted
+
+## Q14 — How is a tenant created, and where do its settings live?
+- Assumption: tenants exist only in configuration, section `Tenants`, keyed by tenant id, each with `RetentionDays` (PRV-04) and `SilentAfterMinutes` (TRK-06). Defaults: `tenant-a` and `tenant-b`, 30 days and 10 minutes. Validated at startup in `SiteSenseContext.Init`; read through `SiteSenseContext.Tenants`. In Docker the values come from env vars in `docker-compose.yml`, because the delivery ZIP has no `appsettings.json`. The tenant's store folder is created on its first save (SS-9). Tenant ids are also in the Keycloak realm (`tenant_id` of users and gateway clients) and are kept in sync by hand; a tenant id is never renamed, since it is also the store folder name.
+- Why: no requirement asks for a tenant endpoint or a tenant document; Keycloak only tags who belongs to which tenant, it does not hold the list of valid tenants or their settings.
+- Alternatives rejected:
+  - A tenant document in the store: versioned data that nothing edits.
+  - Keycloak as the only source (Organizations + Admin API at startup): reworks SS-5 and SS-6 and makes startup depend on Keycloak.
+  - One seed file that generates the realm: a generator and a drift test for two tenants that never change.
+- Requirement IDs: NF-04, PRV-04, TRK-06
+- Status: Accepted
+
