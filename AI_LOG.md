@@ -26,3 +26,8 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), tenant options, validator, `SiteSenseContext.Tenants`, config and tests (Haiku), docs (Opus).
 - Corrected or discarded: the review moved tenant validation before the store is created and fixed test names. The owner chose Q14 (configuration only, 30 days / 10 minutes) and discarded a single seed file with a realm generator: tenant ids stay in config and realm, kept in sync by hand.
 
+## 2026-11-25 — SS-6: JWT validation and tenant context
+- Goal: validate Keycloak tokens, take the tenant from `tenant_id`, map realm roles, return 404 for another tenant's resource.
+- Prompt (summary): implement SS-6 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), auth setup, `/api/v1/me`, signed-token tests (Haiku), docs (Opus).
+- Corrected or discarded: the Sonnet review fixed the Authority vs MetadataAddress branch, `Configure` instead of `PostConfigure` for the test key, a 30 s clock skew and the `tenant_id` format check. The owner removed non-risks from the plan, asked how keys are cached (handler default, no extra code) and chose Q77–Q80.

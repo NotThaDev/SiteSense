@@ -12,6 +12,10 @@ services:
       Tenants__tenant-a__SilentAfterMinutes: 10
       Tenants__tenant-b__RetentionDays: 30
       Tenants__tenant-b__SilentAfterMinutes: 10
+      # Same issuer as host tokens; keys from the internal name, since localhost is the container itself (Q02, Q74).
+      Auth__Issuer: http://localhost:8081/realms/sitesense
+      Auth__Audience: sitesense-api
+      Auth__MetadataAddress: http://keycloak:8081/realms/sitesense/.well-known/openid-configuration
       SITESENSE_TEST_MODE: ${SITESENSE_TEST_MODE:-false}
     volumes:
       - store-data:/var/lib/sitesense/store

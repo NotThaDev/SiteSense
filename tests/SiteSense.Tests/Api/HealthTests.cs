@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Options;
+using SiteSense.Tests.Api.Auth;
 
 namespace SiteSense.Tests.Api;
 
@@ -33,7 +34,9 @@ public sealed class HealthTests : IDisposable
         new WebApplicationFactory<Program>().WithWebHostBuilder(b => b
             .UseSetting("Store:RootPath", rootPath)
             .UseSetting("Tenants:tenant-a:RetentionDays", "30")
-            .UseSetting("Tenants:tenant-a:SilentAfterMinutes", "10"));
+            .UseSetting("Tenants:tenant-a:SilentAfterMinutes", "10")
+            .UseSetting("Auth:Issuer", Auth.TestTokens.Issuer)
+            .UseSetting("Auth:Audience", Auth.TestTokens.Audience));
 
     public void Dispose()
     {

@@ -98,6 +98,9 @@ A new config key is added to `appsettings.example.json` in the same PR.
 | Key              | Default                                                                                                         | Rule                                                                               |
 | ---------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `Store:RootPath` | `.store` (template), relative to the working directory: `backend/SiteSense.Api/.store/` with `dotnet run` (Q73) | Required and writable; checked at start, the API does not start otherwise (NF-04). |
+| `Auth:Issuer` | `http://localhost:8081/realms/sitesense` | Required; the only accepted `iss` (Q02). |
+| `Auth:Audience` | `sitesense-api` | Required; the token `aud` must contain it. |
+| `Auth:MetadataAddress` | empty (template); compose: `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration` | Where the signing keys are read; empty means the issuer (Q02). |
 
 ## Run with Docker
 
