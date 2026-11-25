@@ -5,6 +5,7 @@ using SiteSense.Api.Diagnostics;
 
 namespace SiteSense.Tests.Api;
 
+[Collection("Api")]
 public class CorrelationTests
 {
     [Fact]
