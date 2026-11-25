@@ -15,8 +15,21 @@ public sealed class Site : IDocument
     public required string MapFile { get; init; }
     public required NavigationSettings Navigation { get; init; }
 
-    // Creates (Version 0) or overwrites (Version = stored) a site; any other version throws ConcurrencyException (Q43, Q45).
-    public static Task<Site> SaveAsync(string tenantId, Site site, CancellationToken ct) =>
+    // Null when the site already exists in this tenant (Q43): the store's version check runs under its per-document lock.
+    public static async Task<Site?> CreateAsync(string tenantId, Site site, CancellationToken ct)
+    {
+        try
+        {
+            return await SiteSenseContext.Store.SaveAsync(tenantId, site, ct);
+        }
+        catch (ConcurrencyException)
+        {
+            return null;
+        }
+    }
+
+    // site.Version must be the stored version (from If-Match), else ConcurrencyException → 412 (Q45).
+    public static Task<Site> UpdateAsync(string tenantId, Site site, CancellationToken ct) =>
         SiteSenseContext.Store.SaveAsync(tenantId, site, ct);
 
     // Null for a missing site, another tenant's site, or an id the store would reject.
