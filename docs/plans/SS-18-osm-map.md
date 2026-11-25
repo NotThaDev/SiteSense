@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #56
-- Plan PR: #58   Implementation PRs: (after approval)
+- Plan PR: #58   Implementation PRs: (stacked on #58)
 
 ## Problem
 SiteSense routes workers on a site map, but the repo has no map of a real site.
@@ -150,3 +150,4 @@ Plan PR: this file only. One implementation PR, stacked on it (`story/SS-18-osm-
 | 2026-11-24 | First draft | — |
 | 2026-11-24 | Containment and run-end rules, T-touch and collinear crossings, layer-aware joins, walkable snap for assembly points, connectivity check, rounding up front, determinism section, ODbL notice details, `site.json` content, strict number parsing | Plan validation (Sonnet subagent) |
 | 2026-11-24 | Status Approved | User OK in chat |
+| 2026-11-25 | Built: 23 entrances (not about 31: only kept path nodes on the perimeter); a path run is kept if one of its walkable segments is in the largest component; the rule check runs before writing, so a failed run keeps the old map | Implementation |
