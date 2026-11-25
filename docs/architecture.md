@@ -32,7 +32,8 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | Folder            | Holds                                                                                                                                          |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Controllers/`    | One controller per area: `SitesController`, `TrackingController`, `NavigationController`, `AuthController`                                     |
-| `Models/`         | Persisted entities (`Site`, `Device`, ...) with their static persistence methods, plus request and response DTOs                               |
+| `Models/`         | Persisted entities (`Site`, `Device`, ...) with their static persistence methods                               |
+| `Dtos/`           | Request and response records on the wire (`<Name>Request`, `<Name>Response`)                                                                   |
 | `Services/`       | Only multi-entity flows and external engines: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation |
 | `Store/`          | The single generic JSON document store implementation; takes the place of a `DbContext`                                                        |
 | `Realtime/`       | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext`                                                   |
