@@ -2,7 +2,7 @@
 
 - Status: In review
 - Issue: #45
-- Plan PR: #74   Implementation PRs: TBD-on-open
+- Plan PR: #74   Implementation PRs: #76
 - Requirement IDs: API-01, C-7.3a, F-6.1
 
 ## Problem
