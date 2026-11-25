@@ -114,8 +114,8 @@ Unit: validator rules. Integration: host startup fails on bad config; after SS-6
 |---|---|---|---|---|
 | Q14 | How is a tenant created? | Config only; config + tenant document | Config only | Config only (owner) |
 | — | Default values | 30 days / 10 min for both; different per tenant | 30 / 10 for both | 30 / 10 (owner) |
-| Q-new (number at merge, other stories add Q ids too) | Where Docker gets the tenants (no `appsettings.json` in the image) | Env vars in compose; a committed `tenants.json` | Env vars, same as `Store__RootPath` | Env vars (owner): the delivery ZIP has no `appsettings.json` |
-| Q-new | One file for tenants and Keycloak users? | Two files kept by hand; two files + drift test; one seed file + realm generator | Two files + drift test | Two files kept by hand (owner): tenant ids never change in this project |
+| Q14 | Where Docker gets the tenants (no `appsettings.json` in the image) | Env vars in compose; a committed `tenants.json` | Env vars, same as `Store__RootPath` | Env vars (owner): the delivery ZIP has no `appsettings.json` |
+| Q14 | One file for tenants and Keycloak users? | Two files kept by hand; two files + drift test; one seed file + realm generator | Two files + drift test | Two files kept by hand (owner): tenant ids never change in this project |
 
 ## Changelog
 | Date | Change | Why (review comment or finding) |
