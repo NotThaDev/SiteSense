@@ -9,6 +9,19 @@ public sealed class MapValidatorTests
     private const double Tolerance = 0.5;
 
     [Fact]
+    public void RealSiteMap_HasNoErrors()
+    {
+        var (map, errors) = MapValidator.Validate(MapFixtures.RealMap, MapFixtures.RealMapToleranceM);
+
+        Assert.Empty(errors);
+        Assert.NotNull(map);
+        Assert.Single(map.Areas, a => a.AreaType == "perimeter");
+        Assert.NotEmpty(map.Paths);
+        Assert.NotEmpty(map.AssemblyPoints);
+        Assert.NotEmpty(map.Entrances);
+    }
+
+    [Fact]
     public void ValidBaseMap_HasNoErrorsAndReadsEveryKind()
     {
         var (map, errors) = MapValidator.Validate(MapFixtures.BaseMap, Tolerance);

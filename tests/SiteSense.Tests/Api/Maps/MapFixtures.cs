@@ -26,4 +26,15 @@ internal static class MapFixtures
       ]
     }
     """;
+
+    // The real site map from data/ (SS-18), with its site's connectToleranceM.
+    public static readonly string RealMap = File.ReadAllText(Path.Combine(FindRepoRoot(), "data", "map.geojson"));
+    public const double RealMapToleranceM = 0.5;
+
+    private static string FindRepoRoot()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+            if (File.Exists(Path.Combine(dir.FullName, "SiteSense.slnx"))) return dir.FullName;
+        throw new InvalidOperationException("SiteSense.slnx not found above the test output directory.");
+    }
 }
