@@ -26,6 +26,16 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
 });
 app.UseStatusCodePages();
 app.UseAuthentication();
+// A valid token for a tenant not in configuration is forbidden on every endpoint, whatever its policy (Q14).
+app.Use(async (ctx, next) =>
+{
+    if (ctx.User.Identity?.IsAuthenticated == true && !SiteSenseContext.Tenants.ContainsKey(ctx.User.TenantId()))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return;
+    }
+    await next();
+});
 app.UseAuthorization();
 
 app.MapHealthChecks("/health").AllowAnonymous();
