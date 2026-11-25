@@ -122,8 +122,7 @@ No PUT or DELETE in this story, so no `If-Match` yet (recipe step 7).
 ## Tests
 
 `tests/SiteSense.Tests/Api/SitesTests.cs`. The valid body is the real site from `data/site.json`
-(`cittadella-catania`, SS-18), inlined because `data/site.json` is not yet on this stack's base;
-once the base is `main`, the test reads the file instead. The class uses `[Collection("Api")]` and
+(`cittadella-catania`, SS-18), read from the file. The class uses `[Collection("Api")]` and
 `IClassFixture<ApiFactory>` (shared static store); each test uses its own `siteId`. `Location` is
 checked by `AbsolutePath`. "Nothing stored" = a GET of that `siteId` gives 404.
 
@@ -151,4 +150,4 @@ checked by `AbsolutePath`. "Nothing stored" = a GET of that `siteId` gives 404.
 |---|---|---|
 | 2026-11-25 | First draft | — |
 | 2026-11-25 | Action names, test collection and ids, 400 rows, OpenAPI test, invalid-id guard reason, tz wording | Sonnet review |
-| 2026-11-25 | Valid test body = real site from `data/site.json` | SS-18 on `main` |
+| 2026-11-25 | Valid test body = real site from `data/site.json` (inlined, then read from the file after merging `main`) | SS-18 on `main` |

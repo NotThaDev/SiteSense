@@ -10,10 +10,15 @@ namespace SiteSense.Tests.Api;
 [Collection("Api")]
 public sealed class SitesTests : IClassFixture<ApiFactory>
 {
-    // Same content as data/site.json (SS-18); read the file once this stack's base is main.
-    private const string ValidSiteJson = """
-        {"siteId":"cittadella-catania","name":"Cittadella Universitaria","timeZone":"Europe/Rome","mapFile":"map.geojson","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
-        """;
+    // The real site from SS-18; each test swaps in its own siteId.
+    private static readonly string ValidSiteJson = File.ReadAllText(Path.Combine(FindRepoRoot(), "data", "site.json"));
+
+    private static string FindRepoRoot()
+    {
+        for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
+            if (File.Exists(Path.Combine(dir.FullName, "SiteSense.slnx"))) return dir.FullName;
+        throw new InvalidOperationException("SiteSense.slnx not found above the test output directory.");
+    }
 
     private readonly ApiFactory _factory;
 
