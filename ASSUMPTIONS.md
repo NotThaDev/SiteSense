@@ -253,6 +253,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Endpoints open until SS-7: every endpoint added in between would be public.
 - Requirement IDs: IDN-01, IDN-03
+
+## Q50 — Which real site is the test map?
+- Assumption: the Cittadella Universitaria in Catania (OSM way 231201634). `data/build_map.py` (Python 3, standard library only) converts a saved, gzipped OSM extract (`data/osm/cittadella.osm.gz`) into `data/map.geojson`; `--download` refreshes the extract. No CI check of the output.
+- Why: a dense, real walk network (footways, 30 step runs, gates on the perimeter) and 5 real `emergency=assembly_point` nodes. The saved extract (about 250 KB) makes a re-run give the same map, since OSM changes daily.
+- Alternatives rejected:
+  - PoliMi Bovisa, CNR Bologna, Kilometro Rosso: smaller walk network or fewer steps.
+  - Always downloading, no saved extract: the map would change whenever OSM is edited.
+- Requirement IDs: D-DATA
 - Status: Accepted
 
 ## Q81 — Where does the correlation id code live?
