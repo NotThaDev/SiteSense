@@ -47,7 +47,8 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | Folder | Holds |
 |---|---|
 | `Controllers/` | One controller per area, e.g. `SitesController`, `TrackingController`, `NavigationController`, `AuthController` |
-| `Models/` | Persisted entities (`Site.cs`, `Device.cs`, ...) with their static persistence methods, and request and response DTOs. Algorithms and geometric primitives stay in `SiteSense.Domain`. |
+| `Models/` | Persisted entities (`Site.cs`, `Device.cs`, ...) with their static persistence methods. Algorithms and geometric primitives stay in `SiteSense.Domain`. |
+| `Dtos/` | Request and response records on the wire: `<Name>Request.cs`, `<Name>Response.cs`. Never entities or Domain types. |
 | `Services/` | Only flows that span several entities or need an external engine: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation. No per-entity service. |
 | `Store/` | The single generic JSON document store implementation and file IO. It takes the place of a `DbContext` (no EF). |
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
@@ -99,7 +100,7 @@ Tenant safety:
 | Concern | Place |
 |---|---|
 | Endpoints | `Api/Controllers/`, one controller per area |
-| Request and response DTOs | `Api/Models/` |
+| Request and response DTOs | `Api/Dtos/` |
 | Persisted entities and their single-entity rules | `Api/Models/`, static methods (see Models and persistence) |
 | Multi-entity flows and external engines (ingest, navigation, evacuation, anomaly detection) | `Api/Services/` |
 | Auth wiring, policies | `Api/Auth/`, rules in [security](../sitesense-security/SKILL.md) |
@@ -155,7 +156,7 @@ Inside the root, one subfolder per tenant (JDB-07).
 ## 6. Add an endpoint
 
 1. Add the action to the area's controller in `Api/Controllers/` (a new area gets a new controller).
-2. Define request and response records in `Api/Models/`. No entities or Domain types on the wire.
+2. Define request and response records in `Api/Dtos/`. No entities or Domain types on the wire.
 3. Validate the request at the boundary. Rules: [coding](../dotnet-coding/SKILL.md).
 4. Add the authorization policy for the route. Rules: [security](../sitesense-security/SKILL.md).
 5. Call one model static method (single entity) or one service in `Api/Services/` (multi-entity flow), passing `tenantId` explicitly. No business logic in the controller.

@@ -7,6 +7,11 @@ services:
       - "8080:8080"
     environment:
       Store__RootPath: /var/lib/sitesense/store
+      # Same issuer as host tokens; keys from the internal name, since localhost is the container itself (Q02, Q74).
+      Auth__Issuer: http://localhost:8081/realms/sitesense
+      Auth__Audience: sitesense-api
+      Auth__MetadataAddress: http://keycloak:8081/realms/sitesense/.well-known/openid-configuration
+      Auth__RequireHttpsMetadata: "false"
       SITESENSE_TEST_MODE: ${SITESENSE_TEST_MODE:-false}
     volumes:
       - store-data:/var/lib/sitesense/store
