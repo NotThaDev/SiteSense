@@ -47,77 +47,26 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Create_ExistingSiteWithCurrentIfMatch_Returns200AndUpdates()
+    public async Task Create_DuplicateSiteId_Returns409Problem()
     {
         // Arrange
         var client = _factory.CreateClient();
         client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
         var id = NewId();
         await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
-        var updated = ValidSiteNode(id);
-        updated["name"] = "Renamed site";
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/sites") { Content = Json(updated.ToJsonString()) };
-        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
 
         // Act
-        var response = await client.SendAsync(request);
+        var response = await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
 
         // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal(id, body.RootElement.GetProperty("siteId").GetString());
-        Assert.Equal("\"2\"", response.Headers.ETag!.Tag);
-        var get = await client.GetAsync($"/api/v1/sites/{id}");
-        using var site = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
-        Assert.Equal("Renamed site", site.RootElement.GetProperty("name").GetString());
-        Assert.Equal("\"2\"", get.Headers.ETag!.Tag);
-    }
-
-    [Fact]
-    public async Task Create_ExistingSiteWithoutIfMatch_Returns412Problem()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
-        var id = NewId();
-        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
-        var updated = ValidSiteNode(id);
-        updated["name"] = "Renamed site";
-
-        // Act
-        var response = await client.PostAsync("/api/v1/sites", Json(updated.ToJsonString()));
-
-        // Assert
-        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal(412, body.RootElement.GetProperty("status").GetInt32());
-        var get = await client.GetAsync($"/api/v1/sites/{id}");
-        using var site = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
-        Assert.Equal("Cittadella Universitaria", site.RootElement.GetProperty("name").GetString());
+        Assert.Equal(409, body.RootElement.GetProperty("status").GetInt32());
     }
 
     [Fact]
-    public async Task Create_ExistingSiteWithStaleIfMatch_Returns412Problem()
-    {
-        // Arrange
-        var client = _factory.CreateClient();
-        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
-        var id = NewId();
-        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/sites") { Content = Json(ValidSite(id)) };
-        request.Headers.TryAddWithoutValidation("If-Match", "\"7\"");
-
-        // Act
-        var response = await client.SendAsync(request);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-    }
-
-    [Fact]
-    public async Task Create_ParallelSameSiteId_OneCreatedRestPreconditionFailed()
+    public async Task Create_ParallelSameSiteId_OneCreatedRestConflict()
     {
         // Arrange
         var client = _factory.CreateClient();
@@ -130,7 +79,7 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
 
         // Assert
         Assert.Equal(1, responses.Count(r => r.StatusCode == HttpStatusCode.Created));
-        Assert.Equal(4, responses.Count(r => r.StatusCode == HttpStatusCode.PreconditionFailed));
+        Assert.Equal(4, responses.Count(r => r.StatusCode == HttpStatusCode.Conflict));
     }
 
     [Theory]
@@ -156,7 +105,6 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
     [InlineData("unpavedSpeedFactor")]
     [InlineData("stepsSpeedFactor")]
     [InlineData("siteId-invalid")]
-    [InlineData("siteId-missing")]
     [InlineData("navigation-missing")]
     [InlineData("navigation-null")]
     [InlineData("name-empty")]
@@ -174,7 +122,6 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        if (mutation == "siteId-missing") return;
         var get = await client.GetAsync($"/api/v1/sites/{siteId}");
         Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);
     }
@@ -195,6 +142,183 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
 
         // Assert
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("null")]
+    public async Task Create_WithoutSiteId_Returns201WithServerId(string siteIdValue)
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var body = ValidSiteNode(NewId());
+        if (siteIdValue == "missing") body.AsObject().Remove("siteId");
+        else body["siteId"] = null;
+
+        // Act
+        var response = await client.PostAsync("/api/v1/sites", Json(body.ToJsonString()));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var created = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var newId = created.RootElement.GetProperty("siteId").GetString()!;
+        Assert.Matches("^[0-9a-f]{32}$", newId);
+        Assert.Equal($"/api/v1/sites/{newId}", response.Headers.Location!.AbsolutePath);
+        var get = await client.GetAsync($"/api/v1/sites/{newId}");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_CurrentIfMatch_Returns200AndUpdates()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var updated = ValidSiteNode(id);
+        updated["name"] = "Renamed site";
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(updated.ToJsonString()) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(id, body.RootElement.GetProperty("siteId").GetString());
+        Assert.Equal("\"2\"", response.Headers.ETag!.Tag);
+        var get = await client.GetAsync($"/api/v1/sites/{id}");
+        using var site = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
+        Assert.Equal("Renamed site", site.RootElement.GetProperty("name").GetString());
+        Assert.Equal("\"2\"", get.Headers.ETag!.Tag);
+    }
+
+    [Fact]
+    public async Task Update_WithoutBodySiteId_Returns200()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var updated = ValidSiteNode(id);
+        updated.AsObject().Remove("siteId");
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(updated.ToJsonString()) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(id, body.RootElement.GetProperty("siteId").GetString());
+    }
+
+    [Fact]
+    public async Task Update_MissingIfMatch_Returns412Problem()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var updated = ValidSiteNode(id);
+        updated["name"] = "Renamed site";
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(updated.ToJsonString()) };
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var get = await client.GetAsync($"/api/v1/sites/{id}");
+        using var site = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
+        Assert.Equal("Cittadella Universitaria", site.RootElement.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task Update_StaleIfMatch_Returns412Problem()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(ValidSite(id)) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"7\"");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Update_OtherTenantOrMissingSite_Returns404(bool existsInTenantB)
+    {
+        // Arrange
+        var tenantA = _factory.CreateClient();
+        tenantA.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var tenantB = _factory.CreateClient();
+        tenantB.WithToken(TestTokens.Create("tenant-b", ["Admin"]));
+        var id = NewId();
+        if (existsInTenantB) await tenantB.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(ValidSite(id)) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
+
+        // Act
+        var response = await tenantA.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_BodySiteIdDiffersFromUrl_Returns400Problem()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(ValidSite(NewId())) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData("Safety")]
+    [InlineData("Viewer")]
+    [InlineData("gateway")]
+    public async Task Update_NonAdmin_Returns403(string caller)
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TokenFor(caller));
+        var id = NewId();
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/api/v1/sites/{id}") { Content = Json(ValidSite(id)) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -290,7 +414,6 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
             case "unpavedSpeedFactor": nav["unpavedSpeedFactor"] = 0; break;
             case "stepsSpeedFactor": nav["stepsSpeedFactor"] = 1.5; break;
             case "siteId-invalid": break; // the caller already set siteId to "a.b"
-            case "siteId-missing": site.AsObject().Remove("siteId"); break;
             case "navigation-missing": site.AsObject().Remove("navigation"); break;
             case "navigation-null": site["navigation"] = null; break;
             case "name-empty": site["name"] = ""; break;

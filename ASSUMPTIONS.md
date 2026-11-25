@@ -298,13 +298,13 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: MAP-01
 - Status: Accepted
 
-## Q43 — What happens when a site is posted again with the same `siteId`?
-- Assumption: it is an update of that site, with the version check of Q45. `POST /api/v1/sites` copies `If-Match` into the document version (missing = 0): a new site with no `If-Match` → `201`; an existing site with `If-Match` equal to the stored version → overwritten, `200 { "siteId" }` and the new `ETag`; a missing or stale `If-Match` → `412`. No `409`. The check runs under the store's per-document lock, so parallel first creates give one `201` and the rest `412`. The same `siteId` in another tenant is a different site.
-- Why: the owner chose one endpoint for create and update, because the API contract has no separate `PUT` for a site; the version check keeps a re-sent JSON from silently overwriting someone else's change.
+## Q43 — What happens when a site is posted again with the same `siteId`, and how is a site updated?
+- Assumption: `POST /api/v1/sites` only creates; an existing `siteId` in the same tenant gives `409` and changes nothing. Updates go through `PUT /api/v1/sites/{siteId}` with the site JSON and `If-Match` (Q45): current version → `200 { "siteId" }` and the new `ETag`; missing or stale → `412`; a site not in the caller's tenant → `404`; a body `siteId` different from the URL → `400`. Both are Admin only. `siteId` in the body is optional (one DTO for both): on `POST`, absent or null → the server makes a new id (32 hex characters), given → used as is (the contract posts the site JSON with its `siteId`); on `PUT` the URL is the id, and a body `siteId` must be absent or equal to it. The same `siteId` in another tenant is a different site.
+- Why: standard REST (POST creates, PUT replaces a known resource), chosen by the owner. The site JSON carries `siteId`, and the map and device URLs use it, so a given `siteId` must be kept; a UI that has no id leaves it out. `PUT` for a site is not in the API contract; API-01 ("management of sites") covers it.
 - Alternatives rejected:
-  - `409` on a duplicate: needs a second endpoint to update a site, which the contract does not have.
-  - Overwrite without a version check: last write wins, a concurrent change is lost.
-  - Empty `siteId` with a server-made id: the site JSON carries `siteId`, and the map and device endpoints use it.
+  - `POST` as create-or-update with `If-Match`: one verb with two meanings; 409 and 412 mixed on one endpoint.
+  - `POST` with an empty id to create and a given id to update: the contract posts the site JSON with its `siteId` to create it.
+  - `siteId` always required: a UI would have to invent a code before creating a site.
 - Requirement IDs: API-01, C-7.3a, JDB-03
 - Status: Accepted
 

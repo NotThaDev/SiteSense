@@ -11,13 +11,13 @@ public sealed record NavigationRequest(
     [Range(0.0, double.MaxValue, MinimumIsExclusive = true)] double ConnectToleranceM,
     [Range(0.0, double.MaxValue, MinimumIsExclusive = true)] double MaxSnapDistanceM);
 
-// The site JSON (Q82: full check before anything is stored).
+// The site JSON (Q82: full check before anything is stored). siteId is optional: null on POST = the server makes one; on PUT the URL is the id (Q43).
 public sealed record SiteRequest(
-    [Required] string SiteId,
     [Required] string Name,
     [Required] string TimeZone,
     [Required] string MapFile,
-    [Required] NavigationRequest Navigation) : IValidatableObject
+    [Required] NavigationRequest Navigation,
+    string? SiteId = null) : IValidatableObject
 {
     public IEnumerable<ValidationResult> Validate(ValidationContext context)
     {
@@ -27,6 +27,6 @@ public sealed record SiteRequest(
             yield return new ValidationResult($"timeZone '{TimeZone}' is not a known time zone id.", [nameof(TimeZone)]);
     }
 
-    public Site ToSite(string tenantId) => new() { Id = SiteId, TenantId = tenantId, Name = Name, TimeZone = TimeZone, MapFile = MapFile,
+    public Site ToSite(string tenantId, string siteId) => new() { Id = siteId, TenantId = tenantId, Name = Name, TimeZone = TimeZone, MapFile = MapFile,
         Navigation = new(Navigation.WalkingSpeedMps, Navigation.UnpavedSpeedFactor, Navigation.StepsSpeedFactor, Navigation.ConnectToleranceM, Navigation.MaxSnapDistanceM) };
 }

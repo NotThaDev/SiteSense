@@ -45,10 +45,10 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Corrected or discarded: the Sonnet review added an explicit authenticated requirement, exact scope matching with look-alike and array tests, 401 rows, and a source scan that fails when it finds no files. An endpoint-metadata test was not taken (fallback policy already blocks anonymous callers).
 
 ## 2026-11-25 — SS-14: Sites API
-- Goal: `POST /api/v1/sites` with the site JSON (201, Admin; same `siteId` = update with `If-Match`, 200 / 412), 404 for another tenant's site, `GET /api/v1/sites/{siteId}` with ETag.
+- Goal: `POST /api/v1/sites` with the site JSON (201, Admin; 409 on a duplicate `siteId`), `PUT /api/v1/sites/{siteId}` with `If-Match` (200 / 412), 404 for another tenant's site, `GET /api/v1/sites/{siteId}` with ETag.
 - Prompt (summary): implement SS-14 with the plan / validate / approve / implement / verify workflow, stacked on SS-7 and SS-43.
 - AI produced: plan (Opus), plan review (Sonnet), `Site` model, DTOs, `SitesController`, `.http` file and tests (Haiku), docs (Opus).
-- Corrected or discarded: the Sonnet review added the invalid-id guard (the store throws on bad names → 500), action names without `Async` for `CreatedAtAction`, the shared test collection with unique site ids, and more 400 rows. The owner chose Q81 (GET for all roles) and Q82 (full validation), and changed Q43 from 409 to an update with the version check.
+- Corrected or discarded: the Sonnet review added the invalid-id guard (the store throws on bad names → 500), action names without `Async` for `CreatedAtAction`, the shared test collection with unique site ids, and more 400 rows. The owner chose Q81 (GET for all roles) and Q82 (full validation), and settled Q43 after one iteration: POST creates (409), PUT updates with the version check.
 
 ## 2026-11-25 — SS-15: Map validation and saving (domain)
 - Goal: read a GeoJSON site map, list every problem as `{ elementId, reason }`, save a valid map with a `mapVersion`.
