@@ -298,12 +298,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: MAP-01
 - Status: Accepted
 
-## Q43 — What happens when a site is created twice with the same `siteId`?
-- Assumption: `409` ProblemDetails, nothing changes. The check is the store's version check (create = version 0) under its per-document lock, so parallel creates give one `201`. The same `siteId` in another tenant is a different site (`201`).
-- Why: creating is not updating; a silent overwrite would lose the first site's settings.
+## Q43 — What happens when a site is posted again with the same `siteId`?
+- Assumption: it is an update of that site, with the version check of Q45. `POST /api/v1/sites` copies `If-Match` into the document version (missing = 0): a new site with no `If-Match` → `201`; an existing site with `If-Match` equal to the stored version → overwritten, `200 { "siteId" }` and the new `ETag`; a missing or stale `If-Match` → `412`. No `409`. The check runs under the store's per-document lock, so parallel first creates give one `201` and the rest `412`. The same `siteId` in another tenant is a different site.
+- Why: the owner chose one endpoint for create and update, because the API contract has no separate `PUT` for a site; the version check keeps a re-sent JSON from silently overwriting someone else's change.
 - Alternatives rejected:
-  - Upsert (overwrite): hides a mistake and skips the `If-Match` rule (Q45).
-- Requirement IDs: API-01, C-7.3a
+  - `409` on a duplicate: needs a second endpoint to update a site, which the contract does not have.
+  - Overwrite without a version check: last write wins, a concurrent change is lost.
+  - Empty `siteId` with a server-made id: the site JSON carries `siteId`, and the map and device endpoints use it.
+- Requirement IDs: API-01, C-7.3a, JDB-03
 - Status: Accepted
 
 ## Q81 — Who may read a site (`GET /api/v1/sites/{siteId}`)?
