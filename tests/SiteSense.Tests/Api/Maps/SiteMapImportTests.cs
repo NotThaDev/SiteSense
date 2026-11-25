@@ -1,5 +1,4 @@
 using SiteSense.Api.Helpers;
-using SiteSense.Api.Helpers;
 using SiteSense.Api.Models.Map;
 using SiteSense.Api.Store;
 
