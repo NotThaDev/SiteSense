@@ -1,7 +1,9 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using SiteSense.Tests.Api.Auth;
 
 namespace SiteSense.Tests.Api;
 
@@ -115,8 +117,11 @@ public sealed class ErrorResponseTests : IClassFixture<ApiFactory>
     public async Task Echo_GetInsteadOfPost_Returns405Problem()
     {
         // Arrange
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/probe/echo");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TestTokens.Create());
+
         // Act
-        var response = await _client.GetAsync("/probe/echo");
+        var response = await _client.SendAsync(request);
 
         // Assert
         Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
@@ -127,8 +132,11 @@ public sealed class ErrorResponseTests : IClassFixture<ApiFactory>
     public async Task Get_UnknownRoute_Returns404Problem()
     {
         // Arrange
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/nope");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TestTokens.Create());
+
         // Act
-        var response = await _client.GetAsync("/nope");
+        var response = await _client.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
 
         // Assert
@@ -143,6 +151,7 @@ public sealed class ErrorResponseTests : IClassFixture<ApiFactory>
         // Arrange
         using var request = new HttpRequestMessage(HttpMethod.Get, "/nope");
         request.Headers.Accept.ParseAdd("application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TestTokens.Create());
 
         // Act
         var response = await _client.SendAsync(request);

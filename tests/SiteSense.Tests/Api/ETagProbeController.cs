@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SiteSense.Api.Helpers;
 using SiteSense.Tests.Api.Store;
@@ -7,6 +8,7 @@ namespace SiteSense.Tests.Api;
 // Test-only controller: the ETag / If-Match pattern real document endpoints copy (JDB-10).
 [ApiController]
 [Route("probe/docs")]
+[AllowAnonymous]
 public sealed class ETagProbeController : ControllerBase
 {
     private const string Tenant = "tenant-a";
