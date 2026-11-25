@@ -3,6 +3,7 @@
 
     python3 -I data/build_map.py              convert data/osm/cittadella.osm.gz
     python3 -I data/build_map.py --download   fetch a fresh extract first, then convert
+    python3 -I data/build_map.py --help       options to build another site (see data/README.md)
 
 Standard library only, Python 3.9+. Rules and mapping: docs/plans/SS-18-osm-map.md.
 The same input always gives the same map.geojson, byte for byte.
@@ -297,6 +298,24 @@ def largest_component(length):
 
 
 # ---------------------------------------------------------------- OSM reading
+
+def set_site(way, bbox, name, osm_file, out_file):
+    """Point the build at another site; the defaults are the Cittadella Universitaria."""
+    global PERIMETER_WAY, PERIMETER_NAME, BBOX, API_URL, OSM_FILE, OUT_FILE
+    global LON0, LAT0, M_PER_DEG_LON
+    try:
+        w, s, e, n = [float(v) for v in bbox.split(",")]
+    except ValueError:
+        sys.exit("--bbox must be west,south,east,north, e.g. %s" % BBOX)
+    if not (-180 <= w < e <= 180 and -90 <= s < n <= 90):
+        sys.exit("--bbox out of range or not west<east, south<north: %s" % bbox)
+    PERIMETER_WAY, PERIMETER_NAME = way, name
+    BBOX = "%s,%s,%s,%s" % (w, s, e, n)
+    API_URL = "https://api.openstreetmap.org/api/0.6/map?bbox=" + BBOX
+    OSM_FILE, OUT_FILE = os.path.abspath(osm_file), os.path.abspath(out_file)
+    LON0, LAT0 = (w + e) / 2, (s + n) / 2
+    M_PER_DEG_LON = math.cos(math.radians(LAT0)) * 111320.0
+
 
 def download():
     req = urllib.request.Request(API_URL, headers={"User-Agent": USER_AGENT})
@@ -755,7 +774,13 @@ def summary(feats, dropped, stats):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--download", action="store_true", help="fetch a fresh OSM extract first")
+    ap.add_argument("--way", type=int, default=PERIMETER_WAY, help="OSM way id of the site perimeter")
+    ap.add_argument("--bbox", default=BBOX, help="area to download: west,south,east,north in degrees")
+    ap.add_argument("--name", default=PERIMETER_NAME, help="name of the perimeter area")
+    ap.add_argument("--osm", default=OSM_FILE, help="OSM extract (.osm.gz) to write and read")
+    ap.add_argument("--out", default=OUT_FILE, help="map file to write")
     args = ap.parse_args()
+    set_site(args.way, args.bbox, args.name, args.osm, args.out)
     if args.download:
         download()
     if not os.path.exists(OSM_FILE):
