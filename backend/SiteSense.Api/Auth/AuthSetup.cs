@@ -23,7 +23,7 @@ public static class AuthSetup
                 // Keys are downloaded once, cached and refreshed by the handler; signatures are checked locally.
                 if (string.IsNullOrWhiteSpace(options.MetadataAddress)) o.Authority = options.Issuer;
                 else o.MetadataAddress = options.MetadataAddress;
-                o.RequireHttpsMetadata = false; // Keycloak runs on plain HTTP in compose (Q74).
+                o.RequireHttpsMetadata = options.RequireHttpsMetadata;
                 o.MapInboundClaims = false;
                 o.TokenValidationParameters = new TokenValidationParameters
                 {

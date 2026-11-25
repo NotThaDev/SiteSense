@@ -16,6 +16,7 @@ services:
       Auth__Issuer: http://localhost:8081/realms/sitesense
       Auth__Audience: sitesense-api
       Auth__MetadataAddress: http://keycloak:8081/realms/sitesense/.well-known/openid-configuration
+      Auth__RequireHttpsMetadata: "false"
       SITESENSE_TEST_MODE: ${SITESENSE_TEST_MODE:-false}
     volumes:
       - store-data:/var/lib/sitesense/store

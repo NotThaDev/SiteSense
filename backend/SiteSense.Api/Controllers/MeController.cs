@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SiteSense.Api.Auth;
-using SiteSense.Api.Models;
+using SiteSense.Api.Dtos;
 
 namespace SiteSense.Api.Controllers;
 

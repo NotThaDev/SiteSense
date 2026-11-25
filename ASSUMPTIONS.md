@@ -94,9 +94,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q66 — How many projects does the server have?
-- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in the standard type-based ASP.NET Core folders: `Controllers/`, `Models/` (entities and DTOs; persistence pattern in Q67), `Services/`, `Store/`, `Realtime/`, `BackgroundJobs/`, `Auth/`. One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
+- Assumption: two. `SiteSense.Domain` holds pure domain code with no package or project references. `SiteSense.Api` references Domain and holds everything else in the standard type-based ASP.NET Core folders: `Controllers/`, `Models/` (persisted entities; persistence pattern in Q67), `Dtos/` (request and response records, `<Name>Request` / `<Name>Response`), `Services/`, `Store/`, `Realtime/`, `BackgroundJobs/`, `Auth/`. One test project, `tests/SiteSense.Tests`. The simulator stays a separate console app.
 - Folders: `backend/` holds the backend projects (`SiteSense.Domain`, `SiteSense.Api`), `simulator/` holds the simulator, `tests/` holds the test project, and `frontend/` is reserved for the demo client (its own story). The simulator is a separate app, not part of the backend, so it does not sit next to the backend projects. The demo client is a separate app too, so it gets its own `frontend/` folder and never goes under `simulator/`.
-- Api folders: type-based (`Controllers/`, `Models/`, `Services/`, ...) instead of feature folders, so the structure is familiar to reviewers. Feature folders were considered and rejected. Hangfire jobs are trigger-only `<What>Job.cs` classes in `BackgroundJobs/` that call a service or a model method; every recurring schedule is registered in `Program.cs`, one line per job.
+- Api folders: type-based (`Controllers/`, `Models/`, `Services/`, ...) instead of feature folders, so the structure is familiar to reviewers. Feature folders were considered and rejected. Wire shapes sit in `Dtos/`, apart from `Models/`, so an entity is never serialized as a response by mistake (changed in SS-6 by the project owner; before, DTOs lived in `Models/`). Hangfire jobs are trigger-only `<What>Job.cs` classes in `BackgroundJobs/` that call a service or a model method; every recurring schedule is registered in `Program.cs`, one line per job.
 - Why: a separate Domain project keeps the domain pure, enforced by the compiler. Separate Application and Infrastructure projects add ceremony and no value in a single-process app (Q01).
 - Alternatives rejected:
   - Five projects (Domain, Application, Infrastructure, Api, Simulator) with one test project each: more projects and references to maintain, for boundaries one process does not need.
@@ -227,7 +227,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q02 — How does a token taken on the host validate in the API container?
-- Assumption: the API accepts exactly one issuer, `http://localhost:8081/realms/sitesense`, which Keycloak always writes (`KC_HOSTNAME`, Q74). In compose the API downloads the signing keys from the internal name (`Auth:MetadataAddress` = `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration`); on the host it reads them from the issuer. The keys are cached by the JWT bearer handler and every signature is checked locally.
+- Assumption: the API accepts exactly one issuer, `http://localhost:8081/realms/sitesense`, which Keycloak always writes (`KC_HOSTNAME`, Q74). In compose the API downloads the signing keys from the internal name (`Auth:MetadataAddress` = `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration`); on the host it reads them from the issuer. HTTPS for the key download is required by default (`Auth:RequireHttpsMetadata = true`); the template and compose set it to `false` for the local plain-HTTP Keycloak (Q74). The keys are cached by the JWT bearer handler and every signature is checked locally.
 - Why: inside the container `localhost:8081` is the container itself; a fixed issuer plus an internal key address keeps one valid issuer and no second code path.
 - Alternatives rejected:
   - Accepting both `localhost:8081` and `keycloak:8081` as issuers: two valid issuers for one realm, and the token never carries the second one anyway.
@@ -265,4 +265,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Endpoints open until SS-7: every endpoint added in between would be public.
 - Requirement IDs: IDN-01, IDN-03
+
+## Q50 — Which real site is the test map?
+- Assumption: the Cittadella Universitaria in Catania (OSM way 231201634). `data/build_map.py` (Python 3, standard library only) converts a saved, gzipped OSM extract (`data/osm/cittadella.osm.gz`) into `data/map.geojson`; `--download` refreshes the extract. No CI check of the output.
+- Why: a dense, real walk network (footways, 30 step runs, gates on the perimeter) and 5 real `emergency=assembly_point` nodes. The saved extract (about 250 KB) makes a re-run give the same map, since OSM changes daily.
+- Alternatives rejected:
+  - PoliMi Bovisa, CNR Bologna, Kilometro Rosso: smaller walk network or fewer steps.
+  - Always downloading, no saved extract: the map would change whenever OSM is edited.
+- Requirement IDs: D-DATA
 - Status: Accepted
