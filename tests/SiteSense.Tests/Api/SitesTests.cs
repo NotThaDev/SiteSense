@@ -47,26 +47,77 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Create_DuplicateSiteId_Returns409Problem()
+    public async Task Create_ExistingSiteWithCurrentIfMatch_Returns200AndUpdates()
     {
         // Arrange
         var client = _factory.CreateClient();
         client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
         var id = NewId();
         await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var updated = ValidSiteNode(id);
+        updated["name"] = "Renamed site";
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/sites") { Content = Json(updated.ToJsonString()) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"1\"");
 
         // Act
-        var response = await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var response = await client.SendAsync(request);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Equal(409, body.RootElement.GetProperty("status").GetInt32());
+        Assert.Equal(id, body.RootElement.GetProperty("siteId").GetString());
+        Assert.Equal("\"2\"", response.Headers.ETag!.Tag);
+        var get = await client.GetAsync($"/api/v1/sites/{id}");
+        using var site = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
+        Assert.Equal("Renamed site", site.RootElement.GetProperty("name").GetString());
+        Assert.Equal("\"2\"", get.Headers.ETag!.Tag);
     }
 
     [Fact]
-    public async Task Create_ParallelSameSiteId_OneCreatedOneConflict()
+    public async Task Create_ExistingSiteWithoutIfMatch_Returns412Problem()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var updated = ValidSiteNode(id);
+        updated["name"] = "Renamed site";
+
+        // Act
+        var response = await client.PostAsync("/api/v1/sites", Json(updated.ToJsonString()));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(412, body.RootElement.GetProperty("status").GetInt32());
+        var get = await client.GetAsync($"/api/v1/sites/{id}");
+        using var site = JsonDocument.Parse(await get.Content.ReadAsStringAsync());
+        Assert.Equal("Cittadella Universitaria", site.RootElement.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task Create_ExistingSiteWithStaleIfMatch_Returns412Problem()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        client.WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        await client.PostAsync("/api/v1/sites", Json(ValidSite(id)));
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/sites") { Content = Json(ValidSite(id)) };
+        request.Headers.TryAddWithoutValidation("If-Match", "\"7\"");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task Create_ParallelSameSiteId_OneCreatedRestPreconditionFailed()
     {
         // Arrange
         var client = _factory.CreateClient();
@@ -79,7 +130,7 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
 
         // Assert
         Assert.Equal(1, responses.Count(r => r.StatusCode == HttpStatusCode.Created));
-        Assert.Equal(4, responses.Count(r => r.StatusCode == HttpStatusCode.Conflict));
+        Assert.Equal(4, responses.Count(r => r.StatusCode == HttpStatusCode.PreconditionFailed));
     }
 
     [Theory]
