@@ -324,3 +324,11 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Only the three listed checks: a bad file would pass and fail later with a less clear error.
 - Requirement IDs: MAP-01
 - Status: Accepted
+
+## Q20 — Which local metric projection does a map use?
+- Assumption: a local equirectangular projection on the WGS84 ellipsoid, one per map, with its origin at the perimeter centroid. Meters per degree come from the prime-vertical and meridional radii at the origin; the inverse is exact.
+- Why: the owner chose it. Sites span at most a few km, where the error is sub-centimeter, and it keeps Domain free of packages.
+- Alternatives rejected:
+  - ProjNet with UTM: precise over large areas, but adds a dependency to Domain and needs handling for sites that cross a UTM zone border.
+- Requirement IDs: MAP-02
+- Status: Accepted
