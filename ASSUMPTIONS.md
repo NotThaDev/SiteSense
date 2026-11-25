@@ -266,3 +266,28 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Endpoints open until SS-7: every endpoint added in between would be public.
 - Requirement IDs: IDN-01, IDN-03
 - Status: Accepted
+
+## Q43 — What happens when a site is created twice with the same `siteId`?
+- Assumption: `409` ProblemDetails, nothing changes. The check is the store's version check (create = version 0) under its per-document lock, so parallel creates give one `201`. The same `siteId` in another tenant is a different site (`201`).
+- Why: creating is not updating; a silent overwrite would lose the first site's settings.
+- Alternatives rejected:
+  - Upsert (overwrite): hides a mistake and skips the `If-Match` rule (Q45).
+- Requirement IDs: API-01, C-7.3a
+- Status: Accepted
+
+## Q81 — Who may read a site (`GET /api/v1/sites/{siteId}`)?
+- Assumption: every role (`CanSeeAggregates`: Admin, Safety, Viewer). Another tenant's site, a missing one or an invalid id gives `404`. The response is the site JSON with `ETag`.
+- Why: the site holds only configuration, no personal data, and navigation and occupancy clients of every role need it.
+- Alternatives rejected:
+  - Admin only (`CanManage`): Viewer and Safety clients could not read the site they navigate.
+  - No GET: the cross-tenant `404` and the ETag could not be tested.
+- Requirement IDs: API-01, IDN-02
+- Status: Accepted
+
+## Q82 — How strictly is the site JSON checked on `POST /api/v1/sites`?
+- Assumption: fully, before anything is stored; errors are `400` `ValidationProblemDetails`. All fields required; `siteId` a valid store name (`[A-Za-z0-9_-]`, 1–128); `name` and `mapFile` not empty; `timeZone` a time zone id known to the runtime (IANA on Linux); `walkingSpeedMps`, `connectToleranceM`, `maxSnapDistanceM` > 0; `unpavedSpeedFactor`, `stepsSpeedFactor` in (0, 1].
+- Why: the site settings drive routing and snapping later; a bad value would surface far from its cause.
+- Alternatives rejected:
+  - Required fields and `siteId` only: a zero speed or an unknown zone breaks routing later.
+- Requirement IDs: F-6.1, API-05
+- Status: Accepted
