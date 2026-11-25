@@ -1,6 +1,6 @@
 # SS-43 — Tenants from configuration
 
-- Status: Draft
+- Status: Approved
 - Issue: #44
 - Plan PR: #61   Implementation PRs: —
 - Requirement IDs: NF-04, PRV-04, TRK-06
@@ -99,6 +99,7 @@ PR 1 and on SS-6, opened once SS-6 has code.
 - Config keys are case-insensitive in .NET, tenant ids are not: an env var `Tenants__TENANT-A__…`
   merges into `tenant-a`, and the dictionary keeps the first spelling it saw. Acceptable: an
   override is meant to change the same tenant; the lookup stays ordinal on the stored spelling.
+- Tenant ids live in two places: `Tenants` config and the `tenant_id` of users and gateway clients in `docker/keycloak/sitesense-realm.json`. They are kept in sync by hand; a mismatch fails safe (403, no data shown). A tenant id is never renamed: it is also the store folder name.
 - Steps 6–7 depend on SS-6; until it has code the 403 criterion stays open.
 - `SiteSenseContext.Tenants` is static (Q67). Test hosts that use other tenant settings would overwrite each other; all hosts use the same two tenants, and the failing-config test throws before assignment.
 
@@ -113,10 +114,12 @@ Unit: validator rules. Integration: host startup fails on bad config; after SS-6
 |---|---|---|---|---|
 | Q14 | How is a tenant created? | Config only; config + tenant document | Config only | Config only (owner) |
 | — | Default values | 30 days / 10 min for both; different per tenant | 30 / 10 for both | 30 / 10 (owner) |
-| Q-new (number at merge, other stories add Q ids too) | Where Docker gets the tenants (no `appsettings.json` in the image) | Env vars in compose; a committed `tenants.json` | Env vars, same as `Store__RootPath` | — |
+| Q-new (number at merge, other stories add Q ids too) | Where Docker gets the tenants (no `appsettings.json` in the image) | Env vars in compose; a committed `tenants.json` | Env vars, same as `Store__RootPath` | Env vars (owner): the delivery ZIP has no `appsettings.json` |
+| Q-new | One file for tenants and Keycloak users? | Two files kept by hand; two files + drift test; one seed file + realm generator | Two files + drift test | Two files kept by hand (owner): tenant ids never change in this project |
 
 ## Changelog
 | Date | Change | Why (review comment or finding) |
 |---|---|---|
 | 2026-11-25 | First version | — |
 | 2026-11-25 | Validate before store, assign last; test names; skill rows; split 403 into PR 2 | Sonnet plan review |
+| 2026-11-25 | Docker source and single-file question decided; plan approved | Owner in chat |
