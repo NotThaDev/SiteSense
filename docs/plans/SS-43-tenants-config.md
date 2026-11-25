@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #44
-- Plan PR: #61   Implementation PRs: #69
+- Plan PR: #61   Implementation PRs: #69, #70
 - Requirement IDs: NF-04, PRV-04, TRK-06
 
 ## Problem
