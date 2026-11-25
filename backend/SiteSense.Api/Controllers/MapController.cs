@@ -1,0 +1,49 @@
+using System.Text;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SiteSense.Api.Auth;
+using SiteSense.Api.Dtos;
+using SiteSense.Api.Models;
+using SiteSense.Api.Models.Map;
+
+namespace SiteSense.Api.Controllers;
+
+[ApiController]
+[Route("api/v1/sites/{siteId}/map")]
+[Authorize(Policy = SiteSensePolicies.CanManage)]
+public sealed class MapController : ControllerBase
+{
+    [HttpPut]
+    [Consumes("application/geo+json", "application/json")]
+    [ProducesResponseType<MapVersionResponse>(200)]
+    [ProducesResponseType<ProblemDetails>(404)]
+    [ProducesResponseType<ProblemDetails>(412)]
+    [ProducesResponseType<ProblemDetails>(422)]
+    public async Task<IActionResult> Put(string siteId, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        var tenantId = User.TenantId();
+        var connectToleranceM = await GetConnectToleranceAsync(tenantId, siteId, ct);
+        if (connectToleranceM is null) return Problem(statusCode: 404, title: "Site not found");
+
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8);
+        var geoJson = await reader.ReadToEndAsync(ct);
+
+        // Missing or unreadable If-Match counts as version 0, so the store answers 412.
+        var version = long.TryParse(ifMatch?.Trim().Trim('"'), out var v) ? v : 0;
+        var result = await SiteMap.ImportAsync(tenantId, siteId, geoJson, version, connectToleranceM.Value, ct);
+
+        if (result.Errors.Count > 0)
+        {
+            var problem = ProblemDetailsFactory.CreateProblemDetails(HttpContext, 422, "The map is not valid");
+            problem.Extensions["errors"] = result.Errors.Select(e => new { elementId = e.ElementId, reason = e.Reason }).ToList();
+            return new ObjectResult(problem) { StatusCode = 422, ContentTypes = { "application/problem+json" } };
+        }
+
+        Response.Headers.ETag = $"\"{result.MapVersion}\"";
+        return Ok(new MapVersionResponse(result.MapVersion!.Value));
+    }
+
+    // Null when the site does not exist in this tenant: 404, also for another tenant's site.
+    private static async Task<double?> GetConnectToleranceAsync(string tenantId, string siteId, CancellationToken ct) =>
+        (await Site.GetAsync(tenantId, siteId, ct))?.Navigation.ConnectToleranceM;
+}
