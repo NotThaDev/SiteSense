@@ -107,9 +107,9 @@ endpoint PR reads it from the site (SS-14).
 |---|---|---|
 | `PlanarGeometry.DistanceToPolyline` | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs` | Pure math on `(X, Y)` meters |
 | `LocalProjection` | `backend/SiteSense.Domain/Geometry/LocalProjection.cs` | From SS-16, merged in (merge commit) |
-| `MapError(string? ElementId, string Reason)` | `backend/SiteSense.Api/Models/MapError.cs` | Wire shape later in the 422 |
-| `SiteMap` + `MapArea`, `MapPath`, `MapAssemblyPoint`, `MapEntrance` | `backend/SiteSense.Api/Models/SiteMap.cs` | `IDocument`; coordinates kept WGS84 `[lon, lat]` as received; spec field names (`areaType`, `slopePercent`, `widthM`, ...) |
-| `MapValidator` | `backend/SiteSense.Api/Models/MapValidator.cs` | Read + check, returns `(SiteMap? Map, IReadOnlyList<MapError> Errors)` |
+| `MapError(string? ElementId, string Reason)` | `backend/SiteSense.Api/Models/Map/MapError.cs` | Wire shape later in the 422 |
+| `SiteMap` + `MapArea`, `MapPath`, `MapAssemblyPoint`, `MapEntrance` | `backend/SiteSense.Api/Models/Map/SiteMap.cs` | `IDocument`; coordinates kept WGS84 `[lon, lat]` as received; spec field names (`areaType`, `slopePercent`, `widthM`, ...) |
+| `MapValidator` | `backend/SiteSense.Api/Helpers/MapValidator.cs` | Read + check, returns `(SiteMap? Map, IReadOnlyList<MapError> Errors)` |
 
 Example error list for a file with two problems:
 
@@ -126,12 +126,13 @@ Example error list for a file with two problems:
 |---|---|---|---|---|
 | 1 | First: merge `story/SS-16-local-projection` (merge commit). If SS-16 reaches `main` first, merge `main` instead; merge commits keep its commits once | — | `LocalProjection` builds on the branch | domain |
 | 2 | Point-to-polyline distance (pure, no JSON types) | `Domain/Geometry/PlanarGeometry.cs`, `tests/.../Domain/PlanarGeometryTests.cs` | Tests: on segment, beyond the end, on a vertex, zero-length segment | domain |
-| 3 | Map model and error record | `Api/Models/SiteMap.cs`, `Api/Models/MapError.cs` | Builds | domain |
-| 4 | `MapValidator` | `Api/Models/MapValidator.cs` | All checks in the table | domain |
-| 5 | `SiteMap.GetAsync` / `ImportAsync` | `Api/Models/SiteMap.cs` | Valid map saved, version 1 then 2; invalid map not saved | domain |
+| 3 | Map model and error record | `Api/Models/Map/SiteMap.cs`, `Api/Models/Map/MapError.cs` | Builds | domain |
+| 4 | `MapValidator` | `Api/Helpers/MapValidator.cs` | All checks in the table | domain |
+| 5 | `SiteMap.GetAsync` / `ImportAsync` | `Api/Models/Map/SiteMap.cs` | Valid map saved, version 1 then 2; invalid map not saved | domain |
 | 6 | Tests: one valid inline GeoJSON base plus one mutation per invalid case (no fixture files, no csproj change) | `tests/SiteSense.Tests/Api/Maps/MapValidatorTests.cs`, `SiteMapImportTests.cs` | Tests pass | domain |
 | 7 | Docs: Q17, Q40, Q41 in `ASSUMPTIONS.md`, AI_LOG entry, `Models/` row if needed | root docs | Done | domain |
-| 8 | Endpoint, 422 ProblemDetails, tenant tests, `.http` entry | `Api/Controllers/SitesController.cs` | Acceptance criteria of #46 | endpoint |
+| 8 | Endpoint written now on `story/SS-15-map-endpoint`: `PUT /map`, 422 ProblemDetails with `errors`, `ETag` / `If-Match` (Q45). The site lookup (404 across tenants, `connectToleranceM`) throws `NotImplementedException` until SS-14 | `Api/Controllers/MapController.cs`, `Api/Dtos/` | Builds; tests that need a site are skipped with "needs SS-14" | endpoint |
+| 9 | When SS-14 is on `main`: merge it, replace the throw with the site lookup, enable the skipped tests, open the endpoint PR (`Closes #46`) | same | Acceptance criteria of #46 | endpoint |
 
 ## Risks
 
@@ -168,3 +169,4 @@ Example error list for a file with two problems:
 |---|---|---|
 | 2026-11-25 | First version | — |
 | 2026-11-25 | Added coordinate and Feature read guards, id and type rules, version rule, on-path edge cases, stable error order, inline test maps | Sonnet plan review |
+| 2026-11-25 | Map types in `Models/Map/`, `MapValidator` in `Helpers/` (skill updated); endpoint written before SS-14 with the site lookup throwing `NotImplementedException`, PR opened once SS-14 merges | Owner review on #66 |
