@@ -16,6 +16,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Production");
         builder.UseSetting("Store:RootPath", _storeRoot);
+        builder.UseSetting("Tenants:tenant-a:RetentionDays", "30");
+        builder.UseSetting("Tenants:tenant-a:SilentAfterMinutes", "10");
+        builder.UseSetting("Tenants:tenant-b:RetentionDays", "30");
+        builder.UseSetting("Tenants:tenant-b:SilentAfterMinutes", "10");
         builder.UseSetting("Auth:Issuer", TestTokens.Issuer);
         builder.UseSetting("Auth:Audience", TestTokens.Audience);
         builder.ConfigureTestServices(services =>

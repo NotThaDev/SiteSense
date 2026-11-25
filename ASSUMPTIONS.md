@@ -216,6 +216,16 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: JDB-03, JDB-10
 - Status: Accepted
 
+## Q14 — How is a tenant created, and where do its settings live?
+- Assumption: tenants exist only in configuration, section `Tenants`, keyed by tenant id, each with `RetentionDays` (PRV-04) and `SilentAfterMinutes` (TRK-06). Defaults: `tenant-a` and `tenant-b`, 30 days and 10 minutes. Validated at startup in `SiteSenseContext.Init`; read through `SiteSenseContext.Tenants`. In Docker the values come from env vars in `docker-compose.yml`, because the delivery ZIP has no `appsettings.json`. The tenant's store folder is created on its first save (SS-9). Tenant ids are also in the Keycloak realm (`tenant_id` of users and gateway clients) and are kept in sync by hand; a tenant id is never renamed, since it is also the store folder name.
+- Why: no requirement asks for a tenant endpoint or a tenant document; Keycloak only tags who belongs to which tenant, it does not hold the list of valid tenants or their settings.
+- Alternatives rejected:
+  - A tenant document in the store: versioned data that nothing edits.
+  - Keycloak as the only source (Organizations + Admin API at startup): reworks SS-5 and SS-6 and makes startup depend on Keycloak.
+  - One seed file that generates the realm: a generator and a drift test for two tenants that never change.
+- Requirement IDs: NF-04, PRV-04, TRK-06
+- Status: Accepted
+
 ## Q02 — How does a token taken on the host validate in the API container?
 - Assumption: the API accepts exactly one issuer, `http://localhost:8081/realms/sitesense`, which Keycloak always writes (`KC_HOSTNAME`, Q74). In compose the API downloads the signing keys from the internal name (`Auth:MetadataAddress` = `http://keycloak:8081/realms/sitesense/.well-known/openid-configuration`); on the host it reads them from the issuer. HTTPS for the key download is required by default (`Auth:RequireHttpsMetadata = true`); the template and compose set it to `false` for the local plain-HTTP Keycloak (Q74). The keys are cached by the JWT bearer handler and every signature is checked locally.
 - Why: inside the container `localhost:8081` is the container itself; a fixed issuer plus an internal key address keeps one valid issuer and no second code path.
