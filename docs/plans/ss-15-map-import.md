@@ -1,6 +1,6 @@
 # SS-15 — Map import and validation
 
-- Status: In review
+- Status: Approved
 - Issue: #46
 - Plan PR: #62   Implementation PRs: #66 (domain), endpoint PR later
 - Requirement IDs: MAP-01, F-6.2, C-7.3b
