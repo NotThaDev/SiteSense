@@ -64,6 +64,12 @@ The `sitesense` realm is imported at start: 6 test users (`admin-a`, `safety-a`,
 curl -s -d grant_type=password -d client_id=sitesense-verify -d username=admin-a -d 'password=Password1!' http://localhost:8081/realms/sitesense/protocol/openid-connect/token
 ```
 
+Gateway token (client credentials, scope `positions:write`):
+
+```bash
+curl -s -d grant_type=client_credentials -d client_id=gateway-a -d client_secret=gateway-secret-a http://localhost:8081/realms/sitesense/protocol/openid-connect/token
+```
+
 Details: [`docs/architecture.md`](docs/architecture.md#identity-realm).
 
 No setup needed: every variable has a default. To override one, copy `.env.example` to `.env`. Full page: [`docs/architecture.md`](docs/architecture.md#run-with-docker).

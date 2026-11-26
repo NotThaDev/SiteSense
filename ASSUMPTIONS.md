@@ -348,3 +348,11 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - The ASP.NET Core hosting lines ("Request starting", "Request finished") are written outside the scope.
 - Requirement IDs: NF-03
 - Status: Accepted
+
+## Q12 — A batch has positions for a device unknown in the gateway's tenant. What happens?
+- Assumption: `202`. Those positions are dropped, the response returns how many were dropped, and the drop is logged without coordinates. Implemented with batch ingestion (SS-22).
+- Why: the owner chose it. One unknown device must not block the rest of the batch, and a device of another tenant is treated as unknown, so nothing leaks across tenants.
+- Alternatives rejected:
+  - `422` for the whole batch: one bad device id would make the gateway resend thousands of valid positions.
+- Requirement IDs: IDN-05, TRK-01
+- Status: Accepted

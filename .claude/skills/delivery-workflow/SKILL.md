@@ -25,10 +25,11 @@ Scope: git, GitHub and delivery only.
 
 ```mermaid
 flowchart LR
-  A["Issue SS-n"] --> B["Branch from updated main"]
+  A["Issue SS-n"] --> B["Branch from updated main<br/>issue: in progress"]
   B --> C["Small commits"]
   C --> D["Draft PR with Closes #n"]
-  D --> F["Ready, then merge commit"]
+  D --> E["Ready<br/>issue: in review"]
+  E --> F["Merge commit"]
   F --> G["Delete branch"]
 ```
 
@@ -80,6 +81,20 @@ Branches, commits and closing steps.
 2. Body follows `../clear-description/SKILL.md`.
 3. Tick all "Things to check" items. Mark the PR ready.
 4. Merge (see History).
+
+## Issue status
+
+When the work has a linked issue (the `Closes #<n>` issue of the PR), keep its status label in sync, so the issue list always shows where each story is.
+Labels: `in progress`, `in review`. Done is the closed issue: `Closes #<n>` closes it at merge.
+
+| When | Run |
+|---|---|
+| Branch created for issue `<n>` | `gh issue edit <n> --add-label "in progress" --remove-label "in review"` |
+| PR marked ready (`gh pr ready <pr>`) | `gh issue edit <n> --add-label "in review" --remove-label "in progress"` |
+| PR moved back to draft | `gh issue edit <n> --add-label "in progress" --remove-label "in review"` |
+| PR merged | `gh issue edit <n> --remove-label "in review"` |
+
+Change the label in the same step as the branch or PR change, not later.
 
 ## Definition of done
 
