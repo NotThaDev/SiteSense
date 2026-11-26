@@ -4,10 +4,11 @@ using SiteSense.Api.Tenants;
 
 namespace SiteSense.Api.Helpers;
 
-// Set once by Init in Program.cs; tests replace Store and Time (Q67).
+// Set once by Init in Program.cs; tests replace Store, Log and Time (Q67).
 public static class SiteSenseContext
 {
     public static IDocumentStore Store { get; set; } = null!;
+    public static IAppendLog Log { get; set; } = null!;
     public static TimeProvider Time { get; set; } = TimeProvider.System;
 
     // Known tenants by id (ordinal, as store ids, Q76). Read-only after Init (Q14).
@@ -27,6 +28,7 @@ public static class SiteSenseContext
             throw new OptionsValidationException(StoreOptions.Section, typeof(StoreOptions), result.Failures);
 
         Store = new FileDocumentStore(options.RootPath);
+        Log = new FileAppendLog(options.RootPath);
         Tenants = tenants.AsReadOnly();
     }
 }
