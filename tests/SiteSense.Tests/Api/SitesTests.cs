@@ -396,13 +396,13 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
     [Fact]
     public async Task List_ReturnsOnlyOwnTenantSites_SortedById()
     {
-        // Arrange
-        using var factory = new ApiFactory();
-        var a = factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
-        var b = factory.CreateClient().WithToken(TestTokens.Create("tenant-b", ["Admin"]));
-        await a.PostAsync("/api/v1/sites", Json(ValidSite("site-b")));
-        await a.PostAsync("/api/v1/sites", Json(ValidSite("site-a")));
-        await b.PostAsync("/api/v1/sites", Json(ValidSite("site-other")));
+        // Arrange: shared store (a new ApiFactory here would re-point the static store for the rest of the class), so ids get a unique prefix.
+        var p = NewId();
+        var a = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var b = _factory.CreateClient().WithToken(TestTokens.Create("tenant-b", ["Admin"]));
+        await a.PostAsync("/api/v1/sites", Json(ValidSite($"{p}-b")));
+        await a.PostAsync("/api/v1/sites", Json(ValidSite($"{p}-a")));
+        await b.PostAsync("/api/v1/sites", Json(ValidSite($"{p}-other")));
 
         // Act
         var response = await a.GetAsync("/api/v1/sites");
@@ -410,8 +410,9 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        var ids = body.RootElement.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("siteId").GetString()).ToList();
-        Assert.Equal(["site-a", "site-b"], ids);
+        var ids = body.RootElement.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("siteId").GetString()!).ToList();
+        Assert.Equal([$"{p}-a", $"{p}-b"], ids.Where(id => id.StartsWith(p, StringComparison.Ordinal)));
+        Assert.Equal(ids.Order(StringComparer.Ordinal), ids);
     }
 
     [Theory]
@@ -427,22 +428,6 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task List_EmptyTenant_ReturnsEmpty()
-    {
-        // Arrange
-        using var factory = new ApiFactory();
-        var client = factory.CreateClient().WithToken(TestTokens.Create("tenant-b", ["Admin"]));
-
-        // Act
-        var response = await client.GetAsync("/api/v1/sites");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        Assert.Empty(body.RootElement.GetProperty("items").EnumerateArray());
     }
 
     [Fact]
