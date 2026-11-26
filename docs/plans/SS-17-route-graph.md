@@ -2,7 +2,7 @@
 
 - Status: Draft
 - Issue: #94
-- Plan PR: #TBD-on-open   Implementation PRs: —
+- Plan PR: #96   Implementation PRs: —
 - Requirement IDs: MAP-03 (prepares NAV-02, NAV-03)
 
 ## Problem
