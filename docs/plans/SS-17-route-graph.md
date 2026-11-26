@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #94
-- Plan PR: #96   Implementation PRs: —
+- Plan PR: #96   Implementation PRs: #106 (needs SS-22 impl 1 merged first)
 - Requirement IDs: MAP-03 (prepares NAV-02, NAV-03)
 
 ## Problem
