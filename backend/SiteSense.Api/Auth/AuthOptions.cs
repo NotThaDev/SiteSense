@@ -11,4 +11,6 @@ public sealed class AuthOptions
     public string? MetadataAddress { get; set; }
     // Secure by default; the template and compose turn it off for the plain-HTTP local Keycloak (Q74).
     public bool RequireHttpsMetadata { get; set; } = true;
+    // Public client used by the browser login (BFF); no secret, PKCE protects the code.
+    public string UiClientId { get; set; } = "sitesense-ui";
 }

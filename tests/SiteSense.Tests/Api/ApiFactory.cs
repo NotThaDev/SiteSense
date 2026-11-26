@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -24,6 +25,8 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Tenants:tenant-b:SilentAfterMinutes", "10");
         builder.UseSetting("Auth:Issuer", TestTokens.Issuer);
         builder.UseSetting("Auth:Audience", TestTokens.Audience);
+        // The OIDC handler checks this on every request, and the test issuer is plain HTTP.
+        builder.UseSetting("Auth:RequireHttpsMetadata", "false");
         // Pinned so a developer or CI environment variable cannot turn test mode on.
         builder.UseSetting("SITESENSE_TEST_MODE", "false");
         builder.ConfigureTestServices(services =>
@@ -37,6 +40,14 @@ public class ApiFactory : WebApplicationFactory<Program>
                 config.SigningKeys.Add(TestTokens.Key);
                 o.Configuration = config;
             });
+            // Static metadata for the browser login: no call to Keycloak in tests.
+            services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, o =>
+                o.Configuration = new OpenIdConnectConfiguration
+                {
+                    Issuer = TestTokens.Issuer,
+                    AuthorizationEndpoint = TestTokens.Issuer + "/protocol/openid-connect/auth",
+                    EndSessionEndpoint = TestTokens.Issuer + "/protocol/openid-connect/logout",
+                });
         });
     }
 
