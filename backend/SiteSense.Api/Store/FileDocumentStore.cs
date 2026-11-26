@@ -40,7 +40,7 @@ public sealed class FileDocumentStore : IDocumentStore
 
     public async Task<IReadOnlyList<T>> ListAsync<T>(string tenantId, CancellationToken ct) where T : class, IDocument
     {
-        CheckName(tenantId, nameof(tenantId));
+        StorePaths.CheckName(tenantId, nameof(tenantId));
         var dir = Path.GetDirectoryName(PathOf<T>(tenantId, "x"))!;
         if (!Directory.Exists(dir)) return [];
         var docs = new List<T>();
@@ -50,7 +50,7 @@ public sealed class FileDocumentStore : IDocumentStore
             try
             {
                 await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.Asynchronous);
-                var doc = await JsonSerializer.DeserializeAsync<T>(fs, Json, ct);
+                var doc = await JsonSerializer.DeserializeAsync<T>(fs, StorePaths.Json, ct);
                 if (doc is null || doc.TenantId != tenantId)
                     throw new InvalidOperationException($"Document file '{path}' is missing or belongs to another tenant.");
                 docs.Add(doc);
