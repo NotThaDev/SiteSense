@@ -12,3 +12,6 @@ docs/
 **/appsettings.json
 **/appsettings.*.json
 !**/appsettings.example.json
+**/node_modules
+frontend/dist
+frontend/.vite
