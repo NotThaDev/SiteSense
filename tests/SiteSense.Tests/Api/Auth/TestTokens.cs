@@ -15,12 +15,13 @@ public static class TestTokens
     // tenant: a string, a string[] (several claims) or null (no claim).
     public static string Create(object? tenant = null, string[]? roles = null, string issuer = Issuer,
         string audience = Audience, SecurityKey? key = null, DateTime? expires = null, bool noTenant = false,
-        object? scope = null)
+        object? scope = null, string? username = null)
     {
         var claims = new Dictionary<string, object>();
         if (!noTenant) claims["tenant_id"] = tenant ?? "tenant-a";
         if (roles is { Length: > 0 }) claims["roles"] = roles;
         if (scope is not null) claims["scope"] = scope;
+        if (username is not null) claims["preferred_username"] = username;
         // The handler checks lifetime against the real clock, so the token must too.
         var exp = expires ?? DateTime.UtcNow.AddMinutes(5);
         return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor

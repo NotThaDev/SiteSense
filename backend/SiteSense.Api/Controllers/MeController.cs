@@ -11,5 +11,5 @@ public sealed class MeController : ControllerBase
 {
     [HttpGet]
     public MeResponse Get() =>
-        new(User.TenantId(), User.FindAll(SiteSenseClaims.RoleClaim).Select(c => c.Value).ToList());
+        new(User.TenantId(), User.FindAll(SiteSenseClaims.RoleClaim).Select(c => c.Value).ToList(), User.Identity?.Name);
 }
