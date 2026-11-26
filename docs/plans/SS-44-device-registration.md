@@ -27,7 +27,7 @@ flowchart LR
 - `POST /api/v1/sites/{siteId}/devices` with `{ "deviceId" }` → `201 { "deviceId", "siteId" }`, Admin only (`CanManage`).
 - The device document holds only `deviceId`, tenant and `siteId`, nothing else (PRV-01).
 - `deviceId` is unique inside the tenant, across all its sites (Q13). Already registered (same or other site) → `409`.
-- `GET /api/v1/sites/{siteId}/devices/{deviceId}` → `200 { "deviceId", "siteId" }` + `ETag` (policy: Q85).
+- `GET /api/v1/sites/{siteId}/devices/{deviceId}` → `200 { "deviceId", "siteId" }` + `ETag`, Admin only (`CanManage`, Q85).
 - Site or device of another tenant, unknown site, or a device registered on another site → `404`.
 - Invalid `deviceId` → `400` `ValidationProblemDetails`, nothing stored.
 
@@ -90,7 +90,7 @@ A repeat of the same POST is a 409 and changes nothing (recipe step 8).
 |---|---|---|---|---|
 | 1 | Entity `Device : IDocument` (`Id`, `TenantId`, `Version`, `SiteId`, nothing else); static `CreateAsync` (null when it exists) and `GetAsync(tenantId, deviceId)` (null on invalid id). | `backend/SiteSense.Api/Models/Device.cs` | Builds. | impl |
 | 2 | DTOs: `DeviceRequest(DeviceId)` with `[Required]` + valid-name check; `DeviceResponse(DeviceId, SiteId)`. | `backend/SiteSense.Api/Dtos/DeviceRequest.cs`, `DeviceResponse.cs` | Builds. | impl |
-| 3 | `DevicesController`, route `api/v1/sites/{siteId}/devices`: `Create` (POST, `CanManage`, 201/400/403/404/409, ETag, `CreatedAtAction(nameof(Get), new { siteId, deviceId = device.Id })`) and `Get` (GET `{deviceId}`, policy per Q85, 200 + ETag / 404). 404 and 409 are ProblemDetails (`Problem(statusCode: ...)`, as in `SitesController`). `[ProducesResponseType]` for every status. | `backend/SiteSense.Api/Controllers/DevicesController.cs` | Builds; both paths in `/openapi/v1.json`. | impl |
+| 3 | `DevicesController`, route `api/v1/sites/{siteId}/devices`: `Create` (POST, `CanManage`, 201/400/403/404/409, ETag, `CreatedAtAction(nameof(Get), new { siteId, deviceId = device.Id })`) and `Get` (GET `{deviceId}`, `CanManage` per Q85, 200 + ETag / 404). 404 and 409 are ProblemDetails (`Problem(statusCode: ...)`, as in `SitesController`). `[ProducesResponseType]` for every status. | `backend/SiteSense.Api/Controllers/DevicesController.cs` | Builds; both paths in `/openapi/v1.json`. | impl |
 | 4 | Tests (below), plus both devices paths in `OpenApiTests`; expose `public string StoreRoot` on `ApiFactory` for the PRV-01 raw-file test. | `tests/SiteSense.Tests/Api/DevicesTests.cs`, `tests/SiteSense.Tests/Api/OpenApiTests.cs`, `tests/SiteSense.Tests/Api/ApiFactory.cs` | All pass. | impl |
 | 5 | `.http`: register and read a device, with the file's `{{host}}` and `{{token}}` variables. | `backend/SiteSense.Api/SiteSense.Api.http` | Entries present. | impl |
 | 6 | Docs: Q13 and Q85 in `ASSUMPTIONS.md`; GET row in the security skill endpoint table; POST response `201 { deviceId, siteId }` and a GET row in the context skill API table; AI_LOG entry; create `KNOWN_ISSUES.md` at the root (ai-process §8; not on `main` yet) with: no delete or move of a device. README and `docs/` list no endpoints, so no sync needed. | `ASSUMPTIONS.md`, `.claude/skills/sitesense-security/SKILL.md`, `.claude/skills/sitesense-context/SKILL.md`, `AI_LOG.md`, `KNOWN_ISSUES.md` (new) | Entries present. | impl |
@@ -126,7 +126,7 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 - `Get_OwnDevice_Returns200WithBodyAndETag`
 - `Get_DeviceOfOtherSite_Returns404`, `Get_OtherTenantDevice_Returns404`
 - `Get_UnknownOrInvalidId_Returns404` (theory: unknown, `..`, `a.b`, 129 chars)
-- `Get_RoleNotAllowed_Returns403` (per Q85)
+- `Get_NonAdmin_Returns403` (theory: Safety, Viewer, gateway; Q85)
 
 ## Open questions
 
@@ -135,7 +135,7 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 | Q13 | Is the `deviceId` unique per tenant, per site, or globally? | Per tenant; per site; global | Per tenant (owner): batches and tracks carry no `siteId`, the tenant comes from the token, the site from the registration; global would leak other tenants' ids through 409 |
 | —  | Same `deviceId` registered again in the tenant? | 409 always; 201 if same site else 409; 201 and move | 409 always (owner), like sites (Q43) |
 | —  | Is there a GET? | POST + GET; POST only | POST + GET (owner) |
-| Q85 | Who may read a device (`GET /sites/{siteId}/devices/{deviceId}`)? Not in the API contract; added on owner request. | `CanManage` (Admin: the role that manages devices, existing policy); `CanSeeIndividuals` (Safety only). All roles is excluded: PRV-03, Viewer never sees device ids | Open |
+| Q85 | Who may read a device (`GET /sites/{siteId}/devices/{deviceId}`)? Not in the API contract; added on owner request. | `CanManage` (Admin: the role that manages devices, existing policy); `CanSeeIndividuals` (Safety only). All roles is excluded: PRV-03, Viewer never sees device ids | `CanManage` (owner): the role that registers devices reads them back; cheap to widen later |
 
 ## Changelog
 
@@ -143,3 +143,4 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 |---|---|---|
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | `StoreRoot` accessor, `KNOWN_ISSUES.md` is new, context skill row, ProblemDetails and route values, crash-test note, per-tenant test sites, Q85 options fixed to existing policies | Sonnet review |
+| 2026-11-26 | Q85 decided: GET is `CanManage` | Owner, in chat |
