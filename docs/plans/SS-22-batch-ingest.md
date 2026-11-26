@@ -1,6 +1,6 @@
 # SS-22 — Idempotent and durable batch ingest
 
-- Status: Draft
+- Status: Approved
 - Issue: #100
 - Plan PR: #101   Implementation PRs: (after approval)
 
@@ -52,10 +52,10 @@ Flow, in order:
 3. **Device (404).** `Device.GetAsync(tenantId, deviceId)`. Missing, registered in another tenant, or an id the
    store rejects (for example `../x`) → `404`, nothing stored (Q60, open question 1).
 4. **Perimeter (drop).** Load the device's site map once per batch. The perimeter is one polygon
-   (`Coordinates` is `double[][][]`: ring 0 outer, the rest holes). Test each position with the even-odd rule,
-   a point on the boundary counts as inside, directly in lon/lat: GeoJSON edges are straight lines in lon/lat
-   (RFC 7946), so no projection is needed. Outside → dropped in memory, never written. Site with no map, or a
-   map with no perimeter → every position is dropped (open question 4).
+   (`Coordinates` is `double[][][]`: ring 0 outer, the rest holes). Project the perimeter and each position to
+   local metres with `LocalProjection.FromCentroid(perimeter vertices)` (SS-16, the same origin SS-17 uses), then
+   call `PlanarGeometry.Locate` (even-odd, 1e-6 m boundary tolerance). `Inside` or `OnBoundary` → kept; `Outside` →
+   dropped in memory, never written. Site with no map, or a map with no perimeter → every position is dropped (open question 4).
 5. **Dedupe in the batch.** Same `timestampMs` twice in one batch → keep the first (open question 3).
 6. **Append once (durable).** New log method `AppendNewAsync<T>`: the dedupe key is `TimestampMs`, which is
    enough because the log key is already the device. Under the existing per-device lock, for each touched hour
@@ -121,7 +121,7 @@ gateway's retry is deduplicated.
 
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | Point-in-polygon `PolygonContainment.Contains(double[][][] polygon, double lon, double lat)` (even-odd, holes, boundary = inside; no Api types) | `backend/SiteSense.Domain/Geometry/PolygonContainment.cs` (new), `tests/SiteSense.Tests/Domain/PolygonContainmentTests.cs` (new) | Tests listed under "Tests" pass | impl 1 |
+| 1 | Shared point-in-polygon `PlanarGeometry.Locate(p, rings, boundaryTolerance)` → `PointLocation { Outside, OnBoundary, Inside }` (even-odd, holes; each caller decides what `OnBoundary` means; SS-17 reuses it) | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs`, `tests/SiteSense.Tests/Domain/PlanarGeometryTests.cs` | Tests listed under "Tests" pass | impl 1 |
 | 2 | `AppendNewAsync` on the log: skip timestamps already stored (HashSet per hour file, same line reader as `ReadRangeAsync`), return written count | `backend/SiteSense.Api/Store/IAppendLog.cs`, `backend/SiteSense.Api/Store/FileAppendLog.cs`, `tests/SiteSense.Tests/Api/Store/FileAppendLogTests.cs` | Dedupe, torn-line and concurrency tests pass; `AppendAsync` behaviour unchanged | impl 1 |
 | 3 | Crash test for retried batches | `tests/SiteSense.StoreCrashWriter/Program.cs` (new `unique` mode), `tests/SiteSense.Tests/Api/Store/StoreCrashTests.cs` | After seeded kills and resends, every acknowledged timestamp is read back exactly once | impl 1 |
 | 4 | `Position.AppendNewAsync` model method, reusing the existing "every position belongs to the device" guard | `backend/SiteSense.Api/Models/Position.cs` | Compiles; used by step 5 | impl 2 |
@@ -142,14 +142,14 @@ Two implementation PRs, stacked: impl 1 (store and geometry, no HTTP) on the pla
 | `SiteMap.GetAsync` reads and parses the whole map on every batch | CPU per request at gateway rates | Listed in `KNOWN_ISSUES.md`; cache by map version if the benchmark needs it |
 | Floating point at the perimeter boundary | Flaky "on the edge" tests | Tests use exactly representable coordinates (for example 9.0, 9.5) |
 | Crash between two hour files of one batch | Part of the batch on disk, no `202` | The gateway retries; stored records are skipped; crash test |
-| SS-17 (PR #96) plans new polygon methods in `PlanarGeometry.cs` with a different boundary rule (boundary = not inside) | Merge conflict, or two point-in-polygon helpers | New file `PolygonContainment.cs`, `PlanarGeometry.cs` untouched; SS-17 can reuse or keep its own rule (open question 6) |
+| SS-17 (PR #96) also needs point-in-polygon, with boundary = not inside | Two helpers, or a merge conflict in `PlanarGeometry.cs` | One shared `Locate` that returns `OnBoundary` and lets each caller decide (open question 6); the SS-17 session is told to reuse it |
 | Map changes between batches (new perimeter) | A position kept under the old perimeter stays stored | Accepted: the check uses the map current at ingest time |
 | Large body | 5,000 positions ≈ 500 KB | Under the Kestrel default limit (30 MB); 5,000-position test |
 
 ## Tests
 
-Domain (`PolygonContainmentTests`, exactly representable coordinates): inside square → true; outside → false;
-on an edge and on a vertex → true; inside a hole → false; concave polygon notch → false.
+Domain (`PlanarGeometryTests`, exactly representable coordinates): `Locate` inside square → `Inside`; outside → `Outside`;
+on an edge and on a vertex → `OnBoundary`; inside a hole → `Outside`; on a hole edge → `OnBoundary`; concave notch → `Outside`.
 
 Store (`FileAppendLogTests`, `StoreCrashTests`):
 - `AppendNewAsync_SameBatchTwice_StoresOnce` (returns n, then 0).
@@ -178,14 +178,14 @@ API (`PositionsTests`, `WebApplicationFactory`, real JWT):
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| 1 | Unknown or foreign device: Q12 (`202`, drop and count) and Q60 (`404`, store nothing) disagree | **a) `404`, nothing stored (Q60, Accepted); Q12 marked Changed** · b) `202` with a dropped count (Q12) | |
-| 2 | Where does dedupe happen? | **a) In the log (`AppendNewAsync`), under the existing per-device lock** · b) A second lock in the service · c) Keep duplicates on disk, dedupe on read | |
-| 3 | Same device and timestamp, different coordinates (in one batch or across batches) | **a) First stored wins; later ones count as duplicates** · b) Last wins (needs a rewrite of an append-only file) | |
-| 4 | Device whose site has no map yet | **a) `202`, every position dropped as outside the perimeter (privacy first)** · b) `409` so the gateway retries later · c) Store without the check | |
-| 5 | `202` body | **a) `{ received, stored, duplicates, outsidePerimeter }`** · b) Empty body | |
-| 6 | Point-in-polygon helper vs SS-17 (PR #96) | **a) New `PolygonContainment.cs` in Domain, boundary = inside; `PlanarGeometry.cs` untouched** · b) Wait for SS-17 and add to `PlanarGeometry.cs` | |
-| 7 | Hand-off to SS-23 | **a) The raw log only; SS-23 adds its queue and restart replay** · b) SS-22 also adds an in-memory channel now (no reader until SS-23) | |
-| 8 | One structurally invalid position (for example `lat: 200`) in a batch (Q44, not yet in `ASSUMPTIONS.md`) | **a) `400` for the whole batch, nothing stored (the gateway has a bug to fix)** · b) Drop the bad position, count it, `202` for the rest | |
+| 1 | Unknown or foreign device: Q12 (`202`, drop and count) and Q60 (`404`, store nothing) disagree | **a) `404`, nothing stored (Q60, Accepted); Q12 marked Changed** · b) `202` with a dropped count (Q12) | a) `404`, nothing stored; Q12 marked Changed (user, 2026-11-26) |
+| 2 | Where does dedupe happen? | **a) In the log (`AppendNewAsync`), under the existing per-device lock** · b) A second lock in the service · c) Keep duplicates on disk, dedupe on read | a) In the log, under the existing per-device lock (user) |
+| 3 | Same device and timestamp, different coordinates (in one batch or across batches) | **a) First stored wins; later ones count as duplicates** · b) Last wins (needs a rewrite of an append-only file) | a) First stored wins, later ones are duplicates (user) |
+| 4 | Device whose site has no map yet | **a) `202`, every position dropped as outside the perimeter (privacy first)** · b) `409` so the gateway retries later · c) Store without the check | a) `202`, all dropped (user) |
+| 5 | `202` body | **a) `{ received, stored, duplicates, outsidePerimeter }`** · b) Empty body | a) Counts in the body (user) |
+| 6 | Point-in-polygon helper vs SS-17 (PR #96) | **a) New `PolygonContainment.cs` in Domain, boundary = inside; `PlanarGeometry.cs` untouched** · b) Wait for SS-17 and add to `PlanarGeometry.cs` | One shared `PlanarGeometry.Locate` returning `OnBoundary`; perimeter keeps it, SS-17 treats it as outside (user: same concept, unify) |
+| 7 | Hand-off to SS-23 | **a) The raw log only; SS-23 adds its queue and restart replay** · b) SS-22 also adds an in-memory channel now (no reader until SS-23) | a) Raw log only (user) |
+| 8 | One structurally invalid position (for example `lat: 200`) in a batch (Q44, not yet in `ASSUMPTIONS.md`) | **a) `400` for the whole batch, nothing stored (the gateway has a bug to fix)** · b) Drop the bad position, count it, `202` for the rest | a) `400` for the whole batch (user) |
 
 ## Changelog
 
@@ -193,3 +193,4 @@ API (`PositionsTests`, `WebApplicationFactory`, real JWT):
 |---|---|---|
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Torn-but-parsable last line, HashSet dedupe, DTO missing-field rule, no echo of rejected values, `501` test updates, OpenAPI test, Q12 cleanup, open question 8 (Q44) | Sonnet validation |
+| 2026-11-26 | Decisions 1–8 recorded; open question 6 changed to one shared `PlanarGeometry.Locate` in local metres; status Approved | User review in chat |
