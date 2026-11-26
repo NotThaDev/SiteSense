@@ -50,6 +50,17 @@ public sealed class SitesController : ControllerBase
         return Ok(new SiteIdResponse(saved.Id));
     }
 
+    // Admin only, like the device list. Sorted by siteId (ordinal). Full scan, no paging (SS-11, postponed).
+    [HttpGet]
+    [Authorize(Policy = SiteSensePolicies.CanManage)]
+    [ProducesResponseType<SiteListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var sites = await Site.GetAllAsync(User.TenantId(), ct);
+        return Ok(new SiteListResponse(sites.OrderBy(s => s.Id, StringComparer.Ordinal).Select(SiteResponse.From).ToList()));
+    }
+
     [HttpGet("{siteId}")]
     [Authorize(Policy = SiteSensePolicies.CanSeeAggregates)]
     [ProducesResponseType<SiteResponse>(StatusCodes.Status200OK)]

@@ -6,3 +6,5 @@ public sealed record SiteResponse(string SiteId, string Name, string TimeZone, s
 {
     public static SiteResponse From(Site s) => new(s.Id, s.Name, s.TimeZone, s.MapFile, s.Navigation);
 }
+
+public sealed record SiteListResponse(IReadOnlyList<SiteResponse> Items);
