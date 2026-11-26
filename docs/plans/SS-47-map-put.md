@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #110
-- Plan PR: #111   Implementation PR: #<n>
+- Plan PR: #111   Implementation PR: #112
 
 ## Problem
 
