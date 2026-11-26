@@ -352,6 +352,132 @@ public sealed class DevicesTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Delete_CurrentIfMatch_Returns204AndRemoves()
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteA = await CreateSiteAsync(client);
+        var siteB = await CreateSiteAsync(client);
+        var id = NewId();
+        await client.PostAsync($"/api/v1/sites/{siteA}/devices", Json(Device(id)));
+
+        // Act
+        var response = await client.SendAsync(DeleteRequest($"/api/v1/sites/{siteA}/devices/{id}", "\"1\""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        await AssertNothingStoredAsync(client, id, siteA);
+        var recreate = await client.PostAsync($"/api/v1/sites/{siteB}/devices", Json(Device(id)));
+        Assert.Equal(HttpStatusCode.Created, recreate.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("\"2\"")]
+    public async Task Delete_MissingOrStaleIfMatch_Returns412Problem(string? ifMatch)
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteId = await CreateSiteAsync(client);
+        var id = NewId();
+        await client.PostAsync($"/api/v1/sites/{siteId}/devices", Json(Device(id)));
+
+        // Act
+        var response = await client.SendAsync(DeleteRequest($"/api/v1/sites/{siteId}/devices/{id}", ifMatch));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        var get = await client.GetAsync($"/api/v1/sites/{siteId}/devices/{id}");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_DeviceOfOtherSite_Returns404()
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteA = await CreateSiteAsync(client);
+        var siteB = await CreateSiteAsync(client);
+        var id = NewId();
+        await client.PostAsync($"/api/v1/sites/{siteA}/devices", Json(Device(id)));
+
+        // Act
+        var response = await client.SendAsync(DeleteRequest($"/api/v1/sites/{siteB}/devices/{id}", "\"1\""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var get = await client.GetAsync($"/api/v1/sites/{siteA}/devices/{id}");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_OtherTenantDevice_Returns404()
+    {
+        // Arrange
+        var admin = AdminClient("tenant-a");
+        var otherAdmin = AdminClient("tenant-b");
+        var siteA = await CreateSiteAsync(admin);
+        var siteB = await CreateSiteAsync(otherAdmin);
+        var id = NewId();
+        await admin.PostAsync($"/api/v1/sites/{siteA}/devices", Json(Device(id)));
+
+        // Act
+        var response = await otherAdmin.SendAsync(DeleteRequest($"/api/v1/sites/{siteB}/devices/{id}", "\"1\""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var get = await admin.GetAsync($"/api/v1/sites/{siteA}/devices/{id}");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("unknown")]
+    [InlineData("a.b")]
+    [InlineData("long")]
+    public async Task Delete_UnknownOrInvalidId_Returns404(string key)
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteId = await CreateSiteAsync(client);
+        var id = key switch
+        {
+            "unknown" => NewId(),
+            "long" => new string('a', 129),
+            _ => key,
+        };
+
+        // Act
+        var response = await client.SendAsync(DeleteRequest($"/api/v1/sites/{siteId}/devices/{id}", "\"1\""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Safety")]
+    [InlineData("Viewer")]
+    [InlineData("gateway")]
+    public async Task Delete_NonAdmin_Returns403(string caller)
+    {
+        // Arrange
+        var admin = AdminClient("tenant-a");
+        var siteId = await CreateSiteAsync(admin);
+        var id = NewId();
+        await admin.PostAsync($"/api/v1/sites/{siteId}/devices", Json(Device(id)));
+        var client = _factory.CreateClient();
+        client.WithToken(TokenFor(caller));
+
+        // Act
+        var response = await client.SendAsync(DeleteRequest($"/api/v1/sites/{siteId}/devices/{id}", "\"1\""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        var get = await admin.GetAsync($"/api/v1/sites/{siteId}/devices/{id}");
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+    }
+
     private HttpClient AdminClient(string tenant)
     {
         var client = _factory.CreateClient();
@@ -392,6 +518,13 @@ public sealed class DevicesTests : IClassFixture<ApiFactory>
     private static string Device(string deviceId) => new JsonObject { ["deviceId"] = deviceId }.ToJsonString();
 
     private static StringContent Json(string body) => new(body, Encoding.UTF8, "application/json");
+
+    private static HttpRequestMessage DeleteRequest(string url, string? ifMatch)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Delete, url);
+        if (ifMatch is not null) request.Headers.TryAddWithoutValidation("If-Match", ifMatch);
+        return request;
+    }
 
     private static string TokenFor(string caller) =>
         caller == "gateway"
