@@ -12,6 +12,9 @@ public sealed class PositionsController : ControllerBase
 {
     // shortcut: guard only, answers 501; SS-22 replaces the body with batch ingestion (202).
     [HttpPost]
-    public IActionResult Post() =>
-        Problem(statusCode: StatusCodes.Status501NotImplemented, title: "Position ingestion is not implemented yet.");
+    public IActionResult Post()
+    {
+        // Not a throw: the exception handler would turn NotImplementedException into a 500.
+        return Problem(statusCode: StatusCodes.Status501NotImplemented, title: "Position ingestion is not implemented yet.");
+    }
 }
