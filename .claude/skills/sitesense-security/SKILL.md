@@ -51,6 +51,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `POST /api/v1/sites` | `CanManage` |
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
+| `GET /api/v1/sites/{siteId}/devices/{deviceId}` | `CanManage` (Q85) |
 | `POST /api/v1/positions` | `CanWritePositions` |
 | `POST /api/v1/sites/{siteId}/routes` | `CanSeeAggregates` (covers all user roles) |
 | `POST /api/v1/sites/{siteId}/evacuation-route` | `CanSeeAggregates` (same note as routes) |

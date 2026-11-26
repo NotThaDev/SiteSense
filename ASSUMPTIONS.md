@@ -332,3 +332,18 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - ProjNet with UTM: precise over large areas, but adds a dependency to Domain and needs handling for sites that cross a UTM zone border.
 - Requirement IDs: MAP-02
 - Status: Accepted
+
+## Q13 — Is the `deviceId` unique per tenant, per site, or globally?
+- Assumption: unique per tenant, across all its sites. Registering an id already used in the tenant, on the same or another site, answers `409`. Another tenant may use the same id.
+- Why: devices do not send a `siteId`. The gateway batch format is fixed (`{ deviceId, positions }`) and the gateway token carries only the tenant (Q59), so the server finds the site only from `tenant + deviceId`, through the device registration.
+- Alternatives rejected:
+  - Unique per site: a batch for an id used on two sites would be ambiguous; the track endpoint has no `siteId` either.
+  - Globally unique: a `409` would reveal that another tenant has that device, against the 404 rule for other tenants (IDN-02).
+- Requirement IDs: API-01, IDN-02, IDN-05, TRK-01
+- Status: Accepted
+
+## Q85 — Who may read a device (`GET /api/v1/sites/{siteId}/devices/{deviceId}`)?
+- Assumption: Admin only (`CanManage`), the role that registers devices. A device registered on another site of the tenant answers `404`.
+- Why: the endpoint is not in the API contract; it lets the Admin read back what was registered. Viewer never sees device ids (PRV-03). Widening it to Safety later is a one-line policy change.
+- Requirement IDs: API-01, PRV-03
+- Status: Accepted

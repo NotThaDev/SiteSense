@@ -19,3 +19,14 @@ Content-Type: application/json
 If-Match: "1"
 
 {"siteId":"cittadella-catania","name":"Cittadella Universitaria (updated)","timeZone":"Europe/Rome","mapFile":"map.geojson","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
+
+### Register a device on a site (Admin)
+POST {{host}}/api/v1/sites/cittadella-catania/devices
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"deviceId":"dev-001"}
+
+### Read a device (Admin)
+GET {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
+Authorization: Bearer {{token}}

@@ -55,3 +55,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-15 with the plan / validate / approve / implement / verify workflow, domain PR first.
 - AI produced: plan (Opus), plan review (Sonnet), `PlanarGeometry`, `SiteMap`, `MapValidator`, tests (Haiku), docs (Opus).
 - Corrected or discarded: the review added read guards for coordinates and Features (a bad number would have crashed the projection), the version rule, stable error order and inline test maps. The owner chose Q17 (forward only), Q40 (`null` / `features[i]`) and Q41 (extended checks).
+
+## 2026-11-26 — SS-44: Device registration
+- Goal: let an Admin register the devices of a site, so that batch ingest (SS-22) can find each device's site from `tenant + deviceId`.
+- Prompt (summary): implement SS-44 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), `Device` model, DTOs, `DevicesController`, docs (Haiku), tests (Sonnet).
+- Corrected or discarded: the review found that `KNOWN_ISSUES.md` did not exist yet, that the PRV-01 test needed the test store root, and that the GET policy options must map to existing policies. The owner chose Q13 (unique per tenant, because devices send no `siteId`), 409 on any reuse, a GET endpoint, and Q85 (`CanManage`).
