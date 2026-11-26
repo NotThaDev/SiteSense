@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #100
-- Plan PR: #101   Implementation PRs: (after approval)
+- Plan PR: #101   Implementation PRs: impl 1 (store and geometry), impl 2 (endpoint)
 
 ## Problem
 
@@ -61,8 +61,9 @@ Flow, in order:
    enough because the log key is already the device. Under the existing per-device lock, for each touched hour
    file, build a `HashSet<long>` of the timestamps stored in it using the same reader as `ReadRangeAsync`
    (only newline-terminated, parsable lines count), append only the new records, fsync, return how many were
-   written. A retry after a crash skips the records already written. A torn line, even one cut right after its
-   closing `}`, has no newline, so it counts as missing and is written again. `FileAppendLog` is the only
+   written. A retry after a crash skips the records already written. A torn tail that does not parse counts as
+   missing and is written again on its own line. A whole record cut just before its newline counts as stored: the
+   append ends it with `\n` (even when nothing else is new), so it becomes readable once and is never duplicated. `FileAppendLog` is the only
    `IAppendLog` implementation (no test fakes to update).
 7. **202.** Only after step 6 returns. Body with counts (open question 5).
 
@@ -155,7 +156,7 @@ Store (`FileAppendLogTests`, `StoreCrashTests`):
 - `AppendNewAsync_SameBatchTwice_StoresOnce` (returns n, then 0).
 - `AppendNewAsync_BatchAcrossHours_SkipsOnlyStored`.
 - `AppendNewAsync_AfterTornLine_RewritesTornRecord` (cut a file mid-line by hand, resend, record read back once).
-- `AppendNewAsync_LastLineWithoutNewline_CountsAsMissing` (file ends in a whole JSON object with no `\n`).
+- `AppendNewAsync_LastLineWithoutNewline_CountsAsStoredAndEndsIt` (file ends in a whole JSON object with no `\n`: returns 0, both records read back).
 - `AppendNewAsync_HourBoundary_SplitsFiles` (…:59:59.999 and …:00:00.000).
 - `AppendNewAsync_ConcurrentIdenticalBatches_StoresOnce` (parallel tasks, one device).
 - Crash: child in `unique` mode sends overlapping batches; kills at seeded points; on restart it resends the last
@@ -194,3 +195,4 @@ API (`PositionsTests`, `WebApplicationFactory`, real JWT):
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Torn-but-parsable last line, HashSet dedupe, DTO missing-field rule, no echo of rejected values, `501` test updates, OpenAPI test, Q12 cleanup, open question 8 (Q44) | Sonnet validation |
 | 2026-11-26 | Decisions 1–8 recorded; open question 6 changed to one shared `PlanarGeometry.Locate` in local metres; status Approved | User review in chat |
+| 2026-11-26 | A whole record without its newline counts as stored and gets its newline (no truncation, keeps Q83) | Found in impl 1: rewriting it would duplicate the record |
