@@ -1,12 +1,13 @@
 @host = http://localhost:5073
 @token = paste-an-admin-access-token
+@gatewayToken = paste-a-gateway-access-token
 
 ### Create a site (Admin)
 POST {{host}}/api/v1/sites
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
-{"siteId":"cittadella-catania","name":"Cittadella Universitaria","timeZone":"Europe/Rome","mapFile":"map.geojson","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
+{"siteId":"cittadella-catania","name":"Cittadella Universitaria","timeZone":"Europe/Rome","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
 
 ### Read a site
 GET {{host}}/api/v1/sites/cittadella-catania
@@ -18,7 +19,15 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 If-Match: "1"
 
-{"siteId":"cittadella-catania","name":"Cittadella Universitaria (updated)","timeZone":"Europe/Rome","mapFile":"map.geojson","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
+{"siteId":"cittadella-catania","name":"Cittadella Universitaria (updated)","timeZone":"Europe/Rome","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
+
+### Upload or replace the map (Admin, GeoJSON body)
+# If-Match optional: send the ETag to avoid overwriting a newer map
+PUT {{host}}/api/v1/sites/cittadella-catania/map
+Authorization: Bearer {{token}}
+Content-Type: application/geo+json
+
+< ../../data/map.geojson
 
 ### Set the simulated clock (test mode on, Admin); frozen until the next PUT (Q38)
 PUT {{host}}/api/v1/test/clock
@@ -46,3 +55,10 @@ Authorization: Bearer {{token}}
 DELETE {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
 Authorization: Bearer {{token}}
 If-Match: "1"
+
+### Send a position batch (gateway client token, scope positions:write); a resend stores nothing twice
+POST {{host}}/api/v1/positions
+Authorization: Bearer {{gatewayToken}}
+Content-Type: application/json
+
+{"deviceId":"dev-001","positions":[{"timestampMs":1793268000000,"lat":37.5250,"lon":15.0710,"accuracyM":4.5}]}
