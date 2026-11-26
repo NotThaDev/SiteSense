@@ -15,7 +15,6 @@ public sealed record NavigationRequest(
 public sealed record SiteRequest(
     [Required] string Name,
     [Required] string TimeZone,
-    [Required] string MapFile,
     [Required] NavigationRequest Navigation,
     string? SiteId = null) : IValidatableObject
 {
@@ -27,6 +26,6 @@ public sealed record SiteRequest(
             yield return new ValidationResult($"timeZone '{TimeZone}' is not a known time zone id.", [nameof(TimeZone)]);
     }
 
-    public Site ToSite(string tenantId, string siteId) => new() { Id = siteId, TenantId = tenantId, Name = Name, TimeZone = TimeZone, MapFile = MapFile,
+    public Site ToSite(string tenantId, string siteId) => new() { Id = siteId, TenantId = tenantId, Name = Name, TimeZone = TimeZone,
         Navigation = new(Navigation.WalkingSpeedMps, Navigation.UnpavedSpeedFactor, Navigation.StepsSpeedFactor, Navigation.ConnectToleranceM, Navigation.MaxSnapDistanceM) };
 }
