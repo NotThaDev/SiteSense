@@ -1,9 +1,11 @@
 using Scalar.AspNetCore;
 using SiteSense.Api.Auth;
+using SiteSense.Api.Diagnostics;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
 
 SiteSenseContext.Init(builder);
 // Local, not static: each test host runs this file again. A non-bool value fails at startup.
@@ -20,6 +22,7 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 if (testMode) app.Logger.LogWarning("Test mode is on: /api/v1/test endpoints are enabled.");
+app.Use(Correlation.Middleware);
 
 // First: every unhandled exception becomes a generic 500 ProblemDetails.
 app.UseExceptionHandler(new ExceptionHandlerOptions

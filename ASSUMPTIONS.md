@@ -135,7 +135,6 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Known risks:
   - Both endpoints are anonymous. When authentication lands, they need an explicit `AllowAnonymous`, or a fallback policy will block them.
 - Requirement IDs: API-05
-- Status: Accepted
 
 ## Q70 — How does compose get the Keycloak admin credentials?
 - Assumption: compose defaults them to `admin` / `admin` (`${KC_BOOTSTRAP_ADMIN_PASSWORD:-admin}`), documented as local test credentials. `.env` can override them.
@@ -205,7 +204,6 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Case-insensitive ids (a case variant rejected as a duplicate): a rule the requirements do not give.
   - Lowercase-only ids: a `DEV-001` the requirements allow would get 400.
 - Requirement IDs: JDB-01, JDB-02
-- Status: Accepted
 
 ## Q45 — Which resources get ETag, and is If-Match required?
 - Assumption: every document (tenant, site, map, device, alert). The version is the `ETag` (`"3"`). `If-Match` is required on every change to an existing document: the controller copies it into `doc.Version`, and a missing or unreadable `If-Match` counts as version 0, so the store rejects it like a stale one. A stale version returns 412 ProblemDetails. The version in the request body is never used.
@@ -331,7 +329,6 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - ProjNet with UTM: precise over large areas, but adds a dependency to Domain and needs handling for sites that cross a UTM zone border.
 - Requirement IDs: MAP-02
-- Status: Accepted
 
 ## Q12 — A batch has positions for a device unknown in the gateway's tenant. What happens?
 - Assumption: `202`. Those positions are dropped, the response returns how many were dropped, and the drop is logged without coordinates. Implemented with batch ingestion (SS-22).
@@ -378,4 +375,23 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Day files per device: a one-hour read would parse up to 86,400 lines.
   - One file per position: 60,000 files in 10 minutes.
 - Requirement IDs: JDB-06, JDB-02, JDB-07
+- Status: Accepted
+
+## Q86 — Where does the correlation id code live?
+- Assumption: in a new `SiteSense.Api/Diagnostics/` folder: `Correlation.cs` (header name, middleware, log scope helper) and `Correlated.cs` (the carrier, Q87).
+- Why: `Helpers/` holds only `SiteSenseContext`, and keeping the middleware out of `Program.cs` keeps that file short.
+- Alternatives rejected:
+  - `Middleware/`: the carrier and the scope helper are not middleware.
+  - Inline in `Program.cs`: harder to test and a busy shared file.
+- Requirement IDs: NF-03
+- Status: Accepted
+
+## Q87 — How does the correlation id leave the HTTP request?
+- Assumption: the request reads `X-Correlation-Id` (1–64 chars of `[A-Za-z0-9-_.]`, otherwise a new id is generated), returns it in the response header and opens a log scope with it. Work that runs outside the request (ingest queue, SignalR events) carries it in `Correlated<T>(CorrelationId, Payload)` and reopens the scope with `Correlation.BeginScope`.
+- Why: one generic envelope keeps the payload types clean; the scope gives the id to every log line without passing it by hand.
+- Alternatives rejected:
+  - A `CorrelationId` field on every queue item and event: the same field repeated in many types.
+- Known limits:
+  - The ASP.NET Core hosting lines ("Request starting", "Request finished") are written outside the scope.
+- Requirement IDs: NF-03
 - Status: Accepted

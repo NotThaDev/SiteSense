@@ -54,6 +54,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
 | `BackgroundJobs/` | Hangfire job classes (see Background jobs) |
 | `Auth/` | Authentication and authorization setup and policies |
+| `Diagnostics/` | Correlation id (NF-03): the middleware, the log scope helper and the `Correlated<T>` carrier (Q86, Q87) |
 | `Helpers/` | App-wide static context (`SiteSenseContext`) and stateless validators of input files, e.g. `MapValidator`. No general utilities; shared logic goes in Domain, `Store/` or `Realtime/`. |
 
 - A folder is created by the first story that puts code in it. A new folder updates this table in the same PR.

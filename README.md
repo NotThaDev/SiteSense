@@ -33,6 +33,7 @@ backend/
                        Services/ (multi-entity flows, ML.NET),
                        Store/ (generic JSON store), Realtime/ (SignalR),
                        BackgroundJobs/ (Hangfire), Auth/,
+                       Diagnostics/ (correlation id),
                        Helpers/ (SiteSenseContext: store and clock)
 simulator/
   SiteSense.Simulator  device simulator (console), a separate app

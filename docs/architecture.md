@@ -39,6 +39,7 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | `Realtime/`       | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext`                                                   |
 | `BackgroundJobs/` | Hangfire jobs, `<What>Job.cs`: trigger only, each calls a service or a model method                                                            |
 | `Auth/`           | Authentication and authorization setup and policies                                                                                            |
+| `Diagnostics/`    | Correlation id (NF-03): the middleware, the log scope helper and the `Correlated<T>` carrier                                                   |
 | `Helpers/`        | Only the app-wide static context, `SiteSenseContext` (`Store`, `Time`); no general utilities                                                   |
 
 Shared logic goes in Domain, `Store/` or `Realtime/`, never in `Helpers/`. Every recurring job schedule is registered in `Program.cs`, one line per job.
