@@ -12,7 +12,6 @@ public sealed class Site : IDocument
     public long Version { get; set; }
     public required string Name { get; init; }
     public required string TimeZone { get; init; }
-    public required string MapFile { get; init; }
     public required NavigationSettings Navigation { get; init; }
 
     // Null when the site already exists in this tenant (Q43): the store's version check runs under its per-document lock.
@@ -35,4 +34,8 @@ public sealed class Site : IDocument
     // Null for a missing site, another tenant's site, or an id the store would reject.
     public static Task<Site?> GetAsync(string tenantId, string id, CancellationToken ct) =>
         FileDocumentStore.IsValidName(id) ? SiteSenseContext.Store.GetAsync<Site>(tenantId, id, ct) : Task.FromResult<Site?>(null);
+
+    // Every site of the tenant, in no fixed order.
+    public static Task<IReadOnlyList<Site>> ListAsync(string tenantId, CancellationToken ct) =>
+        SiteSenseContext.Store.ListAsync<Site>(tenantId, ct);
 }

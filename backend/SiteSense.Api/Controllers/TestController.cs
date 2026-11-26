@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SiteSense.Api.Auth;
+using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Dtos;
 using SiteSense.Api.Helpers;
 
@@ -23,4 +24,12 @@ public sealed class TestController : ControllerBase
         SiteSenseContext.Time = new FrozenTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(request.NowMs));
         return NoContent();
     }
+
+    // Runs a site job now for every site of the caller's tenant and answers when all are done (C-7.2c).
+    [HttpPost("jobs/{jobName}/run")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RunJob(string jobName, [FromServices] SiteJobRunner runner, CancellationToken ct) =>
+        await runner.RunNowAsync(jobName, User.TenantId(), ct) ? NoContent() : NotFound();
 }

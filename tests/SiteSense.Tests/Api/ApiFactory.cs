@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using SiteSense.Api.BackgroundJobs;
 using SiteSense.Tests.Api.Auth;
+using SiteSense.Tests.Api.Jobs;
 
 namespace SiteSense.Tests.Api;
 
@@ -18,6 +20,8 @@ public class ApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Production");
         builder.UseSetting("Store:RootPath", _storeRoot);
+        // CI has no Redis (Q72).
+        builder.UseSetting("Hangfire:Storage", "InMemory");
         builder.UseSetting("Tenants:tenant-a:RetentionDays", "30");
         builder.UseSetting("Tenants:tenant-a:SilentAfterMinutes", "10");
         builder.UseSetting("Tenants:tenant-b:RetentionDays", "30");
@@ -29,6 +33,7 @@ public class ApiFactory : WebApplicationFactory<Program>
         builder.ConfigureTestServices(services =>
         {
             services.AddControllers().AddApplicationPart(typeof(ErrorProbeController).Assembly);
+            services.AddKeyedTransient<ISiteJob, ProbeSiteJob>(ProbeSiteJob.Name);
             // Use Configure, not PostConfigure: the static configuration must exist before the handler's own post-configure runs, otherwise it calls the network.
             services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, o =>
             {

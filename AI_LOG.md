@@ -85,3 +85,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan per the planning skill, Sonnet validation, Haiku implementation in two stacked PRs.
 - AI produced: plan `docs/plans/SS-22-batch-ingest.md`, `PlanarGeometry.Locate`, `FileAppendLog.AppendNewAsync`, `PositionIngest` service, DTOs, controller, tests (dedupe, torn line, concurrency, crash and resend, perimeter, foreign device, 5,000 batch).
 - Corrected or discarded: the validator found that a torn-but-parsable last line and the `501` tests were missed; the first `AppendNewAsync` truncated the torn tail, replaced so a whole record without its newline counts as stored and gets its newline (keeps Q83); the point-in-polygon helper was unified with SS-17 by the owner's decision (one `Locate` returning `OnBoundary`, each caller decides).
+
+## 2026-11-26 — SS-31: Hangfire and idempotent jobs
+- Goal: periodic per-site jobs on Hangfire with Redis storage, no duplicates on retry, and the test run endpoint.
+- Prompt (summary): plan SS-31 with the plan / validate / approve / implement / verify workflow; no real jobs, only the mechanism.
+- AI produced: plan (Opus), plan review (Sonnet), `ISiteJob`, `SiteJobRunner`, Hangfire wiring, test endpoint, tests (Haiku), docs (Opus).
+- Corrected or discarded: the review showed that a Hangfire storage cannot be swapped in tests (now chosen by `Hangfire:Storage`), that store ids allow no dots (parts joined with `_`), and asked for a concurrent-run test. The owner chose option A for all seven open questions.

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Models.Map;
 using SiteSense.Tests.Api.Auth;
 
 namespace SiteSense.Tests.Api.Maps;
@@ -30,7 +31,6 @@ public sealed class MapEndpointTests : IClassFixture<ApiFactory>
             TenantId = tenantId,
             Name = "Test site",
             TimeZone = "Europe/Rome",
-            MapFile = "map.geojson",
             Navigation = new NavigationSettings(1.3, 0.8, 0.5, 0.5, 30),
         }, CancellationToken.None);
 
@@ -163,4 +163,140 @@ public sealed class MapEndpointTests : IClassFixture<ApiFactory>
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal(1, body.RootElement.GetProperty("mapVersion").GetInt64());
     }
+
+    private static HttpRequestMessage PutMap(string siteId, string? ifMatchRaw, string body = MapFixtures.BaseMap)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Put, MapUrl(siteId)) { Content = new StringContent(body, Encoding.UTF8, GeoJson) };
+        if (ifMatchRaw is not null) request.Headers.TryAddWithoutValidation("If-Match", ifMatchRaw);
+        return request;
+    }
+
+    private static async Task<long> VersionOf(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return body.RootElement.GetProperty("mapVersion").GetInt64();
+    }
+
+    [Fact]
+    public async Task Put_FirstMapWithoutIfMatch_Returns200Version1()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-first");
+
+        // Act
+        var response = await client.SendAsync(PutMap("site-first", null));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, await VersionOf(response));
+    }
+
+    [Fact]
+    public async Task Put_SecondMapWithoutIfMatch_Returns200AndNextVersion()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-second");
+        await client.SendAsync(PutMap("site-second", null));
+
+        // Act
+        var response = await client.SendAsync(PutMap("site-second", null));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, await VersionOf(response));
+        Assert.Equal("\"2\"", response.Headers.ETag?.Tag);
+    }
+
+    [Fact]
+    public async Task Put_CurrentIfMatch_Returns200()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-current");
+        await client.SendAsync(PutMap("site-current", null));
+
+        // Act
+        var response = await client.SendAsync(PutMap("site-current", "\"1\""));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, await VersionOf(response));
+    }
+
+    [Theory]
+    [InlineData("\"0\"")]
+    [InlineData("\"5\"")]
+    public async Task Put_StaleIfMatchOnExistingMap_Returns412(string ifMatch)
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var siteId = $"site-stale-{Guid.NewGuid():N}";
+        await SeedSiteAsync("tenant-a", siteId);
+        await client.SendAsync(PutMap(siteId, null));
+
+        // Act
+        var response = await client.SendAsync(PutMap(siteId, ifMatch));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("abc", false)]
+    [InlineData("*", false)]
+    [InlineData("abc", true)]
+    public async Task Put_UnreadableIfMatch_Returns412(string ifMatch, bool firstUpload)
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var siteId = $"site-unreadable-{Guid.NewGuid():N}";
+        await SeedSiteAsync("tenant-a", siteId);
+        if (!firstUpload) await client.SendAsync(PutMap(siteId, null));
+
+        // Act
+        var response = await client.SendAsync(PutMap(siteId, ifMatch));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.PreconditionFailed, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_InvalidMapWithoutIfMatch_Returns422AndKeepsVersion()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-keep");
+        await client.SendAsync(PutMap("site-keep", null));
+        var invalid = MapFixtures.BaseMap.Replace("\"areaType\": \"perimeter\"", "\"areaType\": \"work\"");
+
+        // Act
+        var response = await client.SendAsync(PutMap("site-keep", null, invalid));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        var stored = await SiteMapStored("tenant-a", "site-keep");
+        Assert.Equal(1, stored);
+    }
+
+    [Fact]
+    public async Task Put_ParallelUploadsWithoutIfMatch_AllSucceedWithDistinctVersions()
+    {
+        // Arrange: 3 writers, the retry limit is 3 attempts.
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-parallel");
+
+        // Act
+        var responses = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => client.SendAsync(PutMap("site-parallel", null))));
+
+        // Assert
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+        var versions = await Task.WhenAll(responses.Select(VersionOf));
+        Assert.Equal(3, versions.Distinct().Count());
+        Assert.Equal(versions.Max(), await SiteMapStored("tenant-a", "site-parallel"));
+    }
+
+    private static async Task<long> SiteMapStored(string tenantId, string siteId) =>
+        (await SiteMap.GetAsync(tenantId, siteId, CancellationToken.None))!.Version;
 }
