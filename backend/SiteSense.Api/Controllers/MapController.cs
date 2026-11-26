@@ -17,6 +17,7 @@ public sealed class MapController : ControllerBase
     [Consumes("application/geo+json", "application/json")]
     [ProducesResponseType<MapVersionResponse>(200)]
     [ProducesResponseType<ProblemDetails>(404)]
+    [ProducesResponseType<ProblemDetails>(409)]
     [ProducesResponseType<ProblemDetails>(412)]
     [ProducesResponseType<ProblemDetails>(422)]
     public async Task<IActionResult> Put(string siteId, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
@@ -28,9 +29,24 @@ public sealed class MapController : ControllerBase
         using var reader = new StreamReader(Request.Body, Encoding.UTF8);
         var geoJson = await reader.ReadToEndAsync(ct);
 
-        // Missing or unreadable If-Match counts as version 0, so the store answers 412.
-        var version = long.TryParse(ifMatch?.Trim().Trim('"'), out var v) ? v : 0;
-        var result = await SiteMap.ImportAsync(tenantId, siteId, geoJson, version, connectToleranceM.Value, ct);
+        // No header = replace the latest map; an unreadable header is a failed precondition, never "version 0".
+        long? version = null;
+        if (!string.IsNullOrWhiteSpace(ifMatch))
+        {
+            if (!long.TryParse(ifMatch.Trim().Trim('"'), out var v))
+                return Problem(statusCode: 412, title: "Precondition failed", detail: "If-Match must be the map version from the ETag, e.g. \"3\".");
+            version = v;
+        }
+
+        MapImportResult result;
+        try
+        {
+            result = await SiteMap.ImportAsync(tenantId, siteId, geoJson, version, connectToleranceM.Value, ct);
+        }
+        catch (MapUploadConflictException)
+        {
+            return Problem(statusCode: 409, title: "Concurrent map uploads, try again");
+        }
 
         if (result.Errors.Count > 0)
         {
