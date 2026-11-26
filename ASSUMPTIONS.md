@@ -363,3 +363,40 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: the endpoint is not in the API contract; it lets the Admin read back what was registered. Viewer never sees device ids (PRV-03). Widening it to Safety later is a one-line policy change.
 - Requirement IDs: API-01, PRV-03
 - Status: Accepted
+
+## Q18 — Within `connectToleranceM`: endpoint to endpoint only, or also endpoint to the middle of another path?
+- Assumption: endpoint to endpoint only, between different paths, at a distance strictly less than `connectToleranceM`. A short connector edge joins them.
+- Why: MAP-03 speaks of endpoints that are less than `connectToleranceM` apart; crossings and T junctions share a vertex by the map rules.
+- Requirement IDs: MAP-03
+- Status: Accepted
+
+## Q19 — "Shared vertex": exact coordinates or with a tolerance?
+- Assumption: two vertices are the same graph node when their local x/y, rounded to 1 cm, are equal.
+- Why: identical GeoJSON coordinates always give the same node; the 1 cm grid also absorbs tiny rounding differences.
+- Requirement IDs: MAP-03
+- Status: Accepted
+
+## Q21 — Do `slopePercent` and `widthM` enter the route cost?
+- Assumption: no. Time = length / (`walkingSpeedMps` × `unpavedSpeedFactor` if unpaved × `stepsSpeedFactor` if steps); both factors multiply when both apply. Connectors use the plain walking speed.
+- Why: NAV-03 names only speed, surface and steps; slope has no site parameter and no direction.
+- Requirement IDs: NAV-03
+- Status: Accepted
+
+## Q25 — Is a stretch that only touches the boundary of a `restricted` or `hazard` area traversable?
+- Assumption: yes. A stretch (path edge or connector) is not traversable only if it passes through the inside of the area; touching or running along the boundary is allowed.
+- Why: a path along a fence is not inside the fenced area; blocking on contact would cut paths that only border it.
+- Requirement IDs: NAV-02
+- Status: Accepted
+
+## Q86 — When is the route graph cached per map version?
+- Assumption: SS-17 only builds the graph (`SiteMap.BuildRouteGraph`); SS-19, its first user, adds the in-memory cache keyed by tenant, site and map version.
+- Why: a cache with no caller is untested code.
+- Requirement IDs: MAP-03, NAV-01
+- Status: Accepted
+
+## Q87 — Are tolerance connectors checked against blocked areas?
+- Assumption: yes, with the same test as path edges.
+- Why: a connector is walked like any other stretch; skipping the check could route through a hazard edge.
+- Requirement IDs: NAV-02
+- Status: Accepted
+
