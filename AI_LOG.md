@@ -79,3 +79,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan SS-12 with the plan / validate / approve / implement / verify workflow.
 - AI produced: plan (Opus), plan review (Sonnet), `FileAppendLog`, `Position`, tests (Haiku), ADR 0001, docs (Opus).
 - Corrected or discarded: the review made reads use newline-terminated lines only, added input checks and load tests. The owner changed day files to hour files and chose one lock per device log.
+
+## 2026-11-26 — SS-31: Hangfire and idempotent jobs
+- Goal: periodic per-site jobs on Hangfire with Redis storage, no duplicates on retry, and the test run endpoint.
+- Prompt (summary): plan SS-31 with the plan / validate / approve / implement / verify workflow; no real jobs, only the mechanism.
+- AI produced: plan (Opus), plan review (Sonnet), `ISiteJob`, `SiteJobRunner`, Hangfire wiring, test endpoint, tests (Haiku), docs (Opus).
+- Corrected or discarded: the review showed that a Hangfire storage cannot be swapped in tests (now chosen by `Hangfire:Storage`), that store ids allow no dots (parts joined with `_`), and asked for a concurrent-run test. The owner chose option A for all seven open questions.

@@ -53,7 +53,7 @@ docker compose up
 |---|---|---|
 | API | `http://localhost:8080` | `GET /health` returns 200 |
 | Keycloak | `http://localhost:8081` | admin console, test login `admin` / `admin` |
-| Redis | internal only | Hangfire storage, append-only on a volume |
+| Redis | `127.0.0.1:6379` (loopback only) | Hangfire storage, append-only on a volume |
 
 Everything runs on plain HTTP, Keycloak included, so the API reaches it the same way from a container or from `dotnet run`. Details: [`docs/architecture.md`](docs/architecture.md#run-with-docker).
 
@@ -81,7 +81,7 @@ No setup needed: every variable has a default. To override one, copy `.env.examp
    cp backend/SiteSense.Api/appsettings.example.json backend/SiteSense.Api/appsettings.json
    ```
 
-2. Run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
+2. Start Redis and Keycloak (`docker compose up redis keycloak keycloak-init`), then run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
 3. Read the API: the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
 ## Tech stack
@@ -102,6 +102,8 @@ No setup needed: every variable has a default. To override one, copy `.env.examp
   <img src="https://img.shields.io/badge/xUnit-161b22?style=for-the-badge" alt="xUnit">
 </p>
 
-Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Hangfire stores its jobs in Redis through an open-source community storage package (the official Redis storage is commercial). Redis runs with append-only persistence on a volume, so queued and scheduled jobs survive a restart; it never holds domain data. Full rationale: [`ASSUMPTIONS.md`](ASSUMPTIONS.md) (Q08). Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
+Identity: OIDC / OAuth2 with JWT, issued by Keycloak. Hangfire stores its jobs in Redis through an open-source community storage package (the official Redis storage is commercial). Redis runs with append-only persistence on a volume, so queued and scheduled jobs survive a restart; it never holds domain data. Full rationale: [`ASSUMPTIONS.md`](ASSUMPTIONS.md) (Q08).
+
+**Why Redis for Hangfire.** Hangfire keeps its schedules, queues and retries in Redis, never in the JSON store. Redis writes every command to its append-only file on a volume, so a restart or a recreated container loses no queued or scheduled job, and a failed job is retried after the restart. `Hangfire.InMemory` would lose them on every restart; the official Redis storage needs a commercial licence; a relational database only for jobs is heavier than one Redis container. Periodic checks run every minute per site with the minute as a job argument, so a retry produces no duplicate alert or event (JOB-02). Tests use the in-memory storage, since CI has no Redis. Tests use xUnit, `WebApplicationFactory` and `FakeTimeProvider`.
 Routing, filtering and area-assignment algorithms are written in-house, not taken from ready-made libraries.
 
