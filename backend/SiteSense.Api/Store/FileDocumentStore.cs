@@ -1,13 +1,10 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace SiteSense.Api.Store;
 
-public sealed partial class FileDocumentStore : IDocumentStore
+public sealed class FileDocumentStore : IDocumentStore
 {
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
     // shortcut: one semaphore per document path is never removed; fine for thousands of documents, evict when counts grow
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly string _root;
@@ -23,14 +20,14 @@ public sealed partial class FileDocumentStore : IDocumentStore
 
     public async Task<T?> GetAsync<T>(string tenantId, string id, CancellationToken ct) where T : class, IDocument
     {
-        CheckName(tenantId, nameof(tenantId));
-        CheckName(id, nameof(id));
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        StorePaths.CheckName(id, nameof(id));
         var path = PathOf<T>(tenantId, id);
         try
         {
             // Rename is atomic, so a reader sees the old or the new file, never a partial one.
             await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.Asynchronous);
-            var doc = await JsonSerializer.DeserializeAsync<T>(fs, Json, ct);
+            var doc = await JsonSerializer.DeserializeAsync<T>(fs, StorePaths.Json, ct);
             if (doc is null || doc.TenantId != tenantId)
                 throw new InvalidOperationException($"Document file '{path}' is missing or belongs to another tenant.");
             return doc;
@@ -43,8 +40,8 @@ public sealed partial class FileDocumentStore : IDocumentStore
 
     public async Task<T> SaveAsync<T>(string tenantId, T doc, CancellationToken ct) where T : class, IDocument
     {
-        CheckName(tenantId, nameof(tenantId));
-        CheckName(doc.Id, nameof(doc.Id));
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        StorePaths.CheckName(doc.Id, nameof(doc.Id));
         if (doc.TenantId != tenantId)
             throw new ArgumentException("Document TenantId does not match the tenant it is saved under.", nameof(doc));
 
@@ -65,7 +62,7 @@ public sealed partial class FileDocumentStore : IDocumentStore
                 var tmp = path + ".tmp";
                 await using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
                 {
-                    await JsonSerializer.SerializeAsync(fs, doc, Json, ct);
+                    await JsonSerializer.SerializeAsync(fs, doc, StorePaths.Json, ct);
                     // shortcut: the directory is not fsynced after rename; survives a process kill, not a power loss
                     fs.Flush(flushToDisk: true);
                 }
@@ -86,8 +83,8 @@ public sealed partial class FileDocumentStore : IDocumentStore
 
     public async Task<bool> DeleteAsync<T>(string tenantId, string id, long expectedVersion, CancellationToken ct) where T : class, IDocument
     {
-        CheckName(tenantId, nameof(tenantId));
-        CheckName(id, nameof(id));
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        StorePaths.CheckName(id, nameof(id));
         var path = PathOf<T>(tenantId, id);
         var gate = _locks.GetOrAdd(path, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
@@ -106,23 +103,9 @@ public sealed partial class FileDocumentStore : IDocumentStore
         }
     }
 
-    [GeneratedRegex(@"^[A-Za-z0-9_-]{1,128}\z")]
-    private static partial Regex ValidName();
-
     // Same rule for callers that must reject a bad id before it reaches the store (e.g. tenant_id in a token).
-    public static bool IsValidName(string value) => ValidName().IsMatch(value);
-
-    // Ids and tenant ids become path segments; this blocks path traversal.
-    private static void CheckName(string value, string paramName)
-    {
-        if (!IsValidName(value))
-            throw new ArgumentException($"'{value}' is not a valid name.", paramName);
-    }
+    public static bool IsValidName(string value) => StorePaths.IsValidName(value);
 
     private string PathOf<T>(string tenantId, string id) =>
-        Path.Combine(_root, FileName(tenantId), typeof(T).Name, FileName(id) + ".json");
-
-    // Ids are case-sensitive but macOS and Windows disks are not: "DEV-1" becomes "!d!e!v-1", and '!' is not a valid id character (Q76).
-    private static string FileName(string name) =>
-        string.Concat(name.Select(c => char.IsAsciiLetterUpper(c) ? $"!{char.ToLowerInvariant(c)}" : c.ToString()));
+        Path.Combine(_root, StorePaths.FileName(tenantId), typeof(T).Name, StorePaths.FileName(id) + ".json");
 }
