@@ -15,6 +15,23 @@ public sealed class StaticFilesTests : IClassFixture<ApiFactory>, IDisposable
         _factory = factory;
         Directory.CreateDirectory(_webRoot);
         File.WriteAllText(Path.Combine(_webRoot, "index.html"), "<!doctype html><title>stub</title>");
+        Directory.CreateDirectory(Path.Combine(_webRoot, "assets"));
+        File.WriteAllText(Path.Combine(_webRoot, "assets", "app.js"), "console.log('stub');");
+    }
+
+    [Fact]
+    public async Task Asset_ReturnsTheFileNotIndexHtml()
+    {
+        // Arrange
+        var client = _factory.WithWebHostBuilder(b => b.UseWebRoot(_webRoot)).CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/assets/app.js");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/javascript", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("console.log", await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
