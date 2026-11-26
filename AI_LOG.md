@@ -62,6 +62,12 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), guarded 501 route and tests (Haiku), docs (Opus).
 - Corrected or discarded: the review added ProblemDetails asserts, the tenant-b and role+scope cases, and moved tenant checks to SS-22. The owner chose Q12 (202, drop and count), a 501 stub instead of a test-only probe, and kept ingestion out of this story.
 
+## 2026-11-26 — SS-2: Test mode and simulated clock
+- Goal: `SITESENSE_TEST_MODE` gates `/api/v1/test/*` (404 when off, Admin when on); `PUT /api/v1/test/clock` sets the clock read through `SiteSenseContext.Time`.
+- Prompt (summary): implement SS-2 with the plan / validate / approve / implement / verify workflow; drain and jobs endpoints are later stories.
+- AI produced: plan (Opus), plan review (Sonnet), gate middleware, `TestMode` policy, `FrozenTimeProvider`, `TestController`, tests and docs (Opus; small change, written directly).
+- Corrected or discarded: the Sonnet review moved the flag from a static to a local (each test host re-runs `Program.cs`), asked for segment matching (no match on `/api/v1/testing`), a `[Range]` DTO, a flag pinned off in the test factory and a startup warning. Hiding the endpoint from OpenAPI when off was not taken. The owner chose Q38 (global, frozen) and 404 for every caller when off.
+
 ## 2026-11-24 — SS-4: Structured logs with correlation id
 - Goal: JSON console logs, and a correlation id that is read from or added to `X-Correlation-Id`, sits in the log scope, and can travel to the ingest queue and SignalR events (NF-03).
 - Prompt (summary): implement issue SS-4 with the plan / validate / approve / implement / verify workflow.

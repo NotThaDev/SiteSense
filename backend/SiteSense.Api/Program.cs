@@ -8,7 +8,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.AddJsonConsole(o => o.IncludeScopes = true);
 
 SiteSenseContext.Init(builder);
-builder.AddSiteSenseAuth();
+// Local, not static: each test host runs this file again. A non-bool value fails at startup.
+var testMode = builder.Configuration.GetValue<bool>(SiteSensePolicies.TestModeSetting);
+builder.AddSiteSenseAuth(testMode);
 builder.Services.AddHealthChecks();
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
@@ -19,6 +21,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+if (testMode) app.Logger.LogWarning("Test mode is on: /api/v1/test endpoints are enabled.");
 app.Use(Correlation.Middleware);
 
 // First: every unhandled exception becomes a generic 500 ProblemDetails.
@@ -28,6 +31,16 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     StatusCodeSelector = ex => ex is ConcurrencyException ? StatusCodes.Status412PreconditionFailed : StatusCodes.Status500InternalServerError,
 });
 app.UseStatusCodePages();
+// Test mode off: the whole /api/v1/test prefix is 404 for every caller, before authentication can answer 401 (C-7.2a).
+app.Use(async (ctx, next) =>
+{
+    if (!testMode && ctx.Request.Path.StartsWithSegments("/api/v1/test", StringComparison.OrdinalIgnoreCase))
+    {
+        ctx.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
+    await next();
+});
 app.UseAuthentication();
 // A valid token for a tenant not in configuration is forbidden on every endpoint, whatever its policy (Q14).
 app.Use(async (ctx, next) =>

@@ -355,4 +355,13 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - `422` for the whole batch: one bad device id would make the gateway resend thousands of valid positions.
 - Requirement IDs: IDN-05, TRK-01
+
+## Q38 — How does the simulated clock of test mode behave?
+- Assumption: `PUT /api/v1/test/clock` `{ "nowMs" }` (Admin, test mode on) replaces `SiteSenseContext.Time` with one global clock for the whole process, all tenants included. It stays frozen at `nowMs` until the next `PUT` and answers `204`. Only the current time is frozen: timers, `GetTimestamp` and delays keep real time, and JWT lifetime checks keep real time so real tokens stay valid. With `SITESENSE_TEST_MODE` off (the default), every path under `/api/v1/test` answers `404` to every caller, with or without a token, before authentication runs. Code must read `SiteSenseContext.Time` on each call, never keep it in a field.
+- Why: deterministic checks of time logic (silent devices, retention, timestamps): the same steps give the same result, whatever the speed of the machine. Chosen by the owner.
+- Alternatives rejected:
+  - A clock that keeps ticking from `nowMs`: results depend on how long the test takes.
+  - One clock per tenant: every job and service would have to pick the tenant clock, for no evaluation gain.
+  - `401` before `404` when test mode is off: shows that the endpoints exist.
+- Requirement IDs: C-7.2a, C-7.2b
 - Status: Accepted
