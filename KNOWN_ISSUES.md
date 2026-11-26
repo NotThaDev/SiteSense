@@ -1,9 +1,13 @@
 # Known issues
 
-Entries are added at the end of each story, and when a limit is found.
+Known limits and what to do with more time.
+
+## SS-44 — Device registration
+- A device cannot be moved in one call: delete it (`DELETE` with `If-Match`), then register it again on the new site.
+- Listing a site's devices is a full scan of the tenant's devices: no index and no cursor paging (SS-11, #43, postponed).
+- A `deviceId` is unique per tenant (Q13), so the simulator must give devices on different sites of one tenant different ids (e.g. `<siteId>-001`).
 
 ## SS-12 — Position log
-
 - The directory is not fsynced after a new hour file is created. A power loss right after the first write to a new hour can lose that file. Documents (SS-9) have the same limit. With more time: fsync the directory after creating a file, in both stores.
 - On macOS, .NET `fsync` is not `F_FULLFSYNC`, so data may still be in the disk cache after an fsync. A power loss can lose recent appends. With more time: use `F_FULLFSYNC` through a native call on macOS, and test it on real hardware.
 - Locks are never evicted until restart. Documents keep one lock per document; logs keep one lock per device log. Memory grows with the number of devices and documents. With more time: remove idle locks with a reference count, or use a lock pool with a fixed size.

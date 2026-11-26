@@ -38,6 +38,31 @@ public sealed class FileDocumentStore : IDocumentStore
         }
     }
 
+    public async Task<IReadOnlyList<T>> ListAsync<T>(string tenantId, CancellationToken ct) where T : class, IDocument
+    {
+        CheckName(tenantId, nameof(tenantId));
+        var dir = Path.GetDirectoryName(PathOf<T>(tenantId, "x"))!;
+        if (!Directory.Exists(dir)) return [];
+        var docs = new List<T>();
+        // "*.json" skips the "<id>.json.tmp" files of in-flight writes; rename is atomic, so a complete file is read.
+        foreach (var path in Directory.EnumerateFiles(dir, "*.json"))
+        {
+            try
+            {
+                await using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.Asynchronous);
+                var doc = await JsonSerializer.DeserializeAsync<T>(fs, Json, ct);
+                if (doc is null || doc.TenantId != tenantId)
+                    throw new InvalidOperationException($"Document file '{path}' is missing or belongs to another tenant.");
+                docs.Add(doc);
+            }
+            catch (FileNotFoundException)
+            {
+                // Deleted between the scan and the read.
+            }
+        }
+        return docs;
+    }
+
     public async Task<T> SaveAsync<T>(string tenantId, T doc, CancellationToken ct) where T : class, IDocument
     {
         StorePaths.CheckName(tenantId, nameof(tenantId));

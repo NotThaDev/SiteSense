@@ -40,7 +40,7 @@ Names, roles and the scope string are constants in `Api/Auth/SiteSensePolicies.c
 | `CanSeeIndividuals` | Safety |
 | `CanSeeAggregates` | Admin, Safety, Viewer |
 | `CanWritePositions` | Gateway client (scope `positions:write`, exact match in the space-separated `scope` claim) |
-| `TestMode` | Admin, only when test mode is on (**pending:** registered with the test-mode story) |
+| `TestMode` | Admin, only when test mode is on; with test mode off the whole `/api/v1/test` prefix is 404 for everyone (Q38) |
 
 ## Endpoint to policy
 
@@ -51,6 +51,9 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `POST /api/v1/sites` | `CanManage` |
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
+| `GET /api/v1/sites/{siteId}/devices` | `CanManage` (Q85) |
+| `GET /api/v1/sites/{siteId}/devices/{deviceId}` | `CanManage` (Q85) |
+| `DELETE /api/v1/sites/{siteId}/devices/{deviceId}` | `CanManage` |
 | `POST /api/v1/positions` | `CanWritePositions` |
 | `POST /api/v1/sites/{siteId}/routes` | `CanSeeAggregates` (covers all user roles) |
 | `POST /api/v1/sites/{siteId}/evacuation-route` | `CanSeeAggregates` (same note as routes) |
