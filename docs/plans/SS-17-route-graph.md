@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #94
-- Plan PR: #96   Implementation PRs: #106 (needs SS-22 impl 1 merged first)
+- Plan PR: #96   Implementation PRs: #106
 - Requirement IDs: MAP-03 (prepares NAV-02, NAV-03)
 
 ## Problem
@@ -133,7 +133,7 @@ connector is missing and the two paths are separate.
 
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | Segment vs polygon interior test (uses SS-22's `Locate`; needs SS-22 impl 1 merged into this branch first) | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs`, `tests/SiteSense.Tests/Domain/PlanarGeometryTests.cs` | The `PlanarGeometryTests` listed in "Tests" pass | impl |
+| 1 | Segment vs polygon interior test (uses SS-22's `Locate`, in `main`) | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs`, `tests/SiteSense.Tests/Domain/PlanarGeometryTests.cs` | The `PlanarGeometryTests` listed in "Tests" pass | impl |
 | 2 | Graph types and builder (nodes, edges, cost, connectors, traversable) | `backend/SiteSense.Domain/Navigation/RouteGraph.cs`, `RouteGraphBuilder.cs` | Builds; Domain csproj still has no reference | impl |
 | 3 | Builder tests | `tests/SiteSense.Tests/Domain/RouteGraphBuilderTests.cs` | The `RouteGraphBuilderTests` listed in "Tests" pass | impl |
 | 4 | Map adapter | `backend/SiteSense.Api/Models/Map/SiteMap.cs` | `BuildRouteGraph` builds from a stored map | impl |
@@ -190,3 +190,4 @@ One implementation PR, stacked on the plan branch: the change is about 300 lines
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Exact segment/polygon rule, node and connector edge cases, parallel edges kept, projection origin and area types stated, ADR renamed to the skill's name, more tests, sample-map connectivity checked | Sonnet validation |
 | 2026-11-26 | Open questions decided (all recommended options); midpoint test reuses SS-22's shared `PlanarGeometry.Locate` | User approval; SS-22 plan open question 6 (user: one shared point-in-polygon) |
+| 2026-11-26 | Dependency note removed: SS-22 is merged into `main`, and `main` is merged into this branch | SS-22 merged |
