@@ -1,6 +1,6 @@
 # SS-12 — Position log for write-heavy load
 
-- Status: Draft
+- Status: Approved
 - Issue: #83
 - Plan PR: #84   Implementation PRs: (after approval)
 - Requirement IDs: JDB-06 (designed for JDB-02, JDB-07, JDB-09)
@@ -222,9 +222,9 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | 3 | Who writes the files | New `FileAppendLog` with shared helpers · refactor into one `FileStore` | User: `FileAppendLog` with shared helpers |
 | 4 | When to fsync | Once per `AppendAsync` call · periodic group commit · never | User: once per call |
 | 5 | Record types now | Generic log + `Position` only · also `TrackPoint` | User: generic + `Position` only |
-| 6 | Q16: keep raw positions and the filtered track apart? | Yes, one log per record type (`Position/`, later `TrackPoint/`), both under retention · store only the filtered track | Recommended: yes, two logs |
-| 7 | Torn line before the next append | Write a newline first, keep the fragment, reader skips it · truncate the file to the last newline · checksum per line | Recommended: newline first (nothing is ever rewritten) |
-| 8 | Read order on equal timestamps | Append order (stable sort) · undefined | Recommended: append order |
+| 6 | Q16: keep raw positions and the filtered track apart? | Yes, one log per record type (`Position/`, later `TrackPoint/`), both under retention · store only the filtered track | User: yes, two logs |
+| 7 | Torn line before the next append | Write a newline first, keep the fragment, reader skips it · truncate the file to the last newline · checksum per line | User: newline first (nothing is ever rewritten) |
+| 8 | Read order on equal timestamps | Append order (stable sort) · undefined | User: append order |
 | 9 | Lock granularity | One lock per device log (tenant + type + key): the count stays equal to the number of devices, and one call spanning several hours takes one lock · one lock per hour file (grows 24 per device per day, never freed until restart) | User: one lock per device log |
 
 ## Changelog
@@ -235,3 +235,4 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | 2026-11-26 | Complete-lines-only read, exact repair open mode, partial batches, input checks, stable streaming read, split crash steps, load and validation tests, open question 9 | Sonnet plan review |
 | 2026-11-26 | Hour files instead of day files; old question 9 (200 ms fallback) removed; new question 9 (lock per device log) | User review: reduce the period to one hour |
 | 2026-11-26 | Question 9 decided: one lock per device log | User |
+| 2026-11-26 | Plan approved; questions 6–8 decided as recommended | User |
