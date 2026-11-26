@@ -19,3 +19,10 @@ Content-Type: application/json
 If-Match: "1"
 
 {"siteId":"cittadella-catania","name":"Cittadella Universitaria (updated)","timeZone":"Europe/Rome","mapFile":"map.geojson","navigation":{"walkingSpeedMps":1.3,"unpavedSpeedFactor":0.8,"stepsSpeedFactor":0.5,"connectToleranceM":0.5,"maxSnapDistanceM":30}}
+
+### Set the simulated clock (test mode on, Admin); frozen until the next PUT (Q38)
+PUT {{host}}/api/v1/test/clock
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"nowMs":1793268000000}
