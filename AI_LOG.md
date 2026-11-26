@@ -73,3 +73,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-44 with the plan / validate / approve / implement / verify workflow.
 - AI produced: plan (Opus), plan review (Sonnet), `Device` model, DTOs, `DevicesController`, docs (Haiku), tests (Sonnet).
 - Corrected or discarded: the review found that `KNOWN_ISSUES.md` did not exist yet, that the PRV-01 test needed the test store root, and that the GET policy options must map to existing policies. The owner chose Q13 (unique per tenant, because devices send no `siteId`), 409 on any reuse, a GET endpoint, and Q85 (`CanManage`).
+
+## 2026-11-26 — SS-46: Admin UI
+- Goal: a minimal React + shadcn/ui admin UI (sites, map upload, devices) that logs in through the API.
+- Prompt (summary): minimal React + shadcn admin UI, login through the API (BFF).
+- AI produced: plan, backend (sites list, BFF auth, CSRF, static files, tests), frontend.
+- Corrected or discarded: SPA PKCE was discarded for the BFF at user review. The Sonnet plan validation found the missing Keycloak scopeMappings/webOrigins, the SPA fallback masking API 404s and the missing `.dockerignore`. The review found the CSRF check skipped on any non-Bearer `Authorization` header; fixed with a test.

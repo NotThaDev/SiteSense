@@ -84,6 +84,13 @@ No setup needed: every variable has a default. To override one, copy `.env.examp
 2. Run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
 3. Read the API: the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
+## Admin UI
+
+A small React UI (sites, map upload, devices) served by the API. Log in goes through Keycloak.
+
+- Docker: `docker compose up --build`, open <http://localhost:8080/>, log in as `admin-a` / `Password1!` (other test users: see above). After pulling this change, run once `docker compose up -d --force-recreate keycloak` so the realm gets the `sitesense-ui` client.
+- Dev mode: run the API (`dotnet run --project backend/SiteSense.Api` or compose), then `cd frontend && npm install && npm run dev` and open <http://localhost:5173/>.
+
 ## Tech stack
 
 <p align="center">
