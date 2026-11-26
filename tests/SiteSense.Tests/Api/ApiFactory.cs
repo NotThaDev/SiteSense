@@ -12,6 +12,8 @@ public class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _storeRoot = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
 
+    public string StoreRoot => _storeRoot;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Production");

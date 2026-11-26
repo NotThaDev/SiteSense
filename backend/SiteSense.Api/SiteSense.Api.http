@@ -26,3 +26,19 @@ Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {"nowMs":1793268000000}
+
+### Register a device on a site (Admin)
+POST {{host}}/api/v1/sites/cittadella-catania/devices
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"deviceId":"dev-001"}
+
+### Read a device (Admin)
+GET {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
+Authorization: Bearer {{token}}
+
+### Delete a device (Admin); If-Match = the ETag from the register or the read
+DELETE {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
+Authorization: Bearer {{token}}
+If-Match: "1"
