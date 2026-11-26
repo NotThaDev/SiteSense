@@ -31,7 +31,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | Api | `backend/SiteSense.Api` | Composition root and the Api folders (below) | Domain | Nothing (top layer) |
 | Apps | `simulator/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
 | Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api, StoreCrashWriter | Nothing else |
-| Test helper | `tests/SiteSense.StoreCrashWriter` | Console child process for the store crash test: writes documents until killed | Api | Any other use |
+| Test helper | `tests/SiteSense.StoreCrashWriter` | Console child process for the store crash test: writes documents, or with `append` appends positions, until killed | Api | Any other use |
 
 - `SiteSense.Domain.csproj` has no `PackageReference` and no `ProjectReference`. Never add one.
 - The domain never reads a clock or does IO. Time arrives as a value from Api. The domain returns results or events. It never publishes anything itself.
@@ -50,7 +50,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | `Models/` | Persisted entities (`Site.cs`, `Device.cs`, ...) with their static persistence methods. An entity with several types gets its own subfolder, e.g. `Models/Map/` (`SiteMap`, `MapError`). Algorithms and geometric primitives stay in `SiteSense.Domain`. |
 | `Dtos/` | Request and response records on the wire: `<Name>Request.cs`, `<Name>Response.cs`. Never entities or Domain types. |
 | `Services/` | Only flows that span several entities or need an external engine: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation. No per-entity service. |
-| `Store/` | The single generic JSON document store implementation and file IO. It takes the place of a `DbContext` (no EF). |
+| `Store/` | The single generic JSON document store (`IDocumentStore`, `FileDocumentStore`) and the append-only log (`IAppendLog`, `FileAppendLog`), with their file IO. It takes the place of a `DbContext` (no EF). |
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
 | `BackgroundJobs/` | Hangfire job classes (see Background jobs) |
 | `Auth/` | Authentication and authorization setup and policies |
