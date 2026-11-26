@@ -31,7 +31,10 @@ flowchart LR
 - Site or device of another tenant, unknown site, or a device registered on another site → `404`.
 - Invalid `deviceId` → `400` `ValidationProblemDetails`, nothing stored.
 
-Out of scope: delete or move a device, list of devices, the batch ingest itself (SS-22).
+- `DELETE /api/v1/sites/{siteId}/devices/{deviceId}` with `If-Match` → `204`, Admin only. Missing or stale `If-Match` → `412` (Q45);
+  missing device, another site's or another tenant's → `404`. Moving a device = DELETE, then POST on the new site.
+
+Out of scope: list of devices (own session: store `ListAsync` + `Device.GetAllAsync(tenantId, siteId = null)`), the batch ingest itself (SS-22).
 
 ## Solution
 
@@ -44,7 +47,10 @@ The tenant comes from the token (`User.TenantId()`), never from the body. Same p
   The store throws `ConcurrencyException` when the id exists, under its per-document lock, so parallel creates
   give one 201 and the rest 409. `Device.CreateAsync` turns that into `null`; the controller answers 409.
 - Get: `Device.GetAsync(tenant, deviceId)`; null, or `SiteId` different from the URL → 404.
-- No PUT: a device has no field to change (moving sites is out of scope).
+- Delete: `Device.GetAsync`; null or `SiteId` different from the URL → 404. Then `Device.DeleteAsync(tenant, deviceId, version from If-Match, missing = 0)`;
+  a stale version throws `ConcurrencyException`, which the global handler turns into 412. Only the device document is removed;
+  positions are not stored yet (SS-12 / SS-22 decide their fate), and after a delete a batch for that id gets 404 (Q60).
+- No PUT: a device has no field to change; moving is DELETE + POST.
 
 Example: `POST /api/v1/sites/site-01/devices` with `{ "deviceId": "dev-001" }` →
 `201`, `Location: /api/v1/sites/site-01/devices/dev-001`, `ETag: "1"`, body `{ "deviceId": "dev-001", "siteId": "site-01" }`.
@@ -93,6 +99,7 @@ A repeat of the same POST is a 409 and changes nothing (recipe step 8).
 | 3 | `DevicesController`, route `api/v1/sites/{siteId}/devices`: `Create` (POST, `CanManage`, 201/400/403/404/409, ETag, `CreatedAtAction(nameof(Get), new { siteId, deviceId = device.Id })`) and `Get` (GET `{deviceId}`, `CanManage` per Q85, 200 + ETag / 404). 404 and 409 are ProblemDetails (`Problem(statusCode: ...)`, as in `SitesController`). `[ProducesResponseType]` for every status. | `backend/SiteSense.Api/Controllers/DevicesController.cs` | Builds; both paths in `/openapi/v1.json`. | #89 |
 | 4 | Tests (below), plus both devices paths in `OpenApiTests`; expose `public string StoreRoot` on `ApiFactory` for the PRV-01 raw-file test. | `tests/SiteSense.Tests/Api/DevicesTests.cs`, `tests/SiteSense.Tests/Api/OpenApiTests.cs`, `tests/SiteSense.Tests/Api/ApiFactory.cs` | All pass. | #89 |
 | 5 | `.http`: register and read a device, with the file's `{{host}}` and `{{token}}` variables. | `backend/SiteSense.Api/SiteSense.Api.http` | Entries present. | #89 |
+| 5b | `Device.DeleteAsync` (store delete) and `Delete` action (DELETE `{deviceId}`, `CanManage`, 204/403/404/412), `.http` entry. | `Models/Device.cs`, `Controllers/DevicesController.cs`, `SiteSense.Api.http` | Builds; path in OpenAPI. | #89 |
 | 6 | Docs: Q13 and Q85 in `ASSUMPTIONS.md`; GET row in the security skill endpoint table; POST response `201 { deviceId, siteId }` and a GET row in the context skill API table; AI_LOG entry; create `KNOWN_ISSUES.md` at the root (ai-process §8; not on `main` yet) with: no delete or move of a device. README and `docs/` list no endpoints, so no sync needed. | `ASSUMPTIONS.md`, `.claude/skills/sitesense-security/SKILL.md`, `.claude/skills/sitesense-context/SKILL.md`, `AI_LOG.md`, `KNOWN_ISSUES.md` (new) | Entries present. | #89 |
 
 ## Risks
@@ -127,6 +134,10 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 - `Get_DeviceOfOtherSite_Returns404`, `Get_OtherTenantDevice_Returns404`
 - `Get_UnknownOrInvalidId_Returns404` (theory: unknown, `..`, `a.b`, 129 chars)
 - `Get_NonAdmin_Returns403` (theory: Safety, Viewer, gateway; Q85)
+- `Delete_CurrentIfMatch_Returns204AndRemoves` (GET then 404; same id can be registered again, on another site)
+- `Delete_MissingOrStaleIfMatch_Returns412Problem` (theory); device still there
+- `Delete_DeviceOfOtherSite_Returns404`, `Delete_OtherTenantDevice_Returns404`, `Delete_UnknownOrInvalidId_Returns404`
+- `Delete_NonAdmin_Returns403` (theory: Safety, Viewer, gateway)
 
 ## Open questions
 
@@ -145,3 +156,4 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 | 2026-11-26 | `StoreRoot` accessor, `KNOWN_ISSUES.md` is new, context skill row, ProblemDetails and route values, crash-test note, per-tenant test sites, Q85 options fixed to existing policies | Sonnet review |
 | 2026-11-26 | Q85 decided: GET is `CanManage` | Owner, in chat |
 | 2026-11-26 | Q13: reason stated explicitly (devices do not send a `siteId`) | Owner, in chat |
+| 2026-11-26 | Scope: DELETE added; device list moved to its own session (`ListAsync` + `GetAllAsync(siteId = null)`) | Owner, in chat |
