@@ -55,3 +55,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-15 with the plan / validate / approve / implement / verify workflow, domain PR first.
 - AI produced: plan (Opus), plan review (Sonnet), `PlanarGeometry`, `SiteMap`, `MapValidator`, tests (Haiku), docs (Opus).
 - Corrected or discarded: the review added read guards for coordinates and Features (a bad number would have crashed the projection), the version rule, stable error order and inline test maps. The owner chose Q17 (forward only), Q40 (`null` / `features[i]`) and Q41 (extended checks).
+
+## 2026-11-26 — SS-12: Position log
+- Goal: an append-only log for positions with no lost acknowledged record and fast one-hour reads, next to the document store.
+- Prompt (summary): plan SS-12 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), `FileAppendLog`, `Position`, tests (Haiku), ADR 0001, docs (Opus).
+- Corrected or discarded: the review made reads use newline-terminated lines only, added input checks and load tests. The owner changed day files to hour files and chose one lock per device log.
