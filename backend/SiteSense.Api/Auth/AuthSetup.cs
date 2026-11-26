@@ -55,7 +55,7 @@ public static class AuthSetup
                 o.GetClaimsFromUserInfoEndpoint = false;
                 o.Scope.Clear();
                 o.Scope.Add("openid");
-                o.Scope.Add("profile");
+                // The realm has no "profile" client scope (Keycloak rejects unknown scopes); the client's own mappers add the claims.
                 o.SignInScheme = CookieScheme;
                 o.TokenValidationParameters = new TokenValidationParameters
                 {
