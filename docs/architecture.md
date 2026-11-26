@@ -65,7 +65,7 @@ flowchart LR
 
 ### Document store
 
-`IDocumentStore` (`Store/`) is the one generic API for every document type (JDB-01): `GetAsync<T>`, `SaveAsync<T>`, `DeleteAsync<T>`, with `T : IDocument` (`Id`, `TenantId`, `Version`). `FileDocumentStore` implements it. Append-only records (positions, events) get their own interface later (Q75).
+`IDocumentStore` (`Store/`) is the one generic API for every document type (JDB-01): `GetAsync<T>`, `SaveAsync<T>`, `DeleteAsync<T>`, with `T : IDocument` (`Id`, `TenantId`, `Version`). `FileDocumentStore` implements it. Append-only records get their own interface, `IAppendLog` (`Store/`), implemented by `FileAppendLog` (Q75). The first record type is `Position`. Files are JSON lines, one per tenant, device and UTC hour: `<Store:RootPath>/<tenantId>/Position/<deviceId>/<yyyy-MM-ddTHH>.jsonl`. Details and the reasons: [ADR 0001](adr/0001-position-storage.md).
 
 | Rule | How |
 |---|---|
@@ -75,6 +75,7 @@ flowchart LR
 | Version (JDB-03) | The caller saves with the version it read (`0` = new); under the lock the store compares it with the stored one. Equal: write, version + 1. Different: `ConcurrencyException`, nothing written. `DeleteAsync` takes the expected version too. |
 | ETag (JDB-10, Q45) | The API sends the version as `ETag: "3"` and copies `If-Match` into `doc.Version` (missing = 0). `ConcurrencyException` becomes 412 ProblemDetails (`StatusCodeSelector` in `Program.cs`). |
 | Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. Ids are case-sensitive: in file and folder names each uppercase letter becomes `!` + lowercase (`DEV-001` → `!d!e!v-001.json`), so case-insensitive disks (macOS, Windows) keep them apart (Q76). |
+| Append (JDB-02, JDB-06) | Each append writes its lines and fsyncs before it returns. A missing final newline is written first, so a torn line stays on its own line. Reads use newline-terminated lines only and skip lines that do not parse. One lock per device log. |
 
 ## Build settings
 
