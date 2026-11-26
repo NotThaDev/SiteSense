@@ -26,3 +26,9 @@ Known limits and what to do with more time.
 - Each batch reads and parses the whole site map to find the perimeter. With more time, cache the projected perimeter by map version.
 - The per-device lock is held during reads and fsyncs: one slow batch delays the next batch of the same device (other devices are not blocked).
 - A map change does not re-check positions already stored under the old perimeter.
+
+## SS-17 — Route graph
+- A path end that touches the middle of another path without a shared vertex is not joined (Q18): only endpoint pairs closer than `connectToleranceM` get a connector.
+- Two vertices less than 1 cm apart can stay separate nodes if they fall on each side of a 1 cm grid line (Q19); identical coordinates always join.
+- Connectors compare all endpoint pairs (O(n²)) and each edge is tested against every blocked polygon (with a bounding-box reject); fine for hundreds of paths, add a grid index for thousands.
+- The graph is not cached yet: SS-19 adds the per-map-version cache (Q86).

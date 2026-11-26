@@ -91,3 +91,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan SS-31 with the plan / validate / approve / implement / verify workflow; no real jobs, only the mechanism.
 - AI produced: plan (Opus), plan review (Sonnet), `ISiteJob`, `SiteJobRunner`, Hangfire wiring, test endpoint, tests (Haiku), docs (Opus).
 - Corrected or discarded: the review showed that a Hangfire storage cannot be swapped in tests (now chosen by `Hangfire:Storage`), that store ids allow no dots (parts joined with `_`), and asked for a concurrent-run test. The owner chose option A for all seven open questions.
+
+## 2026-11-26 — SS-17: Route graph
+- Goal: build an in-memory pedestrian graph from the site map, in metres, ready for routing (SS-19, SS-20, SS-21).
+- Prompt (summary): implement SS-17 with the plan / validate / approve / implement / verify workflow; no routing in this story.
+- AI produced: plan and ADR 0001 (Opus), plan review (Sonnet), Domain graph builder, segment/polygon test, map adapter and tests (Haiku).
+- Corrected or discarded: the Sonnet review asked for an exact segment/polygon rule, strict tolerance, no self-loops, connector edge cases and the ADR file name fixed by the ai-process skill. The point-in-polygon test is shared with SS-22 (one `PlanarGeometry.Locate`) instead of a second copy. The owner chose the recommended options for Q18, Q19, Q21, Q25, Q86 and Q87.
