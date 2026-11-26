@@ -38,5 +38,5 @@ with equal timestamps keep append order.
 - Harder: the raw log keeps duplicates from retries and partial batches until SS-22 dedups them.
 - Harder: after a new hour file is created, the directory is not fsynced. On macOS, .NET `fsync`
   is not `F_FULLFSYNC`. The guarantee covers a process kill (`kill -9`), not a power loss.
-- Revisit: when SS-22 lands (dedup rules), when SS-11 needs cursor paging, and when SS-13 measures
+- Revisit: when SS-22 lands (dedup rules), when SS-11 (#43) needs cursor paging, and when SS-13 measures
   the load targets.
