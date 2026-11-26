@@ -399,10 +399,10 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q89 — Where does the admin UI run?
-- Assumption: the Vite build is copied into the API image as `wwwroot/` and served on `http://localhost:8080/`. No separate container, no CORS.
-- Why: `docker compose up` stays one step (NF-01) and the same origin removes CORS.
+- Assumption: A separate `ui` container (nginx) on `http://localhost:3000` serves the Vite build and reverse-proxies `/api`, `/signin-oidc` and `/signout-callback-oidc` to the API. The API serves no static files.
+- Why: The API stays an API only (user review). One origin for the browser keeps the BFF cookie working without CORS.
 - Requirement IDs: NF-01, API-06
-- Status: Accepted
+- Status: Changed
 
 ## Q90 — What does the first admin UI cover?
 - Assumption: Admin screens for sites (list, create, edit), map upload with the 422 errors per element, and devices (list, register, delete). No Safety or Viewer screens, no map view, no test clock.
