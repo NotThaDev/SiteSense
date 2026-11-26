@@ -119,9 +119,9 @@ sequenceDiagram
   L-->>C: records
 ```
 
-- **Lock:** one `SemaphoreSlim` per encoded file path, as in `FileDocumentStore` (JDB-04). Two
-  appends to the same file never interleave their lines. A call that spans several hours takes the
-  locks one at a time, in hour order, so there is no deadlock. Locks are per instance: one
+- **Lock:** one `SemaphoreSlim` per device log (encoded tenant + type + key), not per file
+  (JDB-04). Two appends to the same file never interleave their lines; a call that spans several
+  hours takes one lock. The lock count stays equal to the number of devices. Locks are per instance: one
   `FileAppendLog` per root, the one in `SiteSenseContext` (same rule as the document store).
   Reads take no lock.
 - **A line counts only when it ends with a newline.** The reader ignores the bytes after the last
@@ -175,7 +175,7 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | The crash test cannot force a kill inside a write | It may never produce a torn line | The deterministic torn-line tests cut a file mid-line by hand. The crash test proves "every returned append survives and every returned record is whole", with large batches in a tight loop so some kills land in writes. |
 | A partial last line that parses as a valid but wrong record | A wrong position would be returned | The reader uses complete (newline-terminated) lines only. |
 | No fsync of the directory after creating a new hour file; on macOS .NET `fsync` is not `F_FULLFSYNC` | A power loss (not a process kill) could lose recent data | Same limit as SS-9 (`shortcut:` comment); listed in `KNOWN_ISSUES.md`. JDB-02 asks for `kill -9`. |
-| Many open semaphores (one per hour file) | Memory grows by 24 small objects per device per day, until restart | Open question 9: one lock per device log instead. |
+| Semaphores are never freed | One small object per device log, until restart | One lock per device log (question 9), not per hour file; listed in `KNOWN_ISSUES.md`. |
 | Duplicates are stored as sent (retries, partial batches) | A retried batch appears twice in the raw log | Dedup (TRK-01) is SS-22's job; the log stays a plain append. |
 
 ## Tests
@@ -225,7 +225,7 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | 6 | Q16: keep raw positions and the filtered track apart? | Yes, one log per record type (`Position/`, later `TrackPoint/`), both under retention · store only the filtered track | Recommended: yes, two logs |
 | 7 | Torn line before the next append | Write a newline first, keep the fragment, reader skips it · truncate the file to the last newline · checksum per line | Recommended: newline first (nothing is ever rewritten) |
 | 8 | Read order on equal timestamps | Append order (stable sort) · undefined | Recommended: append order |
-| 9 | Lock granularity | One lock per device log (tenant + type + key): the count stays equal to the number of devices, and one call spanning several hours takes one lock · one lock per hour file (grows 24 per device per day, never freed until restart) | Recommended: one lock per device log |
+| 9 | Lock granularity | One lock per device log (tenant + type + key): the count stays equal to the number of devices, and one call spanning several hours takes one lock · one lock per hour file (grows 24 per device per day, never freed until restart) | User: one lock per device log |
 
 ## Changelog
 
@@ -234,3 +234,4 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Complete-lines-only read, exact repair open mode, partial batches, input checks, stable streaming read, split crash steps, load and validation tests, open question 9 | Sonnet plan review |
 | 2026-11-26 | Hour files instead of day files; old question 9 (200 ms fallback) removed; new question 9 (lock per device log) | User review: reduce the period to one hour |
+| 2026-11-26 | Question 9 decided: one lock per device log | User |
