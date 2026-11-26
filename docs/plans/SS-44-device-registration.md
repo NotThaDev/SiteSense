@@ -26,7 +26,7 @@ flowchart LR
 
 - `POST /api/v1/sites/{siteId}/devices` with `{ "deviceId" }` → `201 { "deviceId", "siteId" }`, Admin only (`CanManage`).
 - The device document holds only `deviceId`, tenant and `siteId`, nothing else (PRV-01).
-- `deviceId` is unique inside the tenant, across all its sites (Q13). Already registered (same or other site) → `409`.
+- `deviceId` is unique inside the tenant, across all its sites (Q13), because devices do not send a `siteId`. Already registered (same or other site) → `409`.
 - `GET /api/v1/sites/{siteId}/devices/{deviceId}` → `200 { "deviceId", "siteId" }` + `ETag`, Admin only (`CanManage`, Q85).
 - Site or device of another tenant, unknown site, or a device registered on another site → `404`.
 - Invalid `deviceId` → `400` `ValidationProblemDetails`, nothing stored.
@@ -132,7 +132,7 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| Q13 | Is the `deviceId` unique per tenant, per site, or globally? | Per tenant; per site; global | Per tenant (owner): batches and tracks carry no `siteId`, the tenant comes from the token, the site from the registration; global would leak other tenants' ids through 409 |
+| Q13 | Is the `deviceId` unique per tenant, per site, or globally? | Per tenant; per site; global | Per tenant (owner). Why: devices do not send a `siteId`. The gateway batch format is fixed (`{ deviceId, positions }`) and the gateway token carries only the tenant, so the server can find the site only from `tenant + deviceId`; per site would make a batch ambiguous. Global would leak other tenants' ids through 409 |
 | —  | Same `deviceId` registered again in the tenant? | 409 always; 201 if same site else 409; 201 and move | 409 always (owner), like sites (Q43) |
 | —  | Is there a GET? | POST + GET; POST only | POST + GET (owner) |
 | Q85 | Who may read a device (`GET /sites/{siteId}/devices/{deviceId}`)? Not in the API contract; added on owner request. | `CanManage` (Admin: the role that manages devices, existing policy); `CanSeeIndividuals` (Safety only). All roles is excluded: PRV-03, Viewer never sees device ids | `CanManage` (owner): the role that registers devices reads them back; cheap to widen later |
@@ -144,3 +144,4 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | `StoreRoot` accessor, `KNOWN_ISSUES.md` is new, context skill row, ProblemDetails and route values, crash-test note, per-tenant test sites, Q85 options fixed to existing policies | Sonnet review |
 | 2026-11-26 | Q85 decided: GET is `CanManage` | Owner, in chat |
+| 2026-11-26 | Q13: reason stated explicitly (devices do not send a `siteId`) | Owner, in chat |
