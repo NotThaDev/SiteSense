@@ -12,7 +12,10 @@ function Gate({ title, text, children }: { title: string; text: string; children
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-4">
       <Card className="w-full max-w-sm">
-        <CardHeader><CardTitle>{title}</CardTitle><CardDescription>{text}</CardDescription></CardHeader>
+        <CardHeader>
+          <div className="mb-2 flex items-center gap-2 font-semibold"><img src="/logo.svg" alt="" className="size-7" />SiteSense</div>
+          <CardTitle>{title}</CardTitle><CardDescription>{text}</CardDescription>
+        </CardHeader>
         <CardFooter>{children}</CardFooter>
       </Card>
     </div>
@@ -23,8 +26,8 @@ export default function App() {
   const { me, loading, isAdmin, login, logout } = useSession()
   let body: React.ReactNode
   if (loading) body = <p className="p-6 text-sm text-muted-foreground">Loading…</p>
-  else if (!me) body = <Gate title="SiteSense Admin" text="Log in to manage sites, maps and devices."><Button onClick={login}>Log in</Button></Gate>
-  else if (!isAdmin) body = <Gate title="Admin role required" text="Your account cannot use this app."><Button variant="outline" onClick={logout}>Logout</Button></Gate>
+  else if (!me) body = <Gate title="Sign in" text="Log in to manage sites, maps and devices."><Button className="w-full" onClick={login}>Log in with Keycloak</Button></Gate>
+  else if (!isAdmin) body = <Gate title="Admin role required" text="Your account cannot use this app."><Button variant="outline" onClick={logout}>Log out</Button></Gate>
   else return (
     <SidebarProvider>
       <AppSidebar />
