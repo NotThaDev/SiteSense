@@ -1,5 +1,6 @@
 @host = http://localhost:5073
 @token = paste-an-admin-access-token
+@gatewayToken = paste-a-gateway-access-token
 
 ### Create a site (Admin)
 POST {{host}}/api/v1/sites
@@ -46,3 +47,10 @@ Authorization: Bearer {{token}}
 DELETE {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
 Authorization: Bearer {{token}}
 If-Match: "1"
+
+### Send a position batch (gateway client token, scope positions:write); a resend stores nothing twice
+POST {{host}}/api/v1/positions
+Authorization: Bearer {{gatewayToken}}
+Content-Type: application/json
+
+{"deviceId":"dev-001","positions":[{"timestampMs":1793268000000,"lat":37.5250,"lon":15.0710,"accuracyM":4.5}]}
