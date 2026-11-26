@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #85
-- Plan PR: #86   Implementation PRs: #<n>
+- Plan PR: #86   Implementation PRs: #89
 - Requirement IDs: API-01, PRV-01, IDN-02, C-7.3a
 
 ## Problem
@@ -88,12 +88,12 @@ A repeat of the same POST is a 409 and changes nothing (recipe step 8).
 
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | Entity `Device : IDocument` (`Id`, `TenantId`, `Version`, `SiteId`, nothing else); static `CreateAsync` (null when it exists) and `GetAsync(tenantId, deviceId)` (null on invalid id). | `backend/SiteSense.Api/Models/Device.cs` | Builds. | impl |
-| 2 | DTOs: `DeviceRequest(DeviceId)` with `[Required]` + valid-name check; `DeviceResponse(DeviceId, SiteId)`. | `backend/SiteSense.Api/Dtos/DeviceRequest.cs`, `DeviceResponse.cs` | Builds. | impl |
-| 3 | `DevicesController`, route `api/v1/sites/{siteId}/devices`: `Create` (POST, `CanManage`, 201/400/403/404/409, ETag, `CreatedAtAction(nameof(Get), new { siteId, deviceId = device.Id })`) and `Get` (GET `{deviceId}`, `CanManage` per Q85, 200 + ETag / 404). 404 and 409 are ProblemDetails (`Problem(statusCode: ...)`, as in `SitesController`). `[ProducesResponseType]` for every status. | `backend/SiteSense.Api/Controllers/DevicesController.cs` | Builds; both paths in `/openapi/v1.json`. | impl |
-| 4 | Tests (below), plus both devices paths in `OpenApiTests`; expose `public string StoreRoot` on `ApiFactory` for the PRV-01 raw-file test. | `tests/SiteSense.Tests/Api/DevicesTests.cs`, `tests/SiteSense.Tests/Api/OpenApiTests.cs`, `tests/SiteSense.Tests/Api/ApiFactory.cs` | All pass. | impl |
-| 5 | `.http`: register and read a device, with the file's `{{host}}` and `{{token}}` variables. | `backend/SiteSense.Api/SiteSense.Api.http` | Entries present. | impl |
-| 6 | Docs: Q13 and Q85 in `ASSUMPTIONS.md`; GET row in the security skill endpoint table; POST response `201 { deviceId, siteId }` and a GET row in the context skill API table; AI_LOG entry; create `KNOWN_ISSUES.md` at the root (ai-process §8; not on `main` yet) with: no delete or move of a device. README and `docs/` list no endpoints, so no sync needed. | `ASSUMPTIONS.md`, `.claude/skills/sitesense-security/SKILL.md`, `.claude/skills/sitesense-context/SKILL.md`, `AI_LOG.md`, `KNOWN_ISSUES.md` (new) | Entries present. | impl |
+| 1 | Entity `Device : IDocument` (`Id`, `TenantId`, `Version`, `SiteId`, nothing else); static `CreateAsync` (null when it exists) and `GetAsync(tenantId, deviceId)` (null on invalid id). | `backend/SiteSense.Api/Models/Device.cs` | Builds. | #89 |
+| 2 | DTOs: `DeviceRequest(DeviceId)` with `[Required]` + valid-name check; `DeviceResponse(DeviceId, SiteId)`. | `backend/SiteSense.Api/Dtos/DeviceRequest.cs`, `DeviceResponse.cs` | Builds. | #89 |
+| 3 | `DevicesController`, route `api/v1/sites/{siteId}/devices`: `Create` (POST, `CanManage`, 201/400/403/404/409, ETag, `CreatedAtAction(nameof(Get), new { siteId, deviceId = device.Id })`) and `Get` (GET `{deviceId}`, `CanManage` per Q85, 200 + ETag / 404). 404 and 409 are ProblemDetails (`Problem(statusCode: ...)`, as in `SitesController`). `[ProducesResponseType]` for every status. | `backend/SiteSense.Api/Controllers/DevicesController.cs` | Builds; both paths in `/openapi/v1.json`. | #89 |
+| 4 | Tests (below), plus both devices paths in `OpenApiTests`; expose `public string StoreRoot` on `ApiFactory` for the PRV-01 raw-file test. | `tests/SiteSense.Tests/Api/DevicesTests.cs`, `tests/SiteSense.Tests/Api/OpenApiTests.cs`, `tests/SiteSense.Tests/Api/ApiFactory.cs` | All pass. | #89 |
+| 5 | `.http`: register and read a device, with the file's `{{host}}` and `{{token}}` variables. | `backend/SiteSense.Api/SiteSense.Api.http` | Entries present. | #89 |
+| 6 | Docs: Q13 and Q85 in `ASSUMPTIONS.md`; GET row in the security skill endpoint table; POST response `201 { deviceId, siteId }` and a GET row in the context skill API table; AI_LOG entry; create `KNOWN_ISSUES.md` at the root (ai-process §8; not on `main` yet) with: no delete or move of a device. README and `docs/` list no endpoints, so no sync needed. | `ASSUMPTIONS.md`, `.claude/skills/sitesense-security/SKILL.md`, `.claude/skills/sitesense-context/SKILL.md`, `AI_LOG.md`, `KNOWN_ISSUES.md` (new) | Entries present. | #89 |
 
 ## Risks
 
