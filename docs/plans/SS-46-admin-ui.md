@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #98
-- Plan PR: #99   Implementation PRs: BE #<n>, FE #<n>
+- Plan PR: #99   Implementation PRs: BE #102, FE #<n>
 
 ## Problem
 
@@ -25,7 +25,7 @@ flowchart LR
 
 ## Goal
 
-`docker compose up`, open `http://localhost:8080/`, log in as `admin-a`, and:
+`docker compose up`, open `http://localhost:3000/`, log in as `admin-a`, and:
 list, create and edit sites; upload a map GeoJSON and see each validation error; list, register and
 delete the devices of a site. A user of `tenant-b` sees only `tenant-b` data.
 The web app talks **only to the API**: it never calls Keycloak and never holds a token.
@@ -74,10 +74,19 @@ sequenceDiagram
 The cookie user gets its claims from the id_token: `sub`, `preferred_username`, `tenant_id`, `roles`.
 The same `tenant_id` check as for Bearer tokens runs on login (exactly one valid value).
 
-### Static files
+### Separate UI container
 
-The FE build (`frontend/dist`) is copied into the API image as `wwwroot/`; the API serves it on the
-same origin. No CORS, no extra container.
+A `ui` container (nginx, `http://localhost:3000`) serves the FE build and reverse-proxies `/api`,
+`/signin-oidc` and `/signout-callback-oidc` to the API. The browser sees one origin, so the BFF
+cookie works with no CORS. The API serves no static files and stays an API only.
+
+```mermaid
+flowchart LR
+  B["Browser :3000"] --> N["ui (nginx)"]
+  N -->|"/ and /assets: the build"| B
+  N -->|"/api, /signin-oidc, /signout-callback-oidc<br/>Host header kept"| A["api :8080"]
+  A -->|"server to server"| K["Keycloak :8081"]
+```
 
 ### Screens (FE)
 
@@ -107,13 +116,13 @@ GET /api/v1/sites
 | # | Step | Files | Done when |
 |---|---|---|---|
 | 1 | `Site.GetAllAsync(tenantId, ct)` (mirror `Device.GetAllAsync`); `GET /api/v1/sites`, policy `CanManage`, sorted ordinal by id, `[ProducesResponseType]` 200/403; `SiteListResponse(Items)` | `Models/Site.cs`, `Controllers/SitesController.cs`, `Dtos/SiteResponse.cs` | build passes; OpenAPI shows it |
-| 2 | Keycloak client `sitesense-ui`: `publicClient:true`, `standardFlowEnabled:true`, `directAccessGrantsEnabled:false`, attribute `pkce.code.challenge.method: S256`, `redirectUris` `http://localhost:8080/signin-oidc` and `http://localhost:5173/signin-oidc`, attribute `post.logout.redirect.uris` `http://localhost:8080/*##http://localhost:5173/*`; mappers `sub`, `preferred_username`, `tenant_id`, `roles` with `id.token.claim:true`; a `scopeMappings` entry giving it `Admin`, `Safety`, `Viewer` (the realm has `fullScopeAllowed:false`) | `docker/keycloak/sitesense-realm.json` | browser login completes and the id_token has `tenant_id` and `roles` |
+| 2 | Keycloak client `sitesense-ui`: `publicClient:true`, `standardFlowEnabled:true`, `directAccessGrantsEnabled:false`, attribute `pkce.code.challenge.method: S256`, `redirectUris` `http://localhost:3000/signin-oidc` and `http://localhost:5173/signin-oidc`, attribute `post.logout.redirect.uris` `http://localhost:3000/*##http://localhost:5173/*`; mappers `sub`, `preferred_username`, `tenant_id`, `roles` with `id.token.claim:true`; a `scopeMappings` entry giving it `Admin`, `Safety`, `Viewer` (the realm has `fullScopeAllowed:false`) | `docker/keycloak/sitesense-realm.json` | browser login completes and the id_token has `tenant_id` and `roles` |
 | 3 | Package `Microsoft.AspNetCore.Authentication.OpenIdConnect` 10.0.14. `AuthSetup`: policy scheme `Smart` as default (Bearer header → JWT, else cookie); cookie scheme `HttpOnly`, `SameSite=Lax`, 1 h sliding, `OnRedirectToLogin` → 401 and `OnRedirectToAccessDenied` → 403 (never a redirect for API calls); OIDC scheme: `MetadataAddress`/`Authority` as JWT, client `Auth:UiClientId` (default `sitesense-ui`), `ResponseType=code`, `UsePkce=true`, `SaveTokens=true` (id_token for logout), `MapInboundClaims=false`, same name/role claim types, scopes `openid profile`, correlation and nonce cookies `SameSite=Lax` + `SecurePolicy=SameAsRequest` (plain HTTP in compose, Q74); `OnTokenValidated` runs the same `tenant_id` check as JWT (shared helper) | `Directory.Packages.props`, `SiteSense.Api.csproj`, `Auth/AuthSetup.cs`, `Auth/AuthOptions.cs` | Bearer tests still pass; API call without auth is 401, not 302 |
 | 4 | CSRF middleware after `UseAuthentication`: a request authenticated by the cookie (no `Authorization` header) to `/api` with no `X-CSRF: 1` header → 403 ProblemDetails. `GET /api/v1/auth/*` is exempt (browser navigation) | `Program.cs` | test passes |
 | 5 | `AuthController`: `GET /api/v1/auth/login?returnUrl=` (anonymous; `returnUrl` must be a local URL, else `/`) → OIDC challenge; `GET /api/v1/auth/logout` → sign out of cookie and OIDC (Keycloak end-session, back to `/`) | `Controllers/AuthController.cs` | 302 to Keycloak with `code_challenge`; open redirect refused |
-| 6 | Static files: `UseDefaultFiles` + `UseStaticFiles` after `UseStatusCodePages`, before `UseAuthentication`; `MapFallbackToFile("{*path:regex(^(?!api/|health|openapi|scalar|signin-oidc|signout-callback-oidc).*$)}", "index.html").AllowAnonymous()` (deny-by-default fallback policy, Q80). `backend/SiteSense.Api/wwwroot/` gitignored; a missing `wwwroot` only logs a warning | `Program.cs`, `.gitignore` | `/api/v1/nope` still 404 ProblemDetails |
+| 6 | ~~Static files and SPA fallback in the API~~ — dropped: the UI runs in its own container (Q89 changed) | — | — |
 | 7 | Tests (see Tests) | `tests/SiteSense.Tests/Api/SitesTests.cs`, `Api/Auth/BffTests.cs`, `Api/StaticFilesTests.cs`, `ApiFactory.cs` | all tests pass |
-| 8 | Docs: security skill (endpoint rows `GET /api/v1/sites` = `CanManage`, `/api/v1/auth/*` anonymous; client `sitesense-ui`; cookie + CSRF rule), architecture skill (`frontend/` holds the admin UI and later the demo client; built into `wwwroot`), ASSUMPTIONS Q86–Q90, KNOWN_ISSUES (realm edits need a Keycloak recreate; Data Protection keys in memory, so an API restart logs users out), `SiteSense.Api.http` (sites list) | docs, `.claude/skills/*` | reviewer can follow them |
+| 8 | Docs: security skill (endpoint rows `GET /api/v1/sites` = `CanManage`, `/api/v1/auth/*` anonymous; client `sitesense-ui`; cookie + CSRF rule), architecture skill (`frontend/` holds the admin UI and later the demo client; its own `ui` container), ASSUMPTIONS Q86–Q90, KNOWN_ISSUES (realm edits need a Keycloak recreate; Data Protection keys in memory, so an API restart logs users out), `SiteSense.Api.http` (sites list) | docs, `.claude/skills/*` | reviewer can follow them |
 
 ### PR FE (stacked on PR BE)
 
@@ -123,8 +132,8 @@ GET /api/v1/sites
 | 10 | API helper: `fetch` same-origin with `X-CSRF: 1`, ETag read, `If-Match` send, ProblemDetails to toast, 401 → "Login" state | `frontend/src/api.ts` | used by every screen |
 | 11 | Session: `GET /api/v1/me` on start; Login button navigates to `/api/v1/auth/login?returnUrl=<current path>`; Logout navigates to `/api/v1/auth/logout`; Admin check on `roles` | `frontend/src/App.tsx`, `frontend/src/session.tsx` | login and logout work in the browser |
 | 12 | Screens from the table above | `frontend/src/pages/*` | every call in the table works |
-| 13 | Dockerfile: stage `ui` on pinned `node:22.x-alpine` copies `frontend/package*.json`, `npm ci`, copies the rest, `npm run build`; final stage `COPY --from=ui /ui/dist /app/wwwroot`. `.dockerignore` excludes `**/node_modules`, `frontend/dist`, `frontend/.vite` | `backend/SiteSense.Api/Dockerfile`, `.dockerignore` | `docker compose up --build` serves the UI on 8080 |
-| 14 | Docs: README (open the UI, `npm run dev`), AI_LOG entry | `README.md`, `AI_LOG.md` | reviewer can follow the README alone |
+| 13 | `frontend/Dockerfile` (pinned `node:22.21.1-alpine` build, pinned `nginx:1.29.3-alpine` runtime), `frontend/nginx.conf` (SPA `try_files`, proxy of `/api`, `/signin-oidc`, `/signout-callback-oidc` to `http://api:8080` with `Host` kept, `client_max_body_size 20m`), compose service `ui` on `3000:3000` after `api` is healthy | `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/.dockerignore`, `docker-compose.yml` | `docker compose up --build` serves the UI on 3000 |
+| 14 | Docs: README (open the UI on :3000, `npm run dev`), AI_LOG entry | `README.md`, `AI_LOG.md` | reviewer can follow the README alone |
 
 ## Risks
 
@@ -135,7 +144,7 @@ GET /api/v1/sites
 | OIDC correlation cookie dropped on plain HTTP (`SameSite=None` needs `Secure`) | login fails with "Correlation failed" | correlation and nonce cookies set to `Lax` + `SameAsRequest` (step 3) |
 | Cookie auth changes the default scheme for every endpoint | gateway or verify script breaks | Bearer still selected by header; all existing Bearer tests must pass |
 | API 401 becomes a 302 to Keycloak | `fetch` follows a redirect into HTML | cookie events return 401/403; challenge only in `AuthController` |
-| SPA fallback answers unknown API paths with HTML | API errors look like 200 | regex fallback; test in step 7 |
+| nginx forwards a different `Host` | OIDC redirect URI not in the realm, login fails | `proxy_set_header Host $http_host`; realm lists :3000 and :5173 |
 | Open redirect via `returnUrl` | phishing link via our domain | only local URLs accepted |
 | Data Protection keys in memory | API restart logs users out | accepted for a demo; KNOWN_ISSUES |
 
@@ -147,7 +156,7 @@ GET /api/v1/sites
   `Login_ExternalReturnUrl_FallsBackToRoot`, `Cookie_WithCsrfHeader_IsAuthenticated`,
   `Cookie_WithoutCsrfHeader_Returns403`, `NoCredentials_Returns401NotRedirect`,
   `Cookie_OtherTenant_Returns404` (isolation holds for cookie users too).
-- `StaticFilesTests`: `/api/v1/nope` returns 404 ProblemDetails (not HTML); `GET /` returns HTML with a stub `index.html` in a temp web root (`UseWebRoot`).
+- HTTP checks on the `ui` container: `/` and `/sites/x` return the app, `/assets/*.js` returns JavaScript, `/api/v1/me` returns 401, `/api/v1/auth/login` redirects to Keycloak and Keycloak accepts the `:3000` redirect URI.
 - Browser check: login `admin-a` on Keycloak and back, create the site from `data/`, upload the `data/` map (200), upload a broken map (422 table), register and delete a device, log in as `admin-b` and see none of the `tenant-a` sites, `viewer-a` sees "Admin role required", logout returns to the app. Screenshots in the FE PR.
 - No frontend unit tests (demo UI; the logic is in the API).
 
@@ -157,7 +166,7 @@ GET /api/v1/sites
 |---|---|---|---|
 | 1 | Who talks to Keycloak | API as BFF (redirect, tokens stay in the API, cookie to the UI) / SPA with PKCE / API password proxy | BFF (user, 2026-11-26) |
 | 2 | BFF client type | Public client + PKCE, no secret in the repo / confidential client with a secret | Public + PKCE (user, 2026-11-26) |
-| 3 | Hosting | Served by the API from `wwwroot` / separate nginx container | API `wwwroot` (user, 2026-11-26) |
+| 3 | Hosting | Separate nginx container that proxies the API (one origin) / served by the API from `wwwroot` / nginx + CORS | Separate nginx + proxy (user review, 2026-11-26; was API `wwwroot`) |
 | 4 | Missing list endpoints | Add `GET /api/v1/sites` (device list exists) / ids typed by hand | Add list (user, 2026-11-26) |
 | 5 | First version scope | Sites, map, devices / plus test clock | Sites, map, devices (user, 2026-11-26) |
 
@@ -168,3 +177,5 @@ GET /api/v1/sites
 | 2026-11-26 | First draft | User asked for a minimal React + shadcn admin UI |
 | 2026-11-26 | Keycloak client details, regex SPA fallback with AllowAnonymous, stub web root test, Vite proxy, `.dockerignore`, pinned node, skill updates | Sonnet validation findings 1–15 |
 | 2026-11-26 | Login moved to the API (BFF, cookie + CSRF header, public client with PKCE); stack is plan → BE → FE; status Approved | User review: "the web app looks only at the API" |
+| 2026-11-26 | Only the `openid` scope is requested | Browser check: Keycloak refused the unknown `profile` scope (500 on login) |
+| 2026-11-26 | UI moved out of the API into its own nginx container on :3000; API static files and SPA fallback dropped | User review: keep the UI separate from the C# project |
