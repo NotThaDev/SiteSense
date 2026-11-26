@@ -363,3 +363,33 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: the endpoint is not in the API contract; it lets the Admin read back what was registered. Viewer never sees device ids (PRV-03). Widening it to Safety later is a one-line policy change.
 - Requirement IDs: API-01, PRV-03
 - Status: Accepted
+
+## Q86 — Who may list the sites of a tenant (`GET /api/v1/sites`)?
+- Assumption: Admin only (`CanManage`), sorted by `siteId`, no paging until SS-11.
+- Why: the endpoint is not in the API contract; it serves the admin UI. Same rule as the device list (Q85).
+- Requirement IDs: API-01, API-04
+- Status: Accepted
+
+## Q87 — How does the admin UI log in?
+- Assumption: the API is a Backend for Frontend: `GET /api/v1/auth/login` redirects to Keycloak, the API swaps the code for tokens with PKCE (public client `sitesense-ui`, no secret), and gives the browser an encrypted `HttpOnly`, `SameSite=Lax` cookie. Tokens never reach JavaScript.
+- Why: the web app talks only to the API (user decision); a public client keeps secrets out of the repository (NF-04).
+- Requirement IDs: IDN-01, NF-04
+- Status: Accepted
+
+## Q88 — How are cookie calls protected against CSRF?
+- Assumption: every `/api` call authenticated by the cookie must send `X-CSRF: 1`, else `403`. Login and logout (`GET /api/v1/auth/*`, browser navigation) are exempt. Bearer callers (gateways, verify script) are unchanged.
+- Why: another site can make the browser send the cookie, but not a custom header without a CORS preflight, which the API never allows.
+- Requirement IDs: IDN-01
+- Status: Accepted
+
+## Q89 — Where does the admin UI run?
+- Assumption: the Vite build is copied into the API image as `wwwroot/` and served on `http://localhost:8080/`. No separate container, no CORS.
+- Why: `docker compose up` stays one step (NF-01) and the same origin removes CORS.
+- Requirement IDs: NF-01, API-06
+- Status: Accepted
+
+## Q90 — What does the first admin UI cover?
+- Assumption: Admin screens for sites (list, create, edit), map upload with the 422 errors per element, and devices (list, register, delete). No Safety or Viewer screens, no map view, no test clock.
+- Why: these are the endpoints that exist today; the rest waits for the stories that add them.
+- Requirement IDs: API-01
+- Status: Accepted
