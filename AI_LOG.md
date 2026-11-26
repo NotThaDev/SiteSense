@@ -49,3 +49,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-14 with the plan / validate / approve / implement / verify workflow, stacked on SS-7 and SS-43.
 - AI produced: plan (Opus), plan review (Sonnet), `Site` model, DTOs, `SitesController`, `.http` file and tests (Haiku), docs (Opus).
 - Corrected or discarded: the Sonnet review added the invalid-id guard (the store throws on bad names → 500), action names without `Async` for `CreatedAtAction`, the shared test collection with unique site ids, and more 400 rows. The owner chose Q81 (GET for all roles) and Q82 (full validation), and settled Q43 after one iteration: POST creates (409), PUT updates with the version check.
+
+## 2026-11-26 — SS-2: Test mode and simulated clock
+- Goal: `SITESENSE_TEST_MODE` gates `/api/v1/test/*` (404 when off, Admin when on); `PUT /api/v1/test/clock` sets the clock read through `SiteSenseContext.Time`.
+- Prompt (summary): implement SS-2 with the plan / validate / approve / implement / verify workflow; drain and jobs endpoints are later stories.
+- AI produced: plan (Opus), plan review (Sonnet), gate middleware, `TestMode` policy, `FrozenTimeProvider`, `TestController`, tests and docs (Opus; small change, written directly).
+- Corrected or discarded: the Sonnet review moved the flag from a static to a local (each test host re-runs `Program.cs`), asked for segment matching (no match on `/api/v1/testing`), a `[Range]` DTO, a flag pinned off in the test factory and a startup warning. Hiding the endpoint from OpenAPI when off was not taken. The owner chose Q38 (global, frozen) and 404 for every caller when off.

@@ -1,8 +1,8 @@
 # SS-2 — Test mode and simulated clock
 
-- Status: In review
+- Status: Approved
 - Issue: #41
-- Plan PR: #TBD-plan   Implementation PRs: #TBD-impl
+- Plan PR: #79   Implementation PRs: #TBD-impl
 
 ## Problem
 An evaluator must check time logic (silent devices, retention, event timestamps) without waiting in real time.
