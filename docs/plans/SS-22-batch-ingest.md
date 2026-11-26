@@ -2,7 +2,7 @@
 
 - Status: Draft
 - Issue: #100
-- Plan PR: #TBD-on-open   Implementation PRs: (after approval)
+- Plan PR: #101   Implementation PRs: (after approval)
 
 ## Problem
 
