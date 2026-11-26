@@ -68,4 +68,23 @@ public sealed class OpenApiTests : IClassFixture<ApiFactory>
         Assert.True(paths.TryGetProperty("/api/v1/sites/{siteId}", out _));
         Assert.True(paths.GetProperty("/api/v1/sites/{siteId}/devices").TryGetProperty("get", out _));
     }
+
+    [Fact]
+    public async Task GetOpenApi_Positions_ListsResponseCodes()
+    {
+        // Arrange
+        // Act
+        var body = await _client.GetStringAsync("/openapi/v1.json");
+
+        // Assert
+        using var doc = JsonDocument.Parse(body);
+        var responses = doc.RootElement.GetProperty("paths").GetProperty("/api/v1/positions")
+            .GetProperty("post").GetProperty("responses");
+        var codes = responses.EnumerateObject().Select(p => p.Name).ToArray();
+        Assert.Contains("202", codes);
+        Assert.Contains("400", codes);
+        Assert.Contains("401", codes);
+        Assert.Contains("403", codes);
+        Assert.Contains("404", codes);
+    }
 }
