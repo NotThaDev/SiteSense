@@ -188,7 +188,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - One file per type (e.g. `devices.json`): every save rewrites all documents of the type and serializes all writers.
   - Keeping every version (`<id>.v<n>.json`): more files and a cleanup job, for no requirement.
 - Requirement IDs: JDB-01, JDB-02, JDB-07
-- Status: Accepted (documents). Positions: decided in SS-12.
+- Status: Accepted (documents). Positions: see Q83 and docs/adr/0001-position-storage.md.
 
 ## Q75 — One persistence interface or two?
 - Assumption: two. `IDocumentStore` for documents (read, replace whole, version) and, from SS-12, a separate interface for append-only records (positions, track points, events). One component still writes to disk.
@@ -362,6 +362,22 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Assumption: Admin only (`CanManage`), the role that registers devices. A device registered on another site of the tenant answers `404`.
 - Why: the endpoint is not in the API contract; it lets the Admin read back what was registered. Viewer never sees device ids (PRV-03). Widening it to Safety later is a one-line policy change.
 - Requirement IDs: API-01, PRV-03
+
+## Q16 — Are raw positions and the filtered track stored apart?
+- Assumption: yes. One append log per record type: raw positions in `Position/` now, the filtered track in `TrackPoint/` later. Both fall under the same retention rules.
+- Why: raw positions are kept as received, for audit and replay; the filtered track is derived and can be recomputed. Mixing them would make one log hold two meanings.
+- Alternatives rejected:
+  - Store only the filtered track: a filter change would lose the raw input it needs.
+- Requirement IDs: JDB-06, JDB-09
+- Status: Accepted
+
+## Q83 — How are positions stored?
+- Assumption: in JSON lines, one file per tenant, device and UTC hour: `<root>/<tenantId>/Position/<deviceId>/<yyyy-MM-ddTHH>.jsonl`. A late position goes to the file of its own hour. Each append writes all its lines and fsyncs each touched file before it returns. A missing final newline is written first before an append, so a torn line is kept on its own line and never rewritten. On read, only newline-terminated lines count, and lines that do not parse are skipped. One lock per device log (tenant, type and key), held until restart. Records with equal timestamps keep append order.
+- Why: a one-hour read touches at most two files and about 7,200 lines, which fits the 200 ms target. A kill can only tear the line being written, and the reader never returns a half record. One lock per device keeps the lock count equal to the number of devices.
+- Alternatives rejected:
+  - Day files per device: a one-hour read would parse up to 86,400 lines.
+  - One file per position: 60,000 files in 10 minutes.
+- Requirement IDs: JDB-06, JDB-02, JDB-07
 - Status: Accepted
 
 ## Q18 — Within `connectToleranceM`: endpoint to endpoint only, or also endpoint to the middle of another path?

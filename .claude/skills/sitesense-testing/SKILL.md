@@ -56,6 +56,11 @@ Not required by NF-02, but they cover what the evaluation weighs most: correctne
 4. Assert: every document parses, and each document version is consistent with its content.
 5. Assert: no temp files are left as live documents.
 
+Append log variant:
+- The child (`append` mode) prints the last counter after each returned append.
+- After the kills, every printed counter must be read back, and every returned record must be whole.
+- A torn line is also tested deterministically: cut a file mid-line by hand, then check the reader skips it.
+
 ## 4. Store concurrency test
 
 1. Create one document at version 1.
