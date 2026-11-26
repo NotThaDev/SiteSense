@@ -12,7 +12,6 @@ public sealed class Site : IDocument
     public long Version { get; set; }
     public required string Name { get; init; }
     public required string TimeZone { get; init; }
-    public required string MapFile { get; init; }
     public required NavigationSettings Navigation { get; init; }
 
     // Null when the site already exists in this tenant (Q43): the store's version check runs under its per-document lock.

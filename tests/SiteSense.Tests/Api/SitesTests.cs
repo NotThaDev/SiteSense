@@ -344,7 +344,7 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
         Assert.Equal(id, root.GetProperty("siteId").GetString());
         Assert.Equal("Cittadella Universitaria", root.GetProperty("name").GetString());
         Assert.Equal("Europe/Rome", root.GetProperty("timeZone").GetString());
-        Assert.Equal("map.geojson", root.GetProperty("mapFile").GetString());
+        Assert.False(root.TryGetProperty("mapFile", out _));
         Assert.Equal(1.3, nav.GetProperty("walkingSpeedMps").GetDouble());
         Assert.Equal(0.8, nav.GetProperty("unpavedSpeedFactor").GetDouble());
         Assert.Equal(0.5, nav.GetProperty("stepsSpeedFactor").GetDouble());
@@ -428,6 +428,61 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
 
         // Assert
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_WithoutMapFile_Returns201()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var site = ValidSiteNode(NewId());
+        site.AsObject().Remove("mapFile");
+
+        // Act
+        var response = await client.PostAsync("/api/v1/sites", Json(site.ToJsonString()));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_WithMapFile_IsAcceptedAndIgnored()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var site = ValidSiteNode(NewId());
+        site["mapFile"] = "map.geojson";
+
+        // Act
+        var response = await client.PostAsync("/api/v1/sites", Json(site.ToJsonString()));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.False(body.RootElement.TryGetProperty("mapFile", out _));
+    }
+
+    [Fact]
+    public async Task Get_StoredSiteWithMapFile_StillLoads()
+    {
+        // Arrange: a site document written by an older version still has "mapFile".
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var id = NewId();
+        var folder = Path.Combine(_factory.StoreRoot, "tenant-a", "Site");
+        Directory.CreateDirectory(folder);
+        var stored = ValidSiteNode(id);
+        stored["id"] = id;
+        stored["tenantId"] = "tenant-a";
+        stored["version"] = 1;
+        stored["mapFile"] = "map.geojson";
+        stored.AsObject().Remove("siteId");
+        await File.WriteAllTextAsync(Path.Combine(folder, id + ".json"), stored.ToJsonString());
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/sites/{id}");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     private static string NewId() => $"site-{Guid.NewGuid():N}";
