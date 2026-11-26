@@ -57,12 +57,13 @@ sequenceDiagram
   participant G as gateway-a
   participant K as Keycloak
   participant A as API
+  participant U as admin-a
   G->>K: client_credentials (gateway-a / gateway-secret-a)
-  K-->>G: token: tenant_id=tenant-a, scope=positions:write
+  K-->>G: token with tenant_id tenant-a and scope positions:write
   G->>A: POST /api/v1/positions, Bearer
-  A-->>G: 501 (guard passed; ingestion is SS-22)
-  Note over A: admin-a token, no positions:write scope
-  A-->>A: CanWritePositions fails → 403 ProblemDetails
+  A-->>G: 501, guard passed, ingestion comes in SS-22
+  U->>A: POST /api/v1/positions, Bearer without the scope
+  A-->>U: 403 ProblemDetails, CanWritePositions fails
 ```
 
 Example live check (compose running):
