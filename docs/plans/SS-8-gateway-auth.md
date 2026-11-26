@@ -1,6 +1,6 @@
 # SS-8 — Gateway authentication
 
-- Status: In review
+- Status: Approved
 - Issue: #40
 - Plan PR: #72   Implementation PRs: #TBD
 - Requirement IDs: IDN-05
