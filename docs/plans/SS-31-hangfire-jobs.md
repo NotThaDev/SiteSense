@@ -1,8 +1,8 @@
 # SS-31 — Hangfire and idempotent jobs
 
-- Status: Draft
+- Status: In review
 - Issue: #92
-- Plan PR: #<n>   Implementation PRs: #<n>
+- Plan PR: #97   Implementation PRs: #<n>
 
 ## Problem
 SiteSense must run periodic checks: silent devices (SS-30), position retention (SS-32) and crowding anomalies (SS-33).
