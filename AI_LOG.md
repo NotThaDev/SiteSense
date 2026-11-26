@@ -74,8 +74,14 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), `Device` model, DTOs, `DevicesController`, docs (Haiku), tests (Sonnet).
 - Corrected or discarded: the review found that `KNOWN_ISSUES.md` did not exist yet, that the PRV-01 test needed the test store root, and that the GET policy options must map to existing policies. The owner chose Q13 (unique per tenant, because devices send no `siteId`), 409 on any reuse, a GET endpoint, and Q85 (`CanManage`).
 
+## 2026-11-26 — SS-12: Position log
+- Goal: an append-only log for positions with no lost acknowledged record and fast one-hour reads, next to the document store.
+- Prompt (summary): plan SS-12 with the plan / validate / approve / implement / verify workflow.
+- AI produced: plan (Opus), plan review (Sonnet), `FileAppendLog`, `Position`, tests (Haiku), ADR 0001, docs (Opus).
+- Corrected or discarded: the review made reads use newline-terminated lines only, added input checks and load tests. The owner changed day files to hour files and chose one lock per device log.
+
 ## 2026-11-24 — SS-4: Structured logs with correlation id
 - Goal: JSON console logs, and a correlation id that is read from or added to `X-Correlation-Id`, sits in the log scope, and can travel to the ingest queue and SignalR events (NF-03).
 - Prompt (summary): implement issue SS-4 with the plan / validate / approve / implement / verify workflow.
-- AI produced: plan (Opus), plan review (Sonnet), `Diagnostics/Correlation.cs`, `Diagnostics/Correlated.cs`, `Program.cs` wiring, 4 tests (Haiku), docs and Q83–Q84 (Opus), verify run (Haiku).
+- AI produced: plan (Opus), plan review (Sonnet), `Diagnostics/Correlation.cs`, `Diagnostics/Correlated.cs`, `Program.cs` wiring, 4 tests (Haiku), docs and Q86–Q87 (Opus), verify run (Haiku).
 - Corrected or discarded: the review removed setting `TraceIdentifier` (ProblemDetails uses the Activity id) and added the known limit that hosting lines stay outside the scope. The owner chose the `Diagnostics/` folder and the `Correlated<T>` carrier. The Q numbers moved twice to avoid clashes with SS-1 and SS-3.

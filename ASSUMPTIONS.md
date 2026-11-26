@@ -187,7 +187,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - One file per type (e.g. `devices.json`): every save rewrites all documents of the type and serializes all writers.
   - Keeping every version (`<id>.v<n>.json`): more files and a cleanup job, for no requirement.
 - Requirement IDs: JDB-01, JDB-02, JDB-07
-- Status: Accepted (documents). Positions: decided in SS-12.
+- Status: Accepted (documents). Positions: see Q83 and docs/adr/0001-position-storage.md.
 
 ## Q75 — One persistence interface or two?
 - Assumption: two. `IDocumentStore` for documents (read, replace whole, version) and, from SS-12, a separate interface for append-only records (positions, track points, events). One component still writes to disk.
@@ -330,25 +330,6 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - ProjNet with UTM: precise over large areas, but adds a dependency to Domain and needs handling for sites that cross a UTM zone border.
 - Requirement IDs: MAP-02
 
-## Q83 — Where does the correlation id code live?
-- Assumption: in a new `SiteSense.Api/Diagnostics/` folder: `Correlation.cs` (header name, middleware, log scope helper) and `Correlated.cs` (the carrier, Q84).
-- Why: `Helpers/` holds only `SiteSenseContext`, and keeping the middleware out of `Program.cs` keeps that file short.
-- Alternatives rejected:
-  - `Middleware/`: the carrier and the scope helper are not middleware.
-  - Inline in `Program.cs`: harder to test and a busy shared file.
-- Requirement IDs: NF-03
-- Status: Accepted
-
-## Q84 — How does the correlation id leave the HTTP request?
-- Assumption: the request reads `X-Correlation-Id` (1–64 chars of `[A-Za-z0-9-_.]`, otherwise a new id is generated), returns it in the response header and opens a log scope with it. Work that runs outside the request (ingest queue, SignalR events) carries it in `Correlated<T>(CorrelationId, Payload)` and reopens the scope with `Correlation.BeginScope`.
-- Why: one generic envelope keeps the payload types clean; the scope gives the id to every log line without passing it by hand.
-- Alternatives rejected:
-  - A `CorrelationId` field on every queue item and event: the same field repeated in many types.
-- Known limits:
-  - The ASP.NET Core hosting lines ("Request starting", "Request finished") are written outside the scope.
-- Requirement IDs: NF-03
-- Status: Accepted
-
 ## Q12 — A batch has positions for a device unknown in the gateway's tenant. What happens?
 - Assumption: `202`. Those positions are dropped, the response returns how many were dropped, and the drop is logged without coordinates. Implemented with batch ingestion (SS-22).
 - Why: the owner chose it. One unknown device must not block the rest of the batch, and a device of another tenant is treated as unknown, so nothing leaks across tenants.
@@ -378,4 +359,39 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Assumption: Admin only (`CanManage`), the role that registers devices. A device registered on another site of the tenant answers `404`.
 - Why: the endpoint is not in the API contract; it lets the Admin read back what was registered. Viewer never sees device ids (PRV-03). Widening it to Safety later is a one-line policy change.
 - Requirement IDs: API-01, PRV-03
+
+## Q16 — Are raw positions and the filtered track stored apart?
+- Assumption: yes. One append log per record type: raw positions in `Position/` now, the filtered track in `TrackPoint/` later. Both fall under the same retention rules.
+- Why: raw positions are kept as received, for audit and replay; the filtered track is derived and can be recomputed. Mixing them would make one log hold two meanings.
+- Alternatives rejected:
+  - Store only the filtered track: a filter change would lose the raw input it needs.
+- Requirement IDs: JDB-06, JDB-09
+- Status: Accepted
+
+## Q83 — How are positions stored?
+- Assumption: in JSON lines, one file per tenant, device and UTC hour: `<root>/<tenantId>/Position/<deviceId>/<yyyy-MM-ddTHH>.jsonl`. A late position goes to the file of its own hour. Each append writes all its lines and fsyncs each touched file before it returns. A missing final newline is written first before an append, so a torn line is kept on its own line and never rewritten. On read, only newline-terminated lines count, and lines that do not parse are skipped. One lock per device log (tenant, type and key), held until restart. Records with equal timestamps keep append order.
+- Why: a one-hour read touches at most two files and about 7,200 lines, which fits the 200 ms target. A kill can only tear the line being written, and the reader never returns a half record. One lock per device keeps the lock count equal to the number of devices.
+- Alternatives rejected:
+  - Day files per device: a one-hour read would parse up to 86,400 lines.
+  - One file per position: 60,000 files in 10 minutes.
+- Requirement IDs: JDB-06, JDB-02, JDB-07
+- Status: Accepted
+
+## Q86 — Where does the correlation id code live?
+- Assumption: in a new `SiteSense.Api/Diagnostics/` folder: `Correlation.cs` (header name, middleware, log scope helper) and `Correlated.cs` (the carrier, Q87).
+- Why: `Helpers/` holds only `SiteSenseContext`, and keeping the middleware out of `Program.cs` keeps that file short.
+- Alternatives rejected:
+  - `Middleware/`: the carrier and the scope helper are not middleware.
+  - Inline in `Program.cs`: harder to test and a busy shared file.
+- Requirement IDs: NF-03
+- Status: Accepted
+
+## Q87 — How does the correlation id leave the HTTP request?
+- Assumption: the request reads `X-Correlation-Id` (1–64 chars of `[A-Za-z0-9-_.]`, otherwise a new id is generated), returns it in the response header and opens a log scope with it. Work that runs outside the request (ingest queue, SignalR events) carries it in `Correlated<T>(CorrelationId, Payload)` and reopens the scope with `Correlation.BeginScope`.
+- Why: one generic envelope keeps the payload types clean; the scope gives the id to every log line without passing it by hand.
+- Alternatives rejected:
+  - A `CorrelationId` field on every queue item and event: the same field repeated in many types.
+- Known limits:
+  - The ASP.NET Core hosting lines ("Request starting", "Request finished") are written outside the scope.
+- Requirement IDs: NF-03
 - Status: Accepted
