@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
 
 namespace SiteSense.Tests.Api.Auth;
@@ -23,10 +24,10 @@ public sealed class GatewayAuthTests : IClassFixture<ApiFactory>
         client.WithToken(TestTokens.Create(tenant, scope: "positions:write"));
 
         // Act
-        var response = await client.PostAsync("/api/v1/positions", null);
+        var response = await client.PostAsync("/api/v1/positions", new StringContent("{}", Encoding.UTF8, "application/json"));
 
         // Assert
-        await AssertProblemAsync(response, HttpStatusCode.NotImplemented);
+        await AssertProblemAsync(response, HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -37,10 +38,10 @@ public sealed class GatewayAuthTests : IClassFixture<ApiFactory>
         client.WithToken(TestTokens.Create("tenant-a", ["Admin"], scope: "positions:write"));
 
         // Act
-        var response = await client.PostAsync("/api/v1/positions", null);
+        var response = await client.PostAsync("/api/v1/positions", new StringContent("{}", Encoding.UTF8, "application/json"));
 
         // Assert
-        await AssertProblemAsync(response, HttpStatusCode.NotImplemented);
+        await AssertProblemAsync(response, HttpStatusCode.BadRequest);
     }
 
     [Theory]

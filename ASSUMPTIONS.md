@@ -339,6 +339,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - `422` for the whole batch: one bad device id would make the gateway resend thousands of valid positions.
 - Requirement IDs: IDN-05, TRK-01
+- Status: Changed — superseded by Q60 (a batch has one deviceId, so an unknown device means the whole batch: 404, nothing stored).
 
 ## Q38 — How does the simulated clock of test mode behave?
 - Assumption: `PUT /api/v1/test/clock` `{ "nowMs" }` (Admin, test mode on) replaces `SiteSenseContext.Time` with one global clock for the whole process, all tenants included. It stays frozen at `nowMs` until the next `PUT` and answers `204`. Only the current time is frozen: timers, `GetTimestamp` and delays keep real time, and JWT lifetime checks keep real time so real tokens stay valid. With `SITESENSE_TEST_MODE` off (the default), every path under `/api/v1/test` answers `404` to every caller, with or without a token, before authentication runs. Code must read `SiteSenseContext.Time` on each call, never keep it in a field.
@@ -378,6 +379,18 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Day files per device: a one-hour read would parse up to 86,400 lines.
   - One file per position: 60,000 files in 10 minutes.
 - Requirement IDs: JDB-06, JDB-02, JDB-07
+- Status: Accepted
+
+## Q05 — When does the API accept a position batch, and what does "accepted" mean?
+- Assumption: `202` only after the new positions are appended to the raw position log and fsynced. Positions outside the site perimeter are dropped in memory before any write, never stored and never logged with coordinates; a point on the perimeter boundary is kept. A device whose site has no map or no perimeter gets `202` with every position dropped. The same device and timestamp is stored once: the first stored wins, later copies (in the same batch or a retry) count as duplicates. The check and the write run under the log's per-device lock, so concurrent retries cannot both write. The `202` body is `{ received, stored, duplicates, outsidePerimeter }`. A crash between two hour files of one batch leaves part of it on disk with no `202`; the gateway's retry completes it (at least once). The raw log is the hand-off to processing: ordered processing, drain and restart replay belong to SS-23.
+- Why: a retry must have no side effect, and an accepted position must survive a restart.
+- Requirement IDs: TRK-01, API-02, PRV-02, NF-05
+- Status: Accepted
+
+## Q44 — How is a position batch validated?
+- Assumption: a structurally invalid batch is rejected with `400` and nothing is stored: missing field, empty `positions`, more than 5,000 positions, `lat` outside [-90, 90], `lon` outside [-180, 180], `accuracyM` below 0, `timestampMs` below 0 or after year 9999. One bad position rejects the whole batch. Error messages name the field, never the rejected value. A future timestamp is not rejected here: plausibility is the filters' job.
+- Why: a structural error is a gateway bug to fix, and dropping silently would hide it; no coordinates in responses (Q62).
+- Requirement IDs: API-02, API-05, TRK-01
 - Status: Accepted
 
 ## Q18 — Within `connectToleranceM`: endpoint to endpoint only, or also endpoint to the middle of another path?

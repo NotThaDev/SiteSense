@@ -255,6 +255,109 @@ public sealed class FileAppendLogTests(ITestOutputHelper output) : IDisposable
         Assert.All(lines, l => Assert.NotNull(JsonSerializer.Deserialize<Position>(l, options)));
     }
 
+    [Fact]
+    public async Task AppendNewAsync_SameBatchTwice_StoresOnce()
+    {
+        var log = new FileAppendLog(_root);
+        Position[] batch = [P(T0 + 1000), P(T0 + 2000), P(T0 + 3000)];
+
+        var first = await log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+        var second = await log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+
+        var read = await Read(T0, T0 + Hour, log: log);
+        Assert.Equal(3, first);
+        Assert.Equal(0, second);
+        Assert.Equal(3, read.Count);
+    }
+
+    [Fact]
+    public async Task AppendNewAsync_RepeatedTimestampInBatch_KeepsFirst()
+    {
+        Position[] batch = [P(T0 + 1000, lat: 45.1), P(T0 + 1000, lat: 45.2)];
+
+        var written = await new FileAppendLog(_root).AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+
+        var read = await Read(T0, T0 + Hour);
+        Assert.Equal(1, written);
+        Assert.Equal(45.1, Assert.Single(read).Lat);
+    }
+
+    [Fact]
+    public async Task AppendNewAsync_BatchAcrossHours_SkipsOnlyStored()
+    {
+        await Append([P(T0 + 1000)]);
+        Position[] batch = [P(T0 + 1000), P(T0 + Hour + 1000)];
+
+        var written = await new FileAppendLog(_root).AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+
+        var read = await Read(T0, T0 + 2 * Hour);
+        Assert.Equal(1, written);
+        Assert.Equal(2, read.Count);
+    }
+
+    [Fact]
+    public async Task AppendNewAsync_HourBoundary_SplitsFiles()
+    {
+        Position[] batch = [P(T0 + Hour - 1), P(T0 + Hour)];
+
+        var written = await new FileAppendLog(_root).AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+
+        Assert.Equal(2, Files().Length);
+        Assert.Equal(2, written);
+    }
+
+    [Fact]
+    public async Task AppendNewAsync_AfterTornLine_RewritesTornRecord()
+    {
+        var log = new FileAppendLog(_root);
+        Position[] batch = [P(T0 + 1000), P(T0 + 2000)];
+        await log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+        CutTail(Assert.Single(Files()), 10);
+
+        var written = await log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+
+        var read = await Read(T0, T0 + Hour, log: log);
+        Assert.Equal(1, written);
+        Assert.Equal([T0 + 1000, T0 + 2000], read.Select(r => r.TimestampMs));
+    }
+
+    [Fact]
+    public async Task AppendNewAsync_LastLineWithoutNewline_CountsAsStoredAndEndsIt()
+    {
+        var log = new FileAppendLog(_root);
+        Position[] batch = [P(T0 + 1000), P(T0 + 2000)];
+        await log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+        CutTail(Assert.Single(Files()), 1);
+
+        var written = await log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None);
+
+        var read = await Read(T0, T0 + Hour, log: log);
+        Assert.Equal(0, written);
+        Assert.Equal([T0 + 1000, T0 + 2000], read.Select(r => r.TimestampMs));
+    }
+
+    [Fact]
+    public async Task AppendNewAsync_ConcurrentIdenticalBatches_StoresOnce()
+    {
+        var log = new FileAppendLog(_root);
+        var batch = Enumerable.Range(0, 100).Select(i => P(T0 + i)).ToList();
+
+        var results = await Task.WhenAll(Enumerable.Range(0, 8)
+            .Select(_ => Task.Run(() => log.AppendNewAsync(Tenant, Key, batch, CancellationToken.None))));
+
+        var read = await Read(T0, T0 + Hour, log: log);
+        Assert.Equal(100, results.Sum());
+        Assert.Equal(100, read.Count);
+        Assert.Equal(100, read.Select(r => r.TimestampMs).Distinct().Count());
+    }
+
+    // Removes the last n bytes of the file.
+    private static void CutTail(string path, int n)
+    {
+        var all = File.ReadAllBytes(path);
+        File.WriteAllBytes(path, all[..^n]);
+    }
+
     // Cuts the last line of the file in half.
     private static void Tear(string path)
     {

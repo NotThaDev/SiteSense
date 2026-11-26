@@ -15,6 +15,12 @@ Known limits and what to do with more time.
 - No cursor paging (SS-11, issue #43, is postponed). A read returns all records in the time range, so a large range returns a large list. With more time: add a cursor to `ReadRangeAsync` when SS-11 (#43) is picked up.
 - No retention yet. Position files grow without limit. With more time: delete whole hour files older than the retention period in SS-32.
 
+## SS-22 — Batch ingest
+- Each batch re-reads the hour files it touches to find stored timestamps (up to ~3,600 lines per file). With more time, keep an in-memory set of timestamps per open hour file, if the JDB-09 benchmark shows the cost.
+- Each batch reads and parses the whole site map to find the perimeter. With more time, cache the projected perimeter by map version.
+- The per-device lock is held during reads and fsyncs: one slow batch delays the next batch of the same device (other devices are not blocked).
+- A map change does not re-check positions already stored under the old perimeter.
+
 ## SS-17 — Route graph
 - A path end that touches the middle of another path without a shared vertex is not joined (Q18): only endpoint pairs closer than `connectToleranceM` get a connector.
 - Two vertices less than 1 cm apart can stay separate nodes if they fall on each side of a 1 cm grid line (Q19); identical coordinates always join.
