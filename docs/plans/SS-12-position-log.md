@@ -2,7 +2,7 @@
 
 - Status: Draft
 - Issue: #83
-- Plan PR: #<n>   Implementation PRs: #<n>
+- Plan PR: #84   Implementation PRs: (after approval)
 - Requirement IDs: JDB-06 (designed for JDB-02, JDB-07, JDB-09)
 
 ## Problem
