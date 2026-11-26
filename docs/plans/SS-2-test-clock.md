@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #41
-- Plan PR: #79   Implementation PRs: #TBD-impl
+- Plan PR: #79   Implementation PRs: #80
 
 ## Problem
 An evaluator must check time logic (silent devices, retention, event timestamps) without waiting in real time.
