@@ -1,6 +1,6 @@
 # SS-17 — Route graph
 
-- Status: Draft
+- Status: Approved
 - Issue: #94
 - Plan PR: #96   Implementation PRs: —
 - Requirement IDs: MAP-03 (prepares NAV-02, NAV-03)
@@ -45,7 +45,7 @@ below `connectToleranceM`, a short *connector* edge joins them (Q18). Last, each
 |---|---|---|
 | Graph types | `backend/SiteSense.Domain/Navigation/RouteGraph.cs` | Domain (no packages) |
 | Builder | `backend/SiteSense.Domain/Navigation/RouteGraphBuilder.cs` | Domain |
-| Segment vs polygon test | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs` (new methods) | Domain |
+| Segment vs polygon test | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs` (new segment methods; point-in-polygon is SS-22's shared `Locate`) | Domain |
 | Map → builder input | `backend/SiteSense.Api/Models/Map/SiteMap.cs` (new method `BuildRouteGraph`) | Api |
 
 NetTopologySuite is not used: the Domain project has no package reference by rule, and the three geometric tests
@@ -84,8 +84,9 @@ settings (1.3 m/s, 0.8, 0.5): a 10 m unpaved stretch with steps takes 10 / (1.3 
 1. Collect the parameters `t` in [0, 1] where A→B meets any ring edge: crossing points, touching points, and both
    ends of a collinear overlap. Add 0 and 1. Sort and drop duplicates.
 2. For each pair of consecutive `t` values, take the midpoint of that piece.
-3. A midpoint closer than 1e-6 m to any ring edge counts as on the boundary, so not inside. Otherwise use the
-   even-odd rule over all rings (a point inside a hole is outside).
+3. Locate the midpoint with the shared `PlanarGeometry.Locate(p, rings, 1e-6)` added by SS-22 (even-odd rule,
+   ring 0 outer, the rest holes). `OnBoundary` counts as not inside here (SS-22's perimeter check counts it as
+   inside: each caller decides). SS-17 adds no point-in-polygon of its own.
 4. The segment is blocked if any midpoint is inside.
 
 So a segment that only touches or runs along the boundary stays traversable; a segment fully inside, or going from
@@ -132,7 +133,7 @@ connector is missing and the two paths are separate.
 
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | Segment vs polygon interior test | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs`, `tests/SiteSense.Tests/Domain/PlanarGeometryTests.cs` | The `PlanarGeometryTests` listed in "Tests" pass | impl |
+| 1 | Segment vs polygon interior test (uses SS-22's `Locate`; needs SS-22 impl 1 merged into this branch first) | `backend/SiteSense.Domain/Geometry/PlanarGeometry.cs`, `tests/SiteSense.Tests/Domain/PlanarGeometryTests.cs` | The `PlanarGeometryTests` listed in "Tests" pass | impl |
 | 2 | Graph types and builder (nodes, edges, cost, connectors, traversable) | `backend/SiteSense.Domain/Navigation/RouteGraph.cs`, `RouteGraphBuilder.cs` | Builds; Domain csproj still has no reference | impl |
 | 3 | Builder tests | `tests/SiteSense.Tests/Domain/RouteGraphBuilderTests.cs` | The `RouteGraphBuilderTests` listed in "Tests" pass | impl |
 | 4 | Map adapter | `backend/SiteSense.Api/Models/Map/SiteMap.cs` | `BuildRouteGraph` builds from a stored map | impl |
@@ -175,12 +176,12 @@ One implementation PR, stacked on the plan branch: the change is about 300 lines
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| Q18 | Tolerance: endpoint to endpoint only, or also endpoint to the middle of another path (T junction)? | **A. Endpoint to endpoint only**, as the requirement text says; shared vertices cover crossings. B. Also endpoint to segment, splitting the segment. | |
-| Q19 | "Shared vertex": exact coordinates or with a tolerance? | **A. Node key = local x/y rounded to 1 cm.** B. Exact WGS84 equality. C. Merge within any distance < 1 cm (grid with neighbour check, more code). | |
-| Q25 | A stretch that only touches the boundary of a restricted/hazard area: traversable? | **A. Yes: blocked only if it passes through the inside.** B. Blocked on any contact. | |
-| Q21 | Cost factors: slope and width ignored; unpaved and steps factors multiplied when both apply? | **A. Yes, as described in "Edge cost".** B. Use only the smaller factor. | |
-| Q86 | Build once per map version: add the cache now or in SS-19? | **A. In SS-19**, its first user; SS-17 exposes `SiteMap.BuildRouteGraph` only. B. Add an in-memory cache keyed by tenant, site, map version now. | |
-| Q87 | Connector edges and blocked areas: test connectors too? | **A. Yes, same test as other edges.** B. Always traversable (they are under 0.5 m). | |
+| Q18 | Tolerance: endpoint to endpoint only, or also endpoint to the middle of another path (T junction)? | **A. Endpoint to endpoint only**, as the requirement text says; shared vertices cover crossings. B. Also endpoint to segment, splitting the segment. | A (user, 2026-11-26) |
+| Q19 | "Shared vertex": exact coordinates or with a tolerance? | **A. Node key = local x/y rounded to 1 cm.** B. Exact WGS84 equality. C. Merge within any distance < 1 cm (grid with neighbour check, more code). | A (user, 2026-11-26) |
+| Q25 | A stretch that only touches the boundary of a restricted/hazard area: traversable? | **A. Yes: blocked only if it passes through the inside.** B. Blocked on any contact. | A (user, 2026-11-26) |
+| Q21 | Cost factors: slope and width ignored; unpaved and steps factors multiplied when both apply? | **A. Yes, as described in "Edge cost".** B. Use only the smaller factor. | A (user, 2026-11-26) |
+| Q86 | Build once per map version: add the cache now or in SS-19? | **A. In SS-19**, its first user; SS-17 exposes `SiteMap.BuildRouteGraph` only. B. Add an in-memory cache keyed by tenant, site, map version now. | A (user, 2026-11-26) |
+| Q87 | Connector edges and blocked areas: test connectors too? | **A. Yes, same test as other edges.** B. Always traversable (they are under 0.5 m). | A (user, 2026-11-26) |
 
 ## Changelog
 
@@ -188,3 +189,4 @@ One implementation PR, stacked on the plan branch: the change is about 300 lines
 |---|---|---|
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Exact segment/polygon rule, node and connector edge cases, parallel edges kept, projection origin and area types stated, ADR renamed to the skill's name, more tests, sample-map connectivity checked | Sonnet validation |
+| 2026-11-26 | Open questions decided (all recommended options); midpoint test reuses SS-22's shared `PlanarGeometry.Locate` | User approval; SS-22 plan open question 6 (user: one shared point-in-polygon) |
