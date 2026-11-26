@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #83
-- Plan PR: #84   Implementation PRs: (after approval)
+- Plan PR: #84   Implementation PRs: #93
 - Requirement IDs: JDB-06 (designed for JDB-02, JDB-07, JDB-09)
 
 ## Problem
@@ -198,8 +198,8 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 - `ReadRange_NoFile_ReturnsEmpty`
 - `ReadRange_EqualTimestamps_KeepsAppendOrder`
 - `Position_RoundTrip_KeepsAllFields` (camelCase, constructor binding)
-- Load: `Append_SixtyThousandRecords_AllReadBack` (the 10-minute volume: 20 batches of 3,000 and
-  600 of 100; asserts every record, not time)
+- Load: `Append_SixtyThousandRecords_AllReadBack` (the 10-minute volume, two cases: 20 batches of
+  3,000, and 600 batches of 100; asserts every record, not time)
 - `ReadRange_OneHourAtOnePerSecond_PrintsElapsed` (two full hour files, 7,200 records, read 10:30–11:30; prints the time, asserts only
   correctness, so CI timing cannot make it flaky)
 - Concurrency: `Append_ParallelWritersOnOneFile_EveryLineIntact` (8 writers × 200 batches plus one
@@ -236,3 +236,4 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | 2026-11-26 | Hour files instead of day files; old question 9 (200 ms fallback) removed; new question 9 (lock per device log) | User review: reduce the period to one hour |
 | 2026-11-26 | Question 9 decided: one lock per device log | User |
 | 2026-11-26 | Plan approved; questions 6–8 decided as recommended | User |
+| 2026-11-26 | Implementation PR #93; load test split into two cases of 60,000; crash writer takes a start counter (`args[2]`) so runs never reuse timestamps | Implementation |
