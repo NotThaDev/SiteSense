@@ -1,6 +1,6 @@
 # SS-31 — Hangfire and idempotent jobs
 
-- Status: In review
+- Status: Approved
 - Issue: #92
 - Plan PR: #97   Implementation PRs: #<n>
 
@@ -123,16 +123,17 @@ Packages (central versions in `Directory.Packages.props`, Q65):
 ## Open questions
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| 1 | Q52: is the Hangfire dashboard exposed? | **A. Not exposed** (not required; one less surface to secure). B. Only in test mode, Admin. | |
-| 2 | Which job proves the mechanism? | **A. A probe job in the test project only**: production lists no fake job name, the test endpoint answers 404 until SS-30. B. A small production job (e.g. `heartbeat`) that writes a document per site per minute. | |
-| 3 | How are runs fanned out per site? | **A. One recurring job per job name that enqueues one background job per site** (new or deleted sites need no sync). B. One recurring job per job and site, added and removed with the site. | |
-| 4 | Which sites does the test endpoint run? | **A. The caller's tenant only** (tenant isolation). B. Every tenant. | |
-| 5 | What does the test endpoint answer? | **A. `204`**, like `PUT /test/clock`. B. `200` with the number of sites run. | |
-| 6 | Hangfire storage in tests | **A. `Hangfire.InMemory`, picked by `Hangfire:Storage=InMemory` in the test host.** B. No Hangfire in tests (server off, schedule untested). | |
-| 7 | Redis for `dotnet run` on the host | **A. Publish Redis on `127.0.0.1:6379` in compose**, template `localhost:6379`. B. Keep Redis internal; local runs use in-memory storage (two code paths). | |
+| 1 | Q52: is the Hangfire dashboard exposed? | **A. Not exposed** (not required; one less surface to secure). B. Only in test mode, Admin. | A (owner, 2026-11-26) |
+| 2 | Which job proves the mechanism? | **A. A probe job in the test project only**: production lists no fake job name, the test endpoint answers 404 until SS-30. B. A small production job (e.g. `heartbeat`) that writes a document per site per minute. | A (owner, 2026-11-26) |
+| 3 | How are runs fanned out per site? | **A. One recurring job per job name that enqueues one background job per site** (new or deleted sites need no sync). B. One recurring job per job and site, added and removed with the site. | A (owner, 2026-11-26) |
+| 4 | Which sites does the test endpoint run? | **A. The caller's tenant only** (tenant isolation). B. Every tenant. | A (owner, 2026-11-26) |
+| 5 | What does the test endpoint answer? | **A. `204`**, like `PUT /test/clock`. B. `200` with the number of sites run. | A (owner, 2026-11-26) |
+| 6 | Hangfire storage in tests | **A. `Hangfire.InMemory`, picked by `Hangfire:Storage=InMemory` in the test host.** B. No Hangfire in tests (server off, schedule untested). | A (owner, 2026-11-26) |
+| 7 | Redis for `dotnet run` on the host | **A. Publish Redis on `127.0.0.1:6379` in compose**, template `localhost:6379`. B. Keep Redis internal; local runs use in-memory storage (two code paths). | A (owner, 2026-11-26) |
 
 ## Changelog
 | Date | Change | Why (review comment or finding) |
 |---|---|---|
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Storage chosen from config (not swapped in tests), `IRecurringJobManager` after `Build()`, ids joined with `_` (store id regex), concurrent-run test, episode ids and event sending noted, fewer doc files | Sonnet validation |
+| 2026-11-26 | Open questions 1–7 decided: option A for all; status Approved | Owner approval in chat |
