@@ -28,6 +28,9 @@ app.UseExceptionHandler(new ExceptionHandlerOptions
     StatusCodeSelector = ex => ex is ConcurrencyException ? StatusCodes.Status412PreconditionFailed : StatusCodes.Status500InternalServerError,
 });
 app.UseStatusCodePages();
+// The admin UI build is copied into wwwroot; a missing folder only logs a warning.
+app.UseDefaultFiles();
+app.UseStaticFiles();
 // Test mode off: the whole /api/v1/test prefix is 404 for every caller, before authentication can answer 401 (C-7.2a).
 app.Use(async (ctx, next) =>
 {
@@ -71,5 +74,9 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.MapOpenApi().AllowAnonymous();
 app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
+// SPA routes get index.html; API, health, docs and the OIDC callbacks keep their real 404 (Q80: AllowAnonymous, the fallback policy would 401).
+// Only when a UI build exists: without it unknown routes keep answering 401/404/405 as before.
+if (app.Environment.WebRootFileProvider.GetFileInfo("index.html").Exists)
+    app.MapFallbackToFile("{*path:regex(^(?!api/|health|openapi|scalar|signin-oidc|signout-callback-oidc).*$)}", "index.html").AllowAnonymous();
 
 app.Run();
