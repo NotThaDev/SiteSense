@@ -43,4 +43,23 @@ public sealed class DevicesController : ControllerBase
         Response.Headers.ETag = $"\"{device.Version}\"";
         return Ok(DeviceResponse.From(device));
     }
+
+    // Moving a device = DELETE here, then POST on the new site. A device registered on another site is a 404.
+    [HttpDelete("{deviceId}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> Delete(string siteId, string deviceId, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        var tenantId = User.TenantId();
+        var device = await Device.GetAsync(tenantId, deviceId, ct);
+        if (device is null || device.SiteId != siteId)
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "Device not found");
+        // Missing or unreadable If-Match counts as version 0, so the store answers 412 (Q45).
+        var version = long.TryParse(ifMatch?.Trim().Trim('"'), out var v) ? v : 0;
+        if (!await Device.DeleteAsync(tenantId, deviceId, version, ct))
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "Device not found");
+        return NoContent();
+    }
 }

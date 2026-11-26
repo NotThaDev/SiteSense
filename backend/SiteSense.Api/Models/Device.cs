@@ -27,4 +27,8 @@ public sealed class Device : IDocument
     // Null for a missing device, another tenant's device, or an id the store would reject. No siteId needed: batch ingest looks devices up by tenant + deviceId.
     public static Task<Device?> GetAsync(string tenantId, string deviceId, CancellationToken ct) =>
         FileDocumentStore.IsValidName(deviceId) ? SiteSenseContext.Store.GetAsync<Device>(tenantId, deviceId, ct) : Task.FromResult<Device?>(null);
+
+    // expectedVersion must be the stored version (from If-Match), else ConcurrencyException → 412 (Q45). False when missing.
+    public static Task<bool> DeleteAsync(string tenantId, string deviceId, long expectedVersion, CancellationToken ct) =>
+        SiteSenseContext.Store.DeleteAsync<Device>(tenantId, deviceId, expectedVersion, ct);
 }

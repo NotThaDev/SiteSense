@@ -30,3 +30,8 @@ Content-Type: application/json
 ### Read a device (Admin)
 GET {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
 Authorization: Bearer {{token}}
+
+### Delete a device (Admin); If-Match = the ETag from the register or the read
+DELETE {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
+Authorization: Bearer {{token}}
+If-Match: "1"
