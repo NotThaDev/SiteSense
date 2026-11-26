@@ -5,14 +5,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ApiError, api, toastError, type Device, type Site } from '@/api'
 import { SiteForm } from './SiteForm'
 
-function SettingsCard({ siteId }: { siteId: string }) {
-  const [site, setSite] = useState<Site | null>(null)
+function SettingsCard({ siteId, site, setSite }: { siteId: string; site: Site | null; setSite: (s: Site) => void }) {
   const [etag, setEtag] = useState<string | null>(null)
   const [rev, setRev] = useState(0)
   useEffect(() => {
@@ -29,7 +29,7 @@ function SettingsCard({ siteId }: { siteId: string }) {
     <Card>
       <CardHeader><CardTitle>Settings</CardTitle></CardHeader>
       <CardContent>
-        {site && <SiteForm key={rev} initial={site} idEditable={false} submitLabel="Save" onSubmit={save} />}
+        {site && <SiteForm key={rev} initial={site} submitLabel="Save" onSubmit={save} />}
       </CardContent>
     </Card>
   )
@@ -138,13 +138,17 @@ function DevicesCard({ siteId }: { siteId: string }) {
 
 export default function SitePage() {
   const { siteId = '' } = useParams()
+  const [site, setSite] = useState<Site | null>(null)
   return (
     <div className="grid gap-4">
       <div className="flex items-baseline gap-3">
         <Link to="/" className="text-sm underline">Sites</Link>
-        <h1 className="text-xl font-semibold">{siteId}</h1>
+        <div>
+          {site ? <h1 className="text-xl font-semibold">{site.name}</h1> : <Skeleton className="h-7 w-48" />}
+          <p className="font-mono text-xs text-muted-foreground">{siteId}</p>
+        </div>
       </div>
-      <SettingsCard siteId={siteId} />
+      <SettingsCard siteId={siteId} site={site} setSite={setSite} />
       <MapCard siteId={siteId} />
       <DevicesCard siteId={siteId} />
     </div>

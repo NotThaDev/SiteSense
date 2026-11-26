@@ -12,9 +12,9 @@ const navFields: [keyof Navigation, string][] = [
   ['connectToleranceM', 'Connect tolerance (m)'], ['maxSnapDistanceM', 'Max snap distance (m)'],
 ]
 
-// The same form creates a site (id editable) and edits one (id fixed by the URL).
-export function SiteForm({ initial, idEditable, submitLabel, onSubmit }: {
-  initial: Site; idEditable: boolean; submitLabel: string; onSubmit: (s: Site) => Promise<void>
+// The same form creates a site and edits one; the API generates the id.
+export function SiteForm({ initial, submitLabel, onSubmit }: {
+  initial: Site; submitLabel: string; onSubmit: (s: Site) => Promise<void>
 }) {
   const [s, setS] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -22,16 +22,14 @@ export function SiteForm({ initial, idEditable, submitLabel, onSubmit }: {
     e.preventDefault(); setBusy(true)
     try { await onSubmit(s) } finally { setBusy(false) }
   }
-  const text = (id: string, label: string, key: 'siteId' | 'name' | 'timeZone', opts: { disabled?: boolean; optional?: boolean } = {}) => (
+  const text = (id: string, label: string, key: 'name' | 'timeZone') => (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={s[key]} disabled={opts.disabled} required={!opts.optional}
-        placeholder={opts.optional ? 'Generated if empty' : undefined} onChange={e => setS({ ...s, [key]: e.target.value })} />
+      <Input id={id} value={s[key]} required onChange={e => setS({ ...s, [key]: e.target.value })} />
     </div>
   )
   return (
     <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-      {text('siteId', idEditable ? 'Site id (optional)' : 'Site id', 'siteId', { disabled: !idEditable, optional: idEditable })}
       {text('name', 'Name', 'name')}
       {text('timeZone', 'Time zone', 'timeZone')}
       {navFields.map(([k, label]) => (

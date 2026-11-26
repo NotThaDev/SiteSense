@@ -18,9 +18,8 @@ export default function SitesPage() {
 
   const create = async (s: Site) => {
     try {
-      // Empty id: leave it out and the API makes one.
-      const { siteId, ...rest } = s
-      const r = await api<{ siteId: string }>('POST', '/sites', { body: siteId.trim() ? s : rest })
+      const { siteId: _, ...body } = s
+      const r = await api<{ siteId: string }>('POST', '/sites', { body })
       toast.success('Site created')
       setOpen(false)
       navigate(`/sites/${r.data.siteId}`)
@@ -35,17 +34,18 @@ export default function SitesPage() {
           <DialogTrigger asChild><Button>New site</Button></DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>New site</DialogTitle><DialogDescription>Defaults come from the example site.</DialogDescription></DialogHeader>
-            <SiteForm initial={blank} idEditable submitLabel="Create site" onSubmit={create} />
+            <SiteForm initial={blank} submitLabel="Create site" onSubmit={create} />
           </DialogContent>
         </Dialog>
       </div>
       <Table>
-        <TableHeader><TableRow><TableHead>Id</TableHead><TableHead>Name</TableHead><TableHead>Time zone</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Time zone</TableHead><TableHead>Id</TableHead></TableRow></TableHeader>
         <TableBody>
           {sites?.map(s => (
             <TableRow key={s.siteId}>
-              <TableCell><Link className="underline" to={`/sites/${s.siteId}`}>{s.siteId}</Link></TableCell>
-              <TableCell>{s.name}</TableCell><TableCell>{s.timeZone}</TableCell>
+              <TableCell><Link className="underline" to={`/sites/${s.siteId}`}>{s.name}</Link></TableCell>
+              <TableCell>{s.timeZone}</TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">{s.siteId}</TableCell>
             </TableRow>
           ))}
           {sites?.length === 0 && <TableRow><TableCell colSpan={3} className="text-muted-foreground">No sites yet.</TableCell></TableRow>}
