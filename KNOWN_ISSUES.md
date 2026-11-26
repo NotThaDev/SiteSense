@@ -20,3 +20,9 @@ Known limits and what to do with more time.
 - The raw log keeps duplicates. A retried batch or a partial batch is stored twice. Reads return both. With more time: dedup by device and timestamp in SS-22 (TRK-01).
 - No cursor paging (SS-11, issue #43, is postponed). A read returns all records in the time range, so a large range returns a large list. With more time: add a cursor to `ReadRangeAsync` when SS-11 (#43) is picked up.
 - No retention yet. Position files grow without limit. With more time: delete whole hour files older than the retention period in SS-32.
+
+## SS-22 — Batch ingest
+- Each batch re-reads the hour files it touches to find stored timestamps (up to ~3,600 lines per file). With more time, keep an in-memory set of timestamps per open hour file, if the JDB-09 benchmark shows the cost.
+- Each batch reads and parses the whole site map to find the perimeter. With more time, cache the projected perimeter by map version.
+- The per-device lock is held during reads and fsyncs: one slow batch delays the next batch of the same device (other devices are not blocked).
+- A map change does not re-check positions already stored under the old perimeter.
