@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #92
-- Plan PR: #97   Implementation PRs: #<n>
+- Plan PR: #97   Implementation PRs: #107
 
 ## Problem
 SiteSense must run periodic checks: silent devices (SS-30), position retention (SS-32) and crowding anomalies (SS-33).
@@ -86,14 +86,14 @@ Packages (central versions in `Directory.Packages.props`, Q65):
 ## Steps
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | Add the packages | `Directory.Packages.props`, `backend/SiteSense.Api/SiteSense.Api.csproj` | `dotnet build` passes | impl |
-| 2 | `ISiteJob` and `SiteJobRunner` (`Schedule`, `EnqueueSitesAsync`, `RunSiteAsync`, `RunNowAsync`, slot rounding) | `backend/SiteSense.Api/BackgroundJobs/ISiteJob.cs`, `backend/SiteSense.Api/BackgroundJobs/SiteJobRunner.cs` | builds; no `DateTime.Now`, time only from `SiteSenseContext.Time` | impl |
-| 3 | Wire Hangfire: storage from `Hangfire:Storage` (Redis from `ConnectionStrings:Redis`, fail fast when empty; or InMemory), `AddHangfireServer`, runner registration, schedule section after `Build()` with no lines yet | `backend/SiteSense.Api/Program.cs` | app starts in compose; no dashboard mapped | impl |
-| 4 | Test endpoint `POST jobs/{jobName}/run` | `backend/SiteSense.Api/Controllers/TestController.cs` | 204 / 404 / 403 / 404-when-off covered by tests | impl |
-| 5 | Config: compose env `ConnectionStrings__Redis`, template key, Redis port for local runs (open question 7) | `docker-compose.yml`, `backend/SiteSense.Api/appsettings.example.json` | `docker compose up` healthy; `dotnet run` starts with compose Redis | impl |
-| 6 | Test host: `Hangfire:Storage=InMemory`, test probe site job | `tests/SiteSense.Tests/Api/ApiFactory.cs`, `tests/SiteSense.Tests/Api/Jobs/ProbeSiteJob.cs` | existing tests still pass | impl |
-| 7 | Tests (list below) | `tests/SiteSense.Tests/Api/Jobs/SiteJobTests.cs`, `tests/SiteSense.Tests/Api/TestModeTests.cs` | all pass | impl |
-| 8 | Docs: README storage paragraph + run notes, architecture skill background-jobs rule (slot, idempotent ids, keyed job + schedule line), ASSUMPTIONS (decided questions), KNOWN_ISSUES, AI_LOG (both required at story end) | `README.md`, `.claude/skills/sitesense-architecture/SKILL.md`, `ASSUMPTIONS.md`, `KNOWN_ISSUES.md`, `AI_LOG.md` | each rule in one place, linked from the others | impl |
+| 1 | Add the packages | `Directory.Packages.props`, `backend/SiteSense.Api/SiteSense.Api.csproj` | `dotnet build` passes | #107 |
+| 2 | `ISiteJob` and `SiteJobRunner` (`Schedule`, `EnqueueSitesAsync`, `RunSiteAsync`, `RunNowAsync`, slot rounding) | `backend/SiteSense.Api/BackgroundJobs/ISiteJob.cs`, `backend/SiteSense.Api/BackgroundJobs/SiteJobRunner.cs` | builds; no `DateTime.Now`, time only from `SiteSenseContext.Time` | #107 |
+| 3 | Wire Hangfire: storage from `Hangfire:Storage` (Redis from `ConnectionStrings:Redis`, fail fast when empty; or InMemory), `AddHangfireServer`, runner registration, schedule section after `Build()` with no lines yet | `backend/SiteSense.Api/Program.cs` | app starts in compose; no dashboard mapped | #107 |
+| 4 | Test endpoint `POST jobs/{jobName}/run` | `backend/SiteSense.Api/Controllers/TestController.cs` | 204 / 404 / 403 / 404-when-off covered by tests | #107 |
+| 5 | Config: compose env `ConnectionStrings__Redis`, template key, Redis port for local runs (open question 7) | `docker-compose.yml`, `backend/SiteSense.Api/appsettings.example.json` | `docker compose up` healthy; `dotnet run` starts with compose Redis | #107 |
+| 6 | Test host: `Hangfire:Storage=InMemory`, test probe site job | `tests/SiteSense.Tests/Api/ApiFactory.cs`, `tests/SiteSense.Tests/Api/Jobs/ProbeSiteJob.cs` | existing tests still pass | #107 |
+| 7 | Tests (list below) | `tests/SiteSense.Tests/Api/Jobs/SiteJobTests.cs`, `tests/SiteSense.Tests/Api/TestModeTests.cs` | all pass | #107 |
+| 8 | Docs: README storage paragraph + run notes, architecture skill background-jobs rule (slot, idempotent ids, keyed job + schedule line), ASSUMPTIONS (decided questions), KNOWN_ISSUES, AI_LOG (both required at story end) | `README.md`, `.claude/skills/sitesense-architecture/SKILL.md`, `ASSUMPTIONS.md`, `KNOWN_ISSUES.md`, `AI_LOG.md` | each rule in one place, linked from the others | #107 |
 
 ## Risks
 | Risk | Impact | Mitigation |
