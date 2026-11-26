@@ -332,3 +332,34 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - ProjNet with UTM: precise over large areas, but adds a dependency to Domain and needs handling for sites that cross a UTM zone border.
 - Requirement IDs: MAP-02
 - Status: Accepted
+
+## Q12 — A batch has positions for a device unknown in the gateway's tenant. What happens?
+- Assumption: `202`. Those positions are dropped, the response returns how many were dropped, and the drop is logged without coordinates. Implemented with batch ingestion (SS-22).
+- Why: the owner chose it. One unknown device must not block the rest of the batch, and a device of another tenant is treated as unknown, so nothing leaks across tenants.
+- Alternatives rejected:
+  - `422` for the whole batch: one bad device id would make the gateway resend thousands of valid positions.
+- Requirement IDs: IDN-05, TRK-01
+
+## Q38 — How does the simulated clock of test mode behave?
+- Assumption: `PUT /api/v1/test/clock` `{ "nowMs" }` (Admin, test mode on) replaces `SiteSenseContext.Time` with one global clock for the whole process, all tenants included. It stays frozen at `nowMs` until the next `PUT` and answers `204`. Only the current time is frozen: timers, `GetTimestamp` and delays keep real time, and JWT lifetime checks keep real time so real tokens stay valid. With `SITESENSE_TEST_MODE` off (the default), every path under `/api/v1/test` answers `404` to every caller, with or without a token, before authentication runs. Code must read `SiteSenseContext.Time` on each call, never keep it in a field.
+- Why: deterministic checks of time logic (silent devices, retention, timestamps): the same steps give the same result, whatever the speed of the machine. Chosen by the owner.
+- Alternatives rejected:
+  - A clock that keeps ticking from `nowMs`: results depend on how long the test takes.
+  - One clock per tenant: every job and service would have to pick the tenant clock, for no evaluation gain.
+  - `401` before `404` when test mode is off: shows that the endpoints exist.
+- Requirement IDs: C-7.2a, C-7.2b
+
+## Q13 — Is the `deviceId` unique per tenant, per site, or globally?
+- Assumption: unique per tenant, across all its sites. Registering an id already used in the tenant, on the same or another site, answers `409`. Another tenant may use the same id.
+- Why: devices do not send a `siteId`. The gateway batch format is fixed (`{ deviceId, positions }`) and the gateway token carries only the tenant (Q59), so the server finds the site only from `tenant + deviceId`, through the device registration.
+- Alternatives rejected:
+  - Unique per site: a batch for an id used on two sites would be ambiguous; the track endpoint has no `siteId` either.
+  - Globally unique: a `409` would reveal that another tenant has that device, against the 404 rule for other tenants (IDN-02).
+- Requirement IDs: API-01, IDN-02, IDN-05, TRK-01
+- Status: Accepted
+
+## Q85 — Who may read a device (`GET /api/v1/sites/{siteId}/devices/{deviceId}`)?
+- Assumption: Admin only (`CanManage`), the role that registers devices. A device registered on another site of the tenant answers `404`.
+- Why: the endpoint is not in the API contract; it lets the Admin read back what was registered. Viewer never sees device ids (PRV-03). Widening it to Safety later is a one-line policy change.
+- Requirement IDs: API-01, PRV-03
+- Status: Accepted

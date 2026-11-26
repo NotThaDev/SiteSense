@@ -8,9 +8,11 @@ using SiteSense.Tests.Api.Auth;
 
 namespace SiteSense.Tests.Api;
 
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _storeRoot = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
+
+    public string StoreRoot => _storeRoot;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -22,6 +24,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Tenants:tenant-b:SilentAfterMinutes", "10");
         builder.UseSetting("Auth:Issuer", TestTokens.Issuer);
         builder.UseSetting("Auth:Audience", TestTokens.Audience);
+        // Pinned so a developer or CI environment variable cannot turn test mode on.
+        builder.UseSetting("SITESENSE_TEST_MODE", "false");
         builder.ConfigureTestServices(services =>
         {
             services.AddControllers().AddApplicationPart(typeof(ErrorProbeController).Assembly);
