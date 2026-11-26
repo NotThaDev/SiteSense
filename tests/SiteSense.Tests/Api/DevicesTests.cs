@@ -478,6 +478,110 @@ public sealed class DevicesTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
     }
 
+    [Fact]
+    public async Task List_OwnSite_Returns200SortedByDeviceId()
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteId = await CreateSiteAsync(client);
+        var ids = new[] { "dev-b", "dev-a", "dev-c" }.Select(s => $"{s}-{Guid.NewGuid():N}").ToArray();
+        foreach (var id in ids)
+            await client.PostAsync($"/api/v1/sites/{siteId}/devices", Json(Device(id)));
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/sites/{siteId}/devices");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var items = body.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        Assert.Equal(ids.Order(StringComparer.Ordinal).ToArray(), items.Select(i => i.GetProperty("deviceId").GetString()).ToArray());
+        Assert.All(items, i => Assert.Equal(siteId, i.GetProperty("siteId").GetString()));
+    }
+
+    [Fact]
+    public async Task List_OtherSiteDevices_AreExcluded()
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteA = await CreateSiteAsync(client);
+        var siteB = await CreateSiteAsync(client);
+        var idA = NewId();
+        await client.PostAsync($"/api/v1/sites/{siteA}/devices", Json(Device(idA)));
+        await client.PostAsync($"/api/v1/sites/{siteB}/devices", Json(Device(NewId())));
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/sites/{siteA}/devices");
+
+        // Assert
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(new[] { idA }, body.RootElement.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("deviceId").GetString()).ToArray());
+    }
+
+    [Fact]
+    public async Task List_EmptySite_ReturnsEmptyItems()
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+        var siteId = await CreateSiteAsync(client);
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/sites/{siteId}/devices");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(0, body.RootElement.GetProperty("items").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task List_OtherTenantSite_Returns404()
+    {
+        // Arrange
+        var admin = AdminClient("tenant-a");
+        var otherAdmin = AdminClient("tenant-b");
+        var siteA = await CreateSiteAsync(admin);
+        await admin.PostAsync($"/api/v1/sites/{siteA}/devices", Json(Device(NewId())));
+
+        // Act
+        var response = await otherAdmin.GetAsync($"/api/v1/sites/{siteA}/devices");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task List_UnknownSite_Returns404()
+    {
+        // Arrange
+        var client = AdminClient("tenant-a");
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/sites/{NewSiteId()}/devices");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Safety")]
+    [InlineData("Viewer")]
+    [InlineData("gateway")]
+    public async Task List_NonAdmin_Returns403(string caller)
+    {
+        // Arrange
+        var admin = AdminClient("tenant-a");
+        var siteId = await CreateSiteAsync(admin);
+        var client = _factory.CreateClient();
+        client.WithToken(TokenFor(caller));
+
+        // Act
+        var response = await client.GetAsync($"/api/v1/sites/{siteId}/devices");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private HttpClient AdminClient(string tenant)
     {
         var client = _factory.CreateClient();
