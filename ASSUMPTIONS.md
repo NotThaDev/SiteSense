@@ -214,7 +214,8 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Optional `If-Match` (missing = last write wins): a client that forgets the header silently overwrites.
   - 428 for a missing header and 400 for a malformed one: more code paths for the same outcome (the write is refused).
 - Requirement IDs: JDB-03, JDB-10
-- Status: Accepted
+- Changed (SS-47): the map PUT is the exception: `If-Match` is optional there (Q91). Absent = replace the latest map; present = checked, and an unreadable value is `412`.
+- Status: Changed
 
 ## Q14 — How is a tenant created, and where do its settings live?
 - Assumption: tenants exist only in configuration, section `Tenants`, keyed by tenant id, each with `RetentionDays` (PRV-04) and `SilentAfterMinutes` (TRK-06). Defaults: `tenant-a` and `tenant-b`, 30 days and 10 minutes. Validated at startup in `SiteSenseContext.Init`; read through `SiteSenseContext.Tenants`. In Docker the values come from env vars in `docker-compose.yml`, because the delivery ZIP has no `appsettings.json`. The tenant's store folder is created on its first save (SS-9). Tenant ids are also in the Keycloak realm (`tenant_id` of users and gateway clients) and are kept in sync by hand; a tenant id is never renamed, since it is also the store folder name.
@@ -295,7 +296,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q82 — How strictly is the site JSON checked on `POST /api/v1/sites`?
-- Assumption: fully, before anything is stored; errors are `400` `ValidationProblemDetails`. All fields required; `siteId` a valid store name (`[A-Za-z0-9_-]`, 1–128); `name` and `mapFile` not empty; `timeZone` a time zone id known to the runtime (IANA on Linux); `walkingSpeedMps`, `connectToleranceM`, `maxSnapDistanceM` > 0; `unpavedSpeedFactor`, `stepsSpeedFactor` in (0, 1].
+- Assumption: fully, before anything is stored; errors are `400` `ValidationProblemDetails`. All fields required; `siteId` a valid store name (`[A-Za-z0-9_-]`, 1–128); `name` not empty; `timeZone` a time zone id known to the runtime (IANA on Linux); `walkingSpeedMps`, `connectToleranceM`, `maxSnapDistanceM` > 0; `unpavedSpeedFactor`, `stepsSpeedFactor` in (0, 1].
 - Why: the site settings drive routing and snapping later; a bad value would surface far from its cause.
 - Alternatives rejected:
   - Required fields and `siteId` only: a zero speed or an unknown zone breaks routing later.
@@ -307,7 +308,8 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Recompute the current area of every device on upload: extra code for a case the requirements do not describe.
 - Requirement IDs: MAP-01, API-01
-- Status: Accepted
+- Changed (SS-47): `mapFile` is no longer a required field; it is accepted if sent and ignored (Q92).
+- Status: Changed
 
 ## Q40 — Which `elementId` does a map error carry when there is no id?
 - Assumption: a missing perimeter gives `elementId: null`; a feature without a readable `properties.id` gives `features[<index>]`, its position in the `features` array (0-based).
@@ -391,6 +393,40 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Assumption: a structurally invalid batch is rejected with `400` and nothing is stored: missing field, empty `positions`, more than 5,000 positions, `lat` outside [-90, 90], `lon` outside [-180, 180], `accuracyM` below 0, `timestampMs` below 0 or after year 9999. One bad position rejects the whole batch. Error messages name the field, never the rejected value. A future timestamp is not rejected here: plausibility is the filters' job.
 - Why: a structural error is a gateway bug to fix, and dropping silently would hide it; no coordinates in responses (Q62).
 - Requirement IDs: API-02, API-05, TRK-01
+
+## Q91 — Does the map PUT need If-Match?
+- Assumption: no, it is optional. Absent = replace the latest map (last write wins; the server retries a lost race up to 3 attempts in total, then `409`). Present = checked: a stale version is `412`, and an unreadable value (`abc`, `*`) is `412` too, also on a first upload.
+- Why: no endpoint returns the map version, so a client could not upload a map twice without `If-Match`; the contract says only `PUT` → `200 { mapVersion }`.
+- Alternatives rejected:
+  - `If-Match` required (Q45): a second upload would fail with `412`.
+- Requirement IDs: F-6.1, JDB-03
+- Status: Accepted
+
+## Q92 — What happens to `mapFile` in the site JSON?
+- Assumption: it is accepted and ignored: not stored, not returned. `data/site.json` keeps it as the file format, naming the map file next to it.
+- Why: nothing reads it; the map comes from `PUT /map`. Ignoring it keeps old site files and old stored sites working.
+- Alternatives rejected:
+  - Keep it required: the client has to type a name that sends no file.
+- Requirement IDs: F-6.1, API-05
+- Status: Accepted
+
+## Q52 — Is the Hangfire dashboard exposed?
+- Assumption: no. The dashboard is not mapped in any environment.
+- Why: not required; one less surface to secure. Job state is checked through the test endpoint and the stored results.
+- Alternatives rejected:
+  - Dashboard in test mode for Admin only: extra auth wiring for a page the evaluation does not use.
+- Requirement IDs: JOB-01
+- Status: Accepted
+
+## Q86 — How do periodic jobs run per site, and how does a retry avoid duplicates?
+- Assumption: one Hangfire recurring job per job name, every minute (UTC cron), enqueues one Hangfire job per site of every tenant, with the minute slot (from `SiteSenseContext.Time`, Q38) as an argument. A retry reuses the slot; the job creates its outputs with ids built only from its inputs and `Version = 0`, so a second create is rejected. No production job is registered in SS-31: a probe job in the test project proves the mechanism, and the test endpoint answers 404 for every name until SS-30, SS-32 and SS-33 add theirs.
+- Test endpoint: `POST /api/v1/test/jobs/{jobName}/run` runs only the caller's tenant (tenant isolation) and answers `204` when every site is done, like `PUT /test/clock`.
+- Storage per host: `Hangfire:Storage` is `Redis` (default, `ConnectionStrings:Redis` required) or `InMemory`, used only by the test host since CI has no Redis (Q72). Redis is published on `127.0.0.1:6379` for `dotnet run`.
+- Alternatives rejected:
+  - One recurring job per job and site: must be added and removed with every site.
+  - A small production job such as `heartbeat`: a fake job name in the API and a document per site every minute.
+  - Running every tenant from the test endpoint: an Admin of one tenant would touch another tenant.
+- Requirement IDs: JOB-01, JOB-02, C-7.2c
 - Status: Accepted
 
 ## Q18 — Within `connectToleranceM`: endpoint to endpoint only, or also endpoint to the middle of another path?

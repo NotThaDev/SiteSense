@@ -1,5 +1,6 @@
 using Scalar.AspNetCore;
 using SiteSense.Api.Auth;
+using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Store;
 
@@ -10,6 +11,8 @@ SiteSenseContext.Init(builder);
 var testMode = builder.Configuration.GetValue<bool>(SiteSensePolicies.TestModeSetting);
 builder.AddSiteSenseAuth(testMode);
 builder.Services.AddHealthChecks();
+builder.AddSiteSenseJobs();
+// Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-32, SS-33).
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
     .AddJsonOptions(o => o.JsonSerializerOptions.RespectRequiredConstructorParameters = true);
@@ -56,5 +59,7 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.MapOpenApi().AllowAnonymous();
 app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
+// Recurring site jobs, one line each, every minute (JOB-01), e.g.:
+// SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), "silent-devices");
 
 app.Run();

@@ -63,7 +63,7 @@ Summary:
 
 | Format | Key rules |
 |---|---|
-| Site JSON | Fields: `siteId`, `name`, `timeZone` (IANA), `mapFile`, `navigation` with `walkingSpeedMps`, `unpavedSpeedFactor`, `stepsSpeedFactor`, `connectToleranceM`, `maxSnapDistanceM`. |
+| Site JSON | Fields: `siteId`, `name`, `timeZone` (IANA), `mapFile` (the API ignores it), `navigation` with `walkingSpeedMps`, `unpavedSpeedFactor`, `stepsSpeedFactor`, `connectToleranceM`, `maxSnapDistanceM`. |
 | Map GeoJSON | RFC 7946 `FeatureCollection`, WGS84, order `[lon, lat]`. Element type in property `kind`: `area` (Polygon), `path` (LineString), `assemblyPoint` (Point), `entrance` (Point). Required props: `area`: `id`, `name`, `areaType` (`perimeter`, `work`, `rest`, `parking`, `restricted`, `hazard`), optional `capacity`; `path`: `id`, `surface` (`paved`, `unpaved`), `steps` (bool), `slopePercent`, `widthM`; `assemblyPoint`: `id`, `name`, `capacity`; `entrance`: `id`, `name`. |
 | Map guarantees | Test maps guarantee: one perimeter containing all areas, no overlapping non-perimeter areas, valid geometry. Do not spend effort re-checking these. |
 | Map checks we must do | Required props present; perimeter present and single; assembly points lie on a path (entrances: guaranteed by the input maps). Errors go back as 422 (see contract). |

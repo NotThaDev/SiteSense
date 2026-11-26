@@ -2,6 +2,12 @@
 
 Known limits and what to do with more time.
 
+## SS-31 — Hangfire and idempotent jobs
+- No periodic job is registered yet: the test endpoint answers 404 for `anomaly-detection`, `silent-devices` and `retention` until SS-33, SS-30 and SS-32 add them.
+- The recurring trigger fires on real time, while the slot comes from the simulated clock. With a frozen clock, every real minute gives the same slot, so the jobs create nothing new until the clock moves. This is intended in test mode.
+- An id built from long site and device ids can exceed the 128-character store limit, and ids that contain `_` can collide. With more time: hash the id parts.
+- `/health` does not check Redis (Q71). With more time: add a Redis health check.
+
 ## SS-44 — Device registration
 - A device cannot be moved in one call: delete it (`DELETE` with `If-Match`), then register it again on the new site.
 - Listing a site's devices is a full scan of the tenant's devices: no index and no cursor paging (SS-11, #43, postponed).

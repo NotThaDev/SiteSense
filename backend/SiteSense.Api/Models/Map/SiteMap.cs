@@ -25,18 +25,36 @@ public sealed class SiteMap : IDocument
     public static Task<SiteMap?> GetAsync(string tenantId, string siteId, CancellationToken ct) =>
         SiteSenseContext.Store.GetAsync<SiteMap>(tenantId, siteId, ct);
 
-    // expectedVersion 0 creates the map; any other value must be the stored version, else ConcurrencyException.
+    // expectedVersion null = replace the latest map (last write wins); a number must be the stored version (0 = new), else ConcurrencyException.
     public static async Task<MapImportResult> ImportAsync(
-        string tenantId, string siteId, string geoJson, long expectedVersion, double connectToleranceM, CancellationToken ct)
+        string tenantId, string siteId, string geoJson, long? expectedVersion, double connectToleranceM, CancellationToken ct)
     {
         var (map, errors) = MapValidator.Validate(geoJson, connectToleranceM);
         if (map is null || errors.Count > 0) return new MapImportResult(null, errors);
 
         map.Id = siteId;
         map.TenantId = tenantId;
-        map.Version = expectedVersion;
-        var saved = await SiteSenseContext.Store.SaveAsync(tenantId, map, ct);
-        return new MapImportResult(saved.Version, []);
+        if (expectedVersion is not null)
+        {
+            map.Version = expectedVersion.Value;
+            var saved = await SiteSenseContext.Store.SaveAsync(tenantId, map, ct);
+            return new MapImportResult(saved.Version, []);
+        }
+
+        for (var attempt = 0; attempt < MaxLatestAttempts; attempt++)
+        {
+            map.Version = (await GetAsync(tenantId, siteId, ct))?.Version ?? 0;
+            try
+            {
+                var saved = await SiteSenseContext.Store.SaveAsync(tenantId, map, ct);
+                return new MapImportResult(saved.Version, []);
+            }
+            catch (ConcurrencyException)
+            {
+                // A concurrent upload won: read the new version and try again.
+            }
+        }
+        throw new MapUploadConflictException();
     }
 
     // Local metres from the perimeter centroid: the same origin MapValidator uses for its tolerance check (MAP-02).
@@ -54,4 +72,8 @@ public sealed class SiteMap : IDocument
         return RouteGraphBuilder.Build(paths, blocked,
             new GraphSettings(nav.WalkingSpeedMps, nav.UnpavedSpeedFactor, nav.StepsSpeedFactor, nav.ConnectToleranceM));
     }
+
+    private const int MaxLatestAttempts = 3;
 }
+
+public sealed class MapUploadConflictException() : Exception("Concurrent map uploads, try again");
