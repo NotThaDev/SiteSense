@@ -47,14 +47,14 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | Folder | Holds |
 |---|---|
 | `Controllers/` | One controller per area, e.g. `SitesController`, `TrackingController`, `NavigationController`, `AuthController` |
-| `Models/` | Persisted entities (`Site.cs`, `Device.cs`, ...) with their static persistence methods. Algorithms and geometric primitives stay in `SiteSense.Domain`. |
+| `Models/` | Persisted entities (`Site.cs`, `Device.cs`, ...) with their static persistence methods. An entity with several types gets its own subfolder, e.g. `Models/Map/` (`SiteMap`, `MapError`). Algorithms and geometric primitives stay in `SiteSense.Domain`. |
 | `Dtos/` | Request and response records on the wire: `<Name>Request.cs`, `<Name>Response.cs`. Never entities or Domain types. |
 | `Services/` | Only flows that span several entities or need an external engine: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation. No per-entity service. |
 | `Store/` | The single generic JSON document store implementation and file IO. It takes the place of a `DbContext` (no EF). |
 | `Realtime/` | SignalR hub, `IRealtimePublisher` and `SignalRPublisher` |
 | `BackgroundJobs/` | Hangfire job classes (see Background jobs) |
 | `Auth/` | Authentication and authorization setup and policies |
-| `Helpers/` | Only app-wide static context (`SiteSenseContext`). No general utilities; shared logic goes in Domain, `Store/` or `Realtime/`. |
+| `Helpers/` | App-wide static context (`SiteSenseContext`) and stateless validators of input files, e.g. `MapValidator`. No general utilities; shared logic goes in Domain, `Store/` or `Realtime/`. |
 
 - A folder is created by the first story that puts code in it. A new folder updates this table in the same PR.
 
@@ -110,6 +110,7 @@ Tenant safety:
 | Anomaly detectors (ML.NET) | `Api/Services/` |
 | Generic JSON document store, file IO | `Api/Store/` |
 | App-wide static context (`SiteSenseContext`: `Store`, `Time`) | `Api/Helpers/` |
+| Validators of input files (`MapValidator`) | `Api/Helpers/` |
 | Options classes and startup validation | Api, rules in [coding](../dotnet-coding/SKILL.md) |
 | Simulator | Separate console app |
 | Demo client | Separate app |
