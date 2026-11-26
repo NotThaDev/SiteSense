@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #100
-- Plan PR: #101   Implementation PRs: impl 1 (store and geometry), impl 2 (endpoint)
+- Plan PR: #101   Implementation PRs: #105 (store and geometry), #108 (endpoint)
 
 ## Problem
 
