@@ -55,3 +55,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-15 with the plan / validate / approve / implement / verify workflow, domain PR first.
 - AI produced: plan (Opus), plan review (Sonnet), `PlanarGeometry`, `SiteMap`, `MapValidator`, tests (Haiku), docs (Opus).
 - Corrected or discarded: the review added read guards for coordinates and Features (a bad number would have crashed the projection), the version rule, stable error order and inline test maps. The owner chose Q17 (forward only), Q40 (`null` / `features[i]`) and Q41 (extended checks).
+
+## 2026-11-26 — SS-8: Gateway authentication
+- Goal: only gateway tokens (scope `positions:write`) may call `POST /api/v1/positions`; user tokens get 403.
+- Prompt (summary): implement SS-8 with the plan / validate / approve / implement / verify workflow, reusing the SS-7 policy.
+- AI produced: plan (Opus), plan review (Sonnet), guarded 501 route and tests (Haiku), docs (Opus).
+- Corrected or discarded: the review added ProblemDetails asserts, the tenant-b and role+scope cases, and moved tenant checks to SS-22. The owner chose Q12 (202, drop and count), a 501 stub instead of a test-only probe, and kept ingestion out of this story.
