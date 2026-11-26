@@ -40,3 +40,4 @@ with equal timestamps keep append order.
   is not `F_FULLFSYNC`. The guarantee covers a process kill (`kill -9`), not a power loss.
 - Revisit: when SS-22 lands (dedup rules), when SS-11 (#43) needs cursor paging, and when SS-13 measures
   the load targets.
+- Write-once ingest (SS-22): AppendNewAsync reads the stored timestamps of each touched hour file under the per-device lock and appends only new ones, so a retried batch has no side effect.
