@@ -89,6 +89,20 @@ public sealed class BffTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Cookie_WithNonBearerAuthorizationAndNoCsrfHeader_Returns403()
+    {
+        // Arrange
+        var client = CookieClient("tenant-a", "Admin");
+        client.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", "Basic eDp4");
+
+        // Act
+        var response = await client.GetAsync("/api/v1/me");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task NoCredentials_Returns401NotRedirect()
     {
         // Arrange
