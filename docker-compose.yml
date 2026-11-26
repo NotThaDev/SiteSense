@@ -33,6 +33,16 @@ services:
       retries: 10
       start_period: 10s
 
+  # Admin UI; proxies API calls so the browser sees one origin (Q89).
+  ui:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
   # Plain HTTP on purpose (Q74): the backend reaches Keycloak the same way from a container
   # (http://keycloak:8081) or from the host with dotnet run (http://localhost:8081),
   # with no certificate to trust. Production puts TLS on an nginx reverse proxy in front.

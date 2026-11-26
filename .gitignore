@@ -11,5 +11,3 @@ TestResults/
 backend/**/appsettings.json
 backend/**/appsettings.*.json
 !backend/**/appsettings.example.json
-
-# Admin UI build, copied here by the Dockerfile
