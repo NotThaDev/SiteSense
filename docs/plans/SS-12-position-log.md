@@ -31,7 +31,7 @@ flowchart LR
 An append-only log for records that never change, next to the document store (Q75: two
 interfaces).
 
-- Records are lines of JSON (JSONL), one file per tenant, key (the device) and UTC day.
+- Records are lines of JSON (JSONL), one file per tenant, key (the device) and UTC hour.
 - An append writes all lines of one call and fsyncs before it returns.
 - A crash (`kill -9`) at any moment loses no record whose append returned; a torn last line
   is skipped on read.
@@ -59,7 +59,7 @@ public interface ILogRecord
 // Store/IAppendLog.cs
 public interface IAppendLog
 {
-    // Writes every record to the file of its UTC day and fsyncs before returning.
+    // Writes every record to the file of its UTC hour and fsyncs before returning.
     Task AppendAsync<T>(string tenantId, string key, IReadOnlyList<T> records, CancellationToken ct)
         where T : class, ILogRecord;
 
@@ -85,16 +85,17 @@ public sealed record Position(string DeviceId, long TimestampMs, double Lat, dou
 ### Files on disk
 
 ```text
-<root>/tenant-a/Position/dev-001/2026-11-26.jsonl
+<root>/tenant-a/Position/dev-001/2026-11-26T10.jsonl
 {"deviceId":"dev-001","timestampMs":1793268000000,"lat":45.5001234,"lon":9.2004567,"accuracyM":4.5}
 {"deviceId":"dev-001","timestampMs":1793268001000,"lat":45.5001301,"lon":9.2004602,"accuracyM":4.1}
 ```
 
-- Path: `<root>/<tenantId>/<TypeName>/<key>/<yyyy-MM-dd>.jsonl`. Tenant and key go through the
-  same name check and Q76 encoding as document ids. The day is the UTC day of `TimestampMs`, so
-  a position that arrives hours late still lands in the file of its own day.
-- One directory per tenant (JDB-07). A one-hour read opens one file, two around midnight.
-  Retention (SS-32) deletes whole day files.
+- Path: `<root>/<tenantId>/<TypeName>/<key>/<yyyy-MM-ddTHH>.jsonl`. Tenant and key go through the
+  same name check and Q76 encoding as document ids. The hour is the UTC hour of `TimestampMs`, so
+  a position that arrives hours late still lands in the file of its own hour.
+- One directory per tenant (JDB-07). A one-hour read opens at most two files (e.g.
+  10:30–11:30 reads `T10` and `T11`): at 1 position/s that is at most ~7,200 lines (~700 KB).
+  Retention (SS-32) deletes whole hour files.
 
 ### Append, crash and read
 
@@ -102,10 +103,10 @@ public sealed record Position(string DeviceId, long TimestampMs, double Lat, dou
 sequenceDiagram
   participant C as Caller (SS-22 ingest)
   participant L as FileAppendLog
-  participant F as Day file (.jsonl)
+  participant F as Hour file (.jsonl)
   C->>L: AppendAsync(tenant, device, batch)
-  L->>L: group records by UTC day
-  loop each day file, under its lock
+  L->>L: group records by UTC hour
+  loop each hour file, under its lock
     L->>F: last byte is not newline? write newline first
     L->>F: write all lines in one write
     L->>F: fsync
@@ -113,14 +114,14 @@ sequenceDiagram
   L-->>C: done (now SS-22 may answer 202)
   Note over F: kill -9 here: only the line being written can be torn
   C->>L: ReadRangeAsync(tenant, device, from, to)
-  L->>F: read the day files that overlap [from, to)
+  L->>F: read the hour files that overlap [from, to)
   L->>L: skip lines that do not parse, filter, sort by timestamp
   L-->>C: records
 ```
 
 - **Lock:** one `SemaphoreSlim` per encoded file path, as in `FileDocumentStore` (JDB-04). Two
-  appends to the same file never interleave their lines. A call that spans two days takes the
-  locks one at a time, in day order, so there is no deadlock. Locks are per instance: one
+  appends to the same file never interleave their lines. A call that spans several hours takes the
+  locks one at a time, in hour order, so there is no deadlock. Locks are per instance: one
   `FileAppendLog` per root, the one in `SiteSenseContext` (same rule as the document store).
   Reads take no lock.
 - **A line counts only when it ends with a newline.** The reader ignores the bytes after the last
@@ -145,7 +146,7 @@ sequenceDiagram
   is not the key throws `ArgumentException`. A `TimestampMs` outside the `DateTimeOffset` range
   throws `ArgumentOutOfRangeException`. `fromMs >= toMs` returns an empty list. Tenant and key go
   through the store name check (path traversal).
-- **Read:** stream the day files line by line, keep only records in range, then a stable sort by
+- **Read:** stream the hour files line by line, keep only records in range, then a stable sort by
   `TimestampMs` (append order on ties).
 
 ## Steps
@@ -155,7 +156,7 @@ One implementation PR, stacked on this plan branch. Each step is one subagent ta
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
 | 1 | Move the name check, the Q76 file-name encoding and the shared `JsonSerializerOptions` into a static `StorePaths` helper. `FileDocumentStore.IsValidName` stays as a forwarding member, so its callers do not change | `backend/SiteSense.Api/Store/StorePaths.cs` (new), `backend/SiteSense.Api/Store/FileDocumentStore.cs` | Build passes; `grep -rn IsValidName backend tests` callers unchanged; all existing tests pass | impl |
-| 2 | Add `ILogRecord`, `IAppendLog`, `FileAppendLog` as in "Solution" (path, input checks, day grouping, lock, newline repair, write, fsync, streaming read, complete-lines-only, skip, filter, stable sort) | `backend/SiteSense.Api/Store/ILogRecord.cs`, `IAppendLog.cs`, `FileAppendLog.cs` (new) | Build passes | impl |
+| 2 | Add `ILogRecord`, `IAppendLog`, `FileAppendLog` as in "Solution" (path, input checks, hour grouping, lock, newline repair, write, fsync, streaming read, complete-lines-only, skip, filter, stable sort) | `backend/SiteSense.Api/Store/ILogRecord.cs`, `IAppendLog.cs`, `FileAppendLog.cs` (new) | Build passes | impl |
 | 3 | Add `Position` record with `AppendAsync` / `ReadAsync`; add `SiteSenseContext.Log`, set in `Init` on the same root | `backend/SiteSense.Api/Models/Position.cs` (new), `backend/SiteSense.Api/Helpers/SiteSenseContext.cs` | Build passes; existing API tests pass | impl |
 | 4 | Unit, validation, load and concurrency tests (list under Tests) | `tests/SiteSense.Tests/Api/Store/FileAppendLogTests.cs` (new) | Tests pass | impl |
 | 5 | Crash writer: `args[1] == "append"` selects append mode (batches of 500 positions, counter in `TimestampMs`, prints the last counter after each returned append); no `args[1]` keeps today's document mode, so `StoreCrashTests` is untouched | `tests/SiteSense.StoreCrashWriter/CrashWriter.cs` | Build passes; `StoreCrashTests` passes | impl |
@@ -170,11 +171,11 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| A day file of one busy device is large (1 position/s = 86,400 lines, ~9 MB); reading one hour parses the whole day | The 200 ms read target (JDB-09) may be missed for busy devices | Open question 9. A test reads one hour out of a full day file and prints the time; the measured figure goes in the PR. |
+| A batch of 5,000 late positions can span many hours | One call writes and fsyncs several files | Still one fsync per file touched, a handful per batch. The one-hour read stays small (at most two files); a test measures it and the figure goes in the PR. |
 | The crash test cannot force a kill inside a write | It may never produce a torn line | The deterministic torn-line tests cut a file mid-line by hand. The crash test proves "every returned append survives and every returned record is whole", with large batches in a tight loop so some kills land in writes. |
 | A partial last line that parses as a valid but wrong record | A wrong position would be returned | The reader uses complete (newline-terminated) lines only. |
-| No fsync of the directory after creating a new day file; on macOS .NET `fsync` is not `F_FULLFSYNC` | A power loss (not a process kill) could lose recent data | Same limit as SS-9 (`shortcut:` comment); listed in `KNOWN_ISSUES.md`. JDB-02 asks for `kill -9`. |
-| Many open semaphores (one per day file) | Memory grows slowly over days | Same shortcut as `FileDocumentStore`; listed in `KNOWN_ISSUES.md`, evict with retention (SS-32). |
+| No fsync of the directory after creating a new hour file; on macOS .NET `fsync` is not `F_FULLFSYNC` | A power loss (not a process kill) could lose recent data | Same limit as SS-9 (`shortcut:` comment); listed in `KNOWN_ISSUES.md`. JDB-02 asks for `kill -9`. |
+| Many open semaphores (one per hour file) | Memory grows by 24 small objects per device per day, until restart | Open question 9: one lock per device log instead. |
 | Duplicates are stored as sent (retries, partial batches) | A retried batch appears twice in the raw log | Dedup (TRK-01) is SS-22's job; the log stays a plain append. |
 
 ## Tests
@@ -183,7 +184,7 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 
 - `Append_ThenReadRange_ReturnsRecordsSortedByTimestamp` (records appended out of order)
 - `ReadRange_ExcludesRecordsOutsideRange` (`from` inclusive, `to` exclusive)
-- `Append_RecordsOnTwoUtcDays_WritesTwoFilesAndReadsAcrossMidnight`
+- `Append_RecordsInTwoUtcHours_WritesTwoFilesAndReadsAcrossTheHour`
 - `ReadRange_TornLastLine_SkipsItAndReturnsEarlierRecords` (file cut mid-line by hand)
 - `ReadRange_UnterminatedLastLineThatParses_IsIgnored` (cut inside a number)
 - `Append_AfterTornLastLine_KeepsOldAndNewRecords`
@@ -199,7 +200,7 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 - `Position_RoundTrip_KeepsAllFields` (camelCase, constructor binding)
 - Load: `Append_SixtyThousandRecords_AllReadBack` (the 10-minute volume: 20 batches of 3,000 and
   600 of 100; asserts every record, not time)
-- `ReadRange_OneHourFromFullDay_PrintsElapsed` (86,400 records; prints the time, asserts only
+- `ReadRange_OneHourAtOnePerSecond_PrintsElapsed` (two full hour files, 7,200 records, read 10:30–11:30; prints the time, asserts only
   correctness, so CI timing cannot make it flaky)
 - Concurrency: `Append_ParallelWritersOnOneFile_EveryLineIntact` (8 writers × 200 batches plus one
   reader in a loop; the reader never sees a half record, and at the end every record is read back,
@@ -217,14 +218,14 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
 | 1 | Q59 (Brief) / Q75: one interface or two? | Two (`IDocumentStore`, `IAppendLog`) | Decided earlier: two (Q75) |
-| 2 | File layout | tenant / device / UTC day · tenant / device / hour · tenant / day | User: tenant / device / UTC day |
+| 2 | File layout | tenant / device / UTC day · tenant / device / hour · tenant / day | User: tenant / device / UTC hour (changed from day on plan review) |
 | 3 | Who writes the files | New `FileAppendLog` with shared helpers · refactor into one `FileStore` | User: `FileAppendLog` with shared helpers |
 | 4 | When to fsync | Once per `AppendAsync` call · periodic group commit · never | User: once per call |
 | 5 | Record types now | Generic log + `Position` only · also `TrackPoint` | User: generic + `Position` only |
 | 6 | Q16: keep raw positions and the filtered track apart? | Yes, one log per record type (`Position/`, later `TrackPoint/`), both under retention · store only the filtered track | Recommended: yes, two logs |
 | 7 | Torn line before the next append | Write a newline first, keep the fragment, reader skips it · truncate the file to the last newline · checksum per line | Recommended: newline first (nothing is ever rewritten) |
 | 8 | Read order on equal timestamps | Append order (stable sort) · undefined | Recommended: append order |
-| 9 | What if the one-hour read from a full day file measures over 200 ms? | Keep day files, report the figure, fix it in SS-13 only if the benchmark misses (switch to hourly files: path function only) · switch to hourly files now | Recommended: keep day files and measure |
+| 9 | Lock granularity | One lock per device log (tenant + type + key): the count stays equal to the number of devices, and one call spanning several hours takes one lock · one lock per hour file (grows 24 per device per day, never freed until restart) | Recommended: one lock per device log |
 
 ## Changelog
 
@@ -232,3 +233,4 @@ After step 8 a separate verify subagent runs build and all tests and returns a p
 |---|---|---|
 | 2026-11-26 | First draft | — |
 | 2026-11-26 | Complete-lines-only read, exact repair open mode, partial batches, input checks, stable streaming read, split crash steps, load and validation tests, open question 9 | Sonnet plan review |
+| 2026-11-26 | Hour files instead of day files; old question 9 (200 ms fallback) removed; new question 9 (lock per device log) | User review: reduce the period to one hour |
