@@ -1,6 +1,6 @@
 # SS-44 — Device registration
 
-- Status: Draft
+- Status: Approved
 - Issue: #85
 - Plan PR: #86   Implementation PRs: #<n>
 - Requirement IDs: API-01, PRV-01, IDN-02, C-7.3a
