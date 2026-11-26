@@ -8,7 +8,7 @@ namespace SiteSense.Api.Auth;
 
 public static class AuthSetup
 {
-    public static void AddSiteSenseAuth(this WebApplicationBuilder builder)
+    public static void AddSiteSenseAuth(this WebApplicationBuilder builder, bool testMode)
     {
         var options = builder.Configuration.GetSection(AuthOptions.Section).Get<AuthOptions>() ?? new AuthOptions();
         var failures = new List<string>();
@@ -58,6 +58,9 @@ public static class AuthSetup
             .AddPolicy(SiteSensePolicies.CanWritePositions, p => p.RequireAuthenticatedUser().RequireAssertion(ctx =>
                 ctx.User.FindAll(SiteSensePolicies.ScopeClaim)
                     .SelectMany(c => c.Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-                    .Contains(SiteSensePolicies.PositionsWriteScope, StringComparer.Ordinal)));
+                    .Contains(SiteSensePolicies.PositionsWriteScope, StringComparer.Ordinal)))
+            // The flag check backs up the 404 gate in Program.cs.
+            .AddPolicy(SiteSensePolicies.TestMode, p => p.RequireAuthenticatedUser().RequireRole(SiteSensePolicies.AdminRole)
+                .RequireAssertion(_ => testMode));
     }
 }

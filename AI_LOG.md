@@ -55,3 +55,15 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-15 with the plan / validate / approve / implement / verify workflow, domain PR first.
 - AI produced: plan (Opus), plan review (Sonnet), `PlanarGeometry`, `SiteMap`, `MapValidator`, tests (Haiku), docs (Opus).
 - Corrected or discarded: the review added read guards for coordinates and Features (a bad number would have crashed the projection), the version rule, stable error order and inline test maps. The owner chose Q17 (forward only), Q40 (`null` / `features[i]`) and Q41 (extended checks).
+
+## 2026-11-26 — SS-8: Gateway authentication
+- Goal: only gateway tokens (scope `positions:write`) may call `POST /api/v1/positions`; user tokens get 403.
+- Prompt (summary): implement SS-8 with the plan / validate / approve / implement / verify workflow, reusing the SS-7 policy.
+- AI produced: plan (Opus), plan review (Sonnet), guarded 501 route and tests (Haiku), docs (Opus).
+- Corrected or discarded: the review added ProblemDetails asserts, the tenant-b and role+scope cases, and moved tenant checks to SS-22. The owner chose Q12 (202, drop and count), a 501 stub instead of a test-only probe, and kept ingestion out of this story.
+
+## 2026-11-26 — SS-2: Test mode and simulated clock
+- Goal: `SITESENSE_TEST_MODE` gates `/api/v1/test/*` (404 when off, Admin when on); `PUT /api/v1/test/clock` sets the clock read through `SiteSenseContext.Time`.
+- Prompt (summary): implement SS-2 with the plan / validate / approve / implement / verify workflow; drain and jobs endpoints are later stories.
+- AI produced: plan (Opus), plan review (Sonnet), gate middleware, `TestMode` policy, `FrozenTimeProvider`, `TestController`, tests and docs (Opus; small change, written directly).
+- Corrected or discarded: the Sonnet review moved the flag from a static to a local (each test host re-runs `Program.cs`), asked for segment matching (no match on `/api/v1/testing`), a `[Range]` DTO, a flag pinned off in the test factory and a startup warning. Hiding the endpoint from OpenAPI when off was not taken. The owner chose Q38 (global, frozen) and 404 for every caller when off.

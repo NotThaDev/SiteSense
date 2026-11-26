@@ -7,6 +7,10 @@ public static class SiteSensePolicies
     public const string CanSeeIndividuals = "CanSeeIndividuals";
     public const string CanSeeAggregates = "CanSeeAggregates";
     public const string CanWritePositions = "CanWritePositions";
+    public const string TestMode = "TestMode";
+
+    // Environment variable that turns on /api/v1/test/* (C-7.2a).
+    public const string TestModeSetting = "SITESENSE_TEST_MODE";
 
     public const string AdminRole = "Admin";
     public const string SafetyRole = "Safety";
