@@ -300,4 +300,35 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Required fields and `siteId` only: a zero speed or an unknown zone breaks routing later.
 - Requirement IDs: F-6.1, API-05
+
+## Q17 — What happens to positions and state when a new map version arrives?
+- Assumption: forward only. New positions use the current map; nothing already processed is recomputed. Each track point keeps the `mapVersion` it was computed with.
+- Why: reprocessing past tracks and alerts on every upload is costly and changes history the users already saw; the stored `mapVersion` keeps every point explainable.
+- Alternatives rejected:
+  - Recompute the current area of every device on upload: extra code for a case the requirements do not describe.
+- Requirement IDs: MAP-01, API-01
+- Status: Accepted
+
+## Q40 — Which `elementId` does a map error carry when there is no id?
+- Assumption: a missing perimeter gives `elementId: null`; a feature without a readable `properties.id` gives `features[<index>]`, its position in the `features` array (0-based).
+- Why: the contract always has `elementId`; `null` says "no element", and the index points the Admin to the exact feature.
+- Alternatives rejected:
+  - A fixed name such as `"perimeter"`: it looks like a real id the file does not contain.
+- Requirement IDs: MAP-01
+- Status: Accepted
+
+## Q41 — Which map checks besides the three the requirements list?
+- Assumption: also duplicate ids, unknown `kind`, wrong geometry type, unreadable coordinates, enum values not allowed, wrong property types, and entrances off a path. "On a path" means within the site's `connectToleranceM` of a path segment, checked at upload time. Only types are checked, not ranges, and geometry validity, overlap and containment are not checked.
+- Why: each of these would otherwise crash or silently corrupt tracking and navigation later; all come back in the same 422 list.
+- Alternatives rejected:
+  - Only the three listed checks: a bad file would pass and fail later with a less clear error.
+- Requirement IDs: MAP-01
+- Status: Accepted
+
+## Q20 — Which local metric projection does a map use?
+- Assumption: a local equirectangular projection on the WGS84 ellipsoid, one per map, with its origin at the perimeter centroid. Meters per degree come from the prime-vertical and meridional radii at the origin; the inverse is exact.
+- Why: the owner chose it. Sites span at most a few km, where the error is sub-centimeter, and it keeps Domain free of packages.
+- Alternatives rejected:
+  - ProjNet with UTM: precise over large areas, but adds a dependency to Domain and needs handling for sites that cross a UTM zone border.
+- Requirement IDs: MAP-02
 - Status: Accepted
