@@ -7,6 +7,8 @@ services:
       - "8080:8080"
     environment:
       Store__RootPath: /var/lib/sitesense/store
+      # Hangfire storage (Q08); abortConnect=false so a slow Redis start does not crash the API.
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
       # Tenant ids must match tenant_id in docker/keycloak/sitesense-realm.json (Q14).
       Tenants__tenant-a__RetentionDays: 30
       Tenants__tenant-a__SilentAfterMinutes: 10
@@ -84,6 +86,9 @@ services:
 
   redis:
     image: redis:8.4.0-alpine
+    # Loopback only, for `dotnet run` on the host; containers use redis:6379.
+    ports:
+      - "127.0.0.1:6379:6379"
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
     volumes:
       - redis-data:/data

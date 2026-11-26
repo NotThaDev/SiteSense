@@ -409,3 +409,22 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Keep it required: the client has to type a name that sends no file.
 - Requirement IDs: F-6.1, API-05
 - Status: Accepted
+
+## Q52 — Is the Hangfire dashboard exposed?
+- Assumption: no. The dashboard is not mapped in any environment.
+- Why: not required; one less surface to secure. Job state is checked through the test endpoint and the stored results.
+- Alternatives rejected:
+  - Dashboard in test mode for Admin only: extra auth wiring for a page the evaluation does not use.
+- Requirement IDs: JOB-01
+- Status: Accepted
+
+## Q86 — How do periodic jobs run per site, and how does a retry avoid duplicates?
+- Assumption: one Hangfire recurring job per job name, every minute (UTC cron), enqueues one Hangfire job per site of every tenant, with the minute slot (from `SiteSenseContext.Time`, Q38) as an argument. A retry reuses the slot; the job creates its outputs with ids built only from its inputs and `Version = 0`, so a second create is rejected. No production job is registered in SS-31: a probe job in the test project proves the mechanism, and the test endpoint answers 404 for every name until SS-30, SS-32 and SS-33 add theirs.
+- Test endpoint: `POST /api/v1/test/jobs/{jobName}/run` runs only the caller's tenant (tenant isolation) and answers `204` when every site is done, like `PUT /test/clock`.
+- Storage per host: `Hangfire:Storage` is `Redis` (default, `ConnectionStrings:Redis` required) or `InMemory`, used only by the test host since CI has no Redis (Q72). Redis is published on `127.0.0.1:6379` for `dotnet run`.
+- Alternatives rejected:
+  - One recurring job per job and site: must be added and removed with every site.
+  - A small production job such as `heartbeat`: a fake job name in the API and a document per site every minute.
+  - Running every tenant from the test endpoint: an Admin of one tenant would touch another tenant.
+- Requirement IDs: JOB-01, JOB-02, C-7.2c
+- Status: Accepted
