@@ -47,5 +47,5 @@ export type Navigation = {
   walkingSpeedMps: number; unpavedSpeedFactor: number; stepsSpeedFactor: number
   connectToleranceM: number; maxSnapDistanceM: number
 }
-export type Site = { siteId: string; name: string; timeZone: string; mapFile: string; navigation: Navigation }
+export type Site = { siteId: string; name: string; timeZone: string; navigation: Navigation }
 export type Device = { deviceId: string; siteId: string }

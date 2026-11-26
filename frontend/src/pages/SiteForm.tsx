@@ -22,18 +22,18 @@ export function SiteForm({ initial, idEditable, submitLabel, onSubmit }: {
     e.preventDefault(); setBusy(true)
     try { await onSubmit(s) } finally { setBusy(false) }
   }
-  const text = (id: string, label: string, key: 'siteId' | 'name' | 'timeZone' | 'mapFile', disabled = false) => (
+  const text = (id: string, label: string, key: 'siteId' | 'name' | 'timeZone', opts: { disabled?: boolean; optional?: boolean } = {}) => (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} value={s[key]} disabled={disabled} required onChange={e => setS({ ...s, [key]: e.target.value })} />
+      <Input id={id} value={s[key]} disabled={opts.disabled} required={!opts.optional}
+        placeholder={opts.optional ? 'Generated if empty' : undefined} onChange={e => setS({ ...s, [key]: e.target.value })} />
     </div>
   )
   return (
     <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
-      {text('siteId', 'Site id', 'siteId', !idEditable)}
+      {text('siteId', idEditable ? 'Site id (optional)' : 'Site id', 'siteId', { disabled: !idEditable, optional: idEditable })}
       {text('name', 'Name', 'name')}
       {text('timeZone', 'Time zone', 'timeZone')}
-      {text('mapFile', 'Map file name', 'mapFile')}
       {navFields.map(([k, label]) => (
         <div key={k} className="grid gap-1.5">
           <Label htmlFor={k}>{label}</Label>

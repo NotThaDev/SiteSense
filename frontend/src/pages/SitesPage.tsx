@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { api, toastError, type Site } from '@/api'
 import { SiteForm, defaultNavigation } from './SiteForm'
 
-const blank: Site = { siteId: '', name: '', timeZone: 'Europe/Rome', mapFile: 'map.geojson', navigation: defaultNavigation }
+const blank: Site = { siteId: '', name: '', timeZone: 'Europe/Rome', navigation: defaultNavigation }
 
 export default function SitesPage() {
   const [sites, setSites] = useState<Site[] | null>(null)
@@ -18,10 +18,12 @@ export default function SitesPage() {
 
   const create = async (s: Site) => {
     try {
-      await api('POST', '/sites', { body: s })
+      // Empty id: leave it out and the API makes one.
+      const { siteId, ...rest } = s
+      const r = await api<{ siteId: string }>('POST', '/sites', { body: siteId.trim() ? s : rest })
       toast.success('Site created')
       setOpen(false)
-      navigate(`/sites/${s.siteId}`)
+      navigate(`/sites/${r.data.siteId}`)
     } catch (e) { toastError(e) }
   }
 
