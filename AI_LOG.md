@@ -80,6 +80,12 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: plan (Opus), plan review (Sonnet), `FileAppendLog`, `Position`, tests (Haiku), ADR 0001, docs (Opus).
 - Corrected or discarded: the review made reads use newline-terminated lines only, added input checks and load tests. The owner changed day files to hour files and chose one lock per device log.
 
+## 2026-11-26 — SS-22: Batch ingest
+- Goal: idempotent, durable `POST /api/v1/positions`.
+- Prompt (summary): plan per the planning skill, Sonnet validation, Haiku implementation in two stacked PRs.
+- AI produced: plan `docs/plans/SS-22-batch-ingest.md`, `PlanarGeometry.Locate`, `FileAppendLog.AppendNewAsync`, `PositionIngest` service, DTOs, controller, tests (dedupe, torn line, concurrency, crash and resend, perimeter, foreign device, 5,000 batch).
+- Corrected or discarded: the validator found that a torn-but-parsable last line and the `501` tests were missed; the first `AppendNewAsync` truncated the torn tail, replaced so a whole record without its newline counts as stored and gets its newline (keeps Q83); the point-in-polygon helper was unified with SS-17 by the owner's decision (one `Locate` returning `OnBoundary`, each caller decides).
+
 ## 2026-11-26 — SS-46: Admin UI
 - Goal: a minimal React + shadcn/ui admin UI (sites, map upload, devices) that logs in through the API.
 - Prompt (summary): minimal React + shadcn admin UI, login through the API (BFF).
