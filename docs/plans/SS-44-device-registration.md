@@ -34,7 +34,10 @@ flowchart LR
 - `DELETE /api/v1/sites/{siteId}/devices/{deviceId}` with `If-Match` → `204`, Admin only. Missing or stale `If-Match` → `412` (Q45);
   missing device, another site's or another tenant's → `404`. Moving a device = DELETE, then POST on the new site.
 
-Out of scope: list of devices (own session: store `ListAsync` + `Device.GetAllAsync(tenantId, siteId = null)`), the batch ingest itself (SS-22).
+- `GET /api/v1/sites/{siteId}/devices` → `200 { "items": [{ "deviceId", "siteId" }] }` sorted by `deviceId` (ordinal), Admin only (`CanManage`, Q85); unknown or other tenant's site → `404`.
+  Built on store `ListAsync` and `Device.GetAllAsync(tenantId, siteId = null)`: full scan, no index, no paging (SS-11, postponed).
+
+Out of scope: the batch ingest itself (SS-22).
 
 ## Solution
 
@@ -157,3 +160,4 @@ Tokens as in `PolicyTests`: `TestTokens.Create(tenant, [role])`, gateway = `Test
 | 2026-11-26 | Q85 decided: GET is `CanManage` | Owner, in chat |
 | 2026-11-26 | Q13: reason stated explicitly (devices do not send a `siteId`) | Owner, in chat |
 | 2026-11-26 | Scope: DELETE added; device list moved to its own session (`ListAsync` + `GetAllAsync(siteId = null)`) | Owner, in chat |
+| 2026-11-26 | Device list added (`GET /sites/{siteId}/devices`, store `ListAsync`, `Device.GetAllAsync`) | Owner, in chat; own PR |

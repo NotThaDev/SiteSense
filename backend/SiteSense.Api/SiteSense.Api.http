@@ -34,6 +34,10 @@ Content-Type: application/json
 
 {"deviceId":"dev-001"}
 
+### List the devices of a site (Admin), sorted by deviceId
+GET {{host}}/api/v1/sites/cittadella-catania/devices
+Authorization: Bearer {{token}}
+
 ### Read a device (Admin)
 GET {{host}}/api/v1/sites/cittadella-catania/devices/dev-001
 Authorization: Bearer {{token}}

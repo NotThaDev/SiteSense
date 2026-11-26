@@ -79,6 +79,7 @@ All endpoints need a Bearer token. Errors are ProblemDetails. Who may call which
 | `POST /api/v1/sites` (site JSON) | 201 `{ "siteId" }` | ProblemDetails |
 | `PUT /api/v1/sites/{siteId}/map` (GeoJSON) | 200 `{ "mapVersion" }` | 422 with `errors: [{ "elementId", "reason" }]` |
 | `POST /api/v1/sites/{siteId}/devices` `{ "deviceId" }` | 201 `{ "deviceId", "siteId" }` | ProblemDetails; 409 if the id is already registered in the tenant (Q13) |
+| `GET /api/v1/sites/{siteId}/devices` (extension, not in the contract) | 200 `{ "items": [{ "deviceId", "siteId" }] }`, sorted by `deviceId` | ProblemDetails; 404 for an unknown site |
 | `GET /api/v1/sites/{siteId}/devices/{deviceId}` (extension, not in the contract) | 200 `{ "deviceId", "siteId" }` | ProblemDetails |
 | `DELETE /api/v1/sites/{siteId}/devices/{deviceId}` + `If-Match` (extension, not in the contract) | 204 | ProblemDetails; 412 on a missing or stale `If-Match` |
 | `POST /api/v1/positions` (batch) | 202 | ProblemDetails |

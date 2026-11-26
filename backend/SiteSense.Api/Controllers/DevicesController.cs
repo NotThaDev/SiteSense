@@ -44,6 +44,20 @@ public sealed class DevicesController : ControllerBase
         return Ok(DeviceResponse.From(device));
     }
 
+    // Admin only (Q85). Sorted by deviceId (ordinal). Full scan, no paging (SS-11, postponed).
+    [HttpGet]
+    [ProducesResponseType<DeviceListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(string siteId, CancellationToken ct)
+    {
+        var tenantId = User.TenantId();
+        if (await Site.GetAsync(tenantId, siteId, ct) is null)
+            return Problem(statusCode: StatusCodes.Status404NotFound, title: "Site not found");
+        var devices = await Device.GetAllAsync(tenantId, siteId, ct);
+        return Ok(new DeviceListResponse(devices.OrderBy(d => d.Id, StringComparer.Ordinal).Select(DeviceResponse.From).ToList()));
+    }
+
     // Moving a device = DELETE here, then POST on the new site. A device registered on another site is a 404.
     [HttpDelete("{deviceId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]

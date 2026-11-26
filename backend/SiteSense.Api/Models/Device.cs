@@ -28,6 +28,13 @@ public sealed class Device : IDocument
     public static Task<Device?> GetAsync(string tenantId, string deviceId, CancellationToken ct) =>
         FileDocumentStore.IsValidName(deviceId) ? SiteSenseContext.Store.GetAsync<Device>(tenantId, deviceId, ct) : Task.FromResult<Device?>(null);
 
+    // siteId null = every device of the tenant. Full scan, no index (SS-11, postponed); order is not fixed.
+    public static async Task<IReadOnlyList<Device>> GetAllAsync(string tenantId, string? siteId = null, CancellationToken ct = default)
+    {
+        var all = await SiteSenseContext.Store.ListAsync<Device>(tenantId, ct);
+        return siteId is null ? all : all.Where(d => d.SiteId == siteId).ToList();
+    }
+
     // expectedVersion must be the stored version (from If-Match), else ConcurrencyException → 412 (Q45). False when missing.
     public static Task<bool> DeleteAsync(string tenantId, string deviceId, long expectedVersion, CancellationToken ct) =>
         SiteSenseContext.Store.DeleteAsync<Device>(tenantId, deviceId, expectedVersion, ct);

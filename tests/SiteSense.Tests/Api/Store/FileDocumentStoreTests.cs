@@ -159,6 +159,62 @@ public sealed class FileDocumentStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task List_NoFolder_ReturnsEmpty()
+    {
+        var store = new FileDocumentStore(_root);
+
+        var docs = await store.ListAsync<TestDoc>("tenant-a", CancellationToken.None);
+
+        Assert.Empty(docs);
+    }
+
+    [Fact]
+    public async Task List_SeveralDocs_ReturnsAllOfTheTenantOnly()
+    {
+        var store = new FileDocumentStore(_root);
+        foreach (var id in new[] { "a", "B", "c" })
+            await store.SaveAsync("tenant-a", new TestDoc { Id = id, TenantId = "tenant-a" }, CancellationToken.None);
+        await store.SaveAsync("tenant-b", new TestDoc { Id = "other", TenantId = "tenant-b" }, CancellationToken.None);
+
+        var docs = await store.ListAsync<TestDoc>("tenant-a", CancellationToken.None);
+
+        Assert.Equal(new[] { "B", "a", "c" }, docs.Select(d => d.Id).Order(StringComparer.Ordinal).ToArray());
+    }
+
+    [Fact]
+    public async Task List_TmpFile_IsIgnored()
+    {
+        var store = new FileDocumentStore(_root);
+        await store.SaveAsync("tenant-a", new TestDoc { Id = "x", TenantId = "tenant-a" }, CancellationToken.None);
+        File.WriteAllText(Path.Combine(_root, "tenant-a", "TestDoc", "y.json.tmp"), "{ partial");
+
+        var docs = await store.ListAsync<TestDoc>("tenant-a", CancellationToken.None);
+
+        Assert.Equal("x", Assert.Single(docs).Id);
+    }
+
+    [Fact]
+    public async Task List_DuringParallelSaves_ReturnsOnlyCompleteDocs()
+    {
+        var store = new FileDocumentStore(_root);
+        var writers = Enumerable.Range(0, 4).Select(w => Task.Run(async () =>
+        {
+            for (var i = 0; i < 50; i++)
+                await store.SaveAsync("tenant-a", new TestDoc { Id = $"w{w}-{i}", TenantId = "tenant-a", Name = new string('n', 2000) }, CancellationToken.None);
+        })).ToArray();
+
+        var all = Task.WhenAll(writers);
+        while (!all.IsCompleted)
+        {
+            var docs = await store.ListAsync<TestDoc>("tenant-a", CancellationToken.None);
+            Assert.All(docs, d => Assert.Equal(new string('n', 2000), d.Name));
+        }
+        await all;
+
+        Assert.Equal(200, (await store.ListAsync<TestDoc>("tenant-a", CancellationToken.None)).Count);
+    }
+
+    [Fact]
     public void Ctor_OrphanTmp_IsDeleted()
     {
         var dir = Path.Combine(_root, "tenant-a", "TestDoc");
