@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #118
-- Plan PR: #120   Implementation PRs: #<n>
+- Plan PR: #120   Implementation PRs: #130 (processing core), #133 (wiring, drain, API tests, retention purge)
 
 ## Problem
 
@@ -165,3 +165,4 @@ PR 1 (model and processor) targets the plan branch; PR 2 (wiring, endpoint, API 
 | 2026-11-27 | First draft | — |
 | 2026-11-27 | Second mark after the append; per-device state machine with one worker; drain `500` on a failed run; startup scan in `StartAsync`; restart test with a fixed store root; Q05/Q16 updates; retried batches listed as a known issue | Sonnet validation: lost batch race, undefined enqueue during a run, error path, test host lifetime |
 | 2026-11-27 | Status Approved | User OK in chat |
+| 2026-11-27 | Linked PRs #130, #133; API tests split into three classes so test hosts never overlap; retention (SS-32) also purges `TrackPoint` hour files | Implementation; owner request after SS-32 merged |
