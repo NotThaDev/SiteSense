@@ -2,7 +2,7 @@
 
 - Status: Draft
 - Issues: SS-35 #126, SS-36 #127
-- Plan PR: #128   Implementation PRs: #134 (event log and catch-up, SS-36), #TBD (hub and publisher, SS-35)
+- Plan PR: #128   Implementation PRs: #134 (event log and catch-up, SS-36), #137 (hub and publisher, SS-35)
 
 ## Problem
 
