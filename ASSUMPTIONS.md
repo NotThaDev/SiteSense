@@ -410,31 +410,31 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Keep it required: the client has to type a name that sends no file.
 - Requirement IDs: F-6.1, API-05
 
-## Q86 — Who may list the sites of a tenant (`GET /api/v1/sites`)?
+## Q109 — Who may list the sites of a tenant (`GET /api/v1/sites`)?
 - Assumption: Admin only (`CanManage`), sorted by `siteId`, no paging until SS-11.
 - Why: the endpoint is not in the API contract; it serves the admin UI. Same rule as the device list (Q85).
 - Requirement IDs: API-01, API-04
 - Status: Accepted
 
-## Q87 — How does the admin UI log in?
+## Q110 — How does the admin UI log in?
 - Assumption: the API is a Backend for Frontend: `GET /api/v1/auth/login` redirects to Keycloak, the API swaps the code for tokens with PKCE (public client `sitesense-ui`, no secret), and gives the browser an encrypted `HttpOnly`, `SameSite=Lax` cookie. Tokens never reach JavaScript.
 - Why: the web app talks only to the API (user decision); a public client keeps secrets out of the repository (NF-04).
 - Requirement IDs: IDN-01, NF-04
 - Status: Accepted
 
-## Q88 — How are cookie calls protected against CSRF?
+## Q111 — How are cookie calls protected against CSRF?
 - Assumption: every `/api` call authenticated by the cookie must send `X-CSRF: 1`, else `403`. Login and logout (`GET /api/v1/auth/*`, browser navigation) are exempt. Bearer callers (gateways, verify script) are unchanged.
 - Why: another site can make the browser send the cookie, but not a custom header without a CORS preflight, which the API never allows.
 - Requirement IDs: IDN-01
 - Status: Accepted
 
-## Q89 — Where does the admin UI run?
+## Q112 — Where does the admin UI run?
 - Assumption: A separate `ui` container (nginx) on `http://localhost:3000` serves the Vite build and reverse-proxies `/api`, `/signin-oidc` and `/signout-callback-oidc` to the API. The API serves no static files.
 - Why: The API stays an API only (user review). One origin for the browser keeps the BFF cookie working without CORS.
 - Requirement IDs: NF-01, API-06
 - Status: Changed
 
-## Q90 — What does the first admin UI cover?
+## Q113 — What does the first admin UI cover?
 - Assumption: Admin screens for sites (list, create, edit), map upload with the 422 errors per element, and devices (list, register, delete). No Safety or Viewer screens, no map view, no test clock.
 - Why: these are the endpoints that exist today; the rest waits for the stories that add them.
 - Requirement IDs: API-01
@@ -615,7 +615,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: the architecture test forbids role checks in code; named policies keep the rule in one map and let a new role join a policy without code change.
 - Requirement IDs: IDN-03, RTM-01, RTM-02, PRV-03
 
-## Q93 — Who may read the site map (`GET /api/v1/sites/{siteId}/map`)?
+## Q114 — Who may read the site map (`GET /api/v1/sites/{siteId}/map`)?
 - Assumption: every user role (`CanSeeAggregates`). The map is the site layout, not personal data. What is drawn on top depends on the role: Admin the structure (SS-48), Safety devices and alerts, Viewer occupancy, each in its own story. Upload stays Admin-only.
 - Why: Safety and Viewer views (routes, evacuation, occupancy) need the layout; no individual data is in the map (Q09, PRV-03).
 - Requirement IDs: API-06, PRV-03
