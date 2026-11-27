@@ -20,8 +20,9 @@ builder.Services.AddControllers()
 // Same rule for the OpenAPI generator, so the schema marks the same fields required.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.RespectRequiredConstructorParameters = true);
 builder.Services.AddProblemDetails();
-// Realtime: the publisher is the only producer of events; PR 2 swaps the sender for SignalR.
-builder.Services.AddSingleton<IEventSender, NullEventSender>();
+// Realtime: the publisher is the only producer of events; the sender pushes them to the hub groups.
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IEventSender, SignalRSender>();
 builder.Services.AddSingleton<EventPublisher>();
 builder.Services.AddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<EventPublisher>());
 builder.Services.AddOpenApi();
@@ -64,6 +65,7 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.MapOpenApi().AllowAnonymous();
 app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
+app.MapHub<SiteHub>(SiteHub.RealtimePath, o => o.CloseOnAuthenticationExpiration = true);
 // Recurring site jobs, one line each, every minute (JOB-01), e.g.:
 // SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), "silent-devices");
 
