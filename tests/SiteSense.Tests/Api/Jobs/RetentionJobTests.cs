@@ -50,6 +50,27 @@ public sealed class RetentionJobTests : IClassFixture<TestModeApiFactory>, IDisp
     }
 
     [Fact]
+    public async Task RunRetention_DeletesExpiredTrackPoints_KeepsRecent()
+    {
+        // Arrange
+        // Test RetentionDays is 30 (ApiFactory): 31 days old is expired, 1 day old is kept.
+        var admin = AdminClient("tenant-a");
+        var device = "ret-track-keep";
+        await SiteSenseContext.Log.AppendAsync("tenant-a", device, new[] { new TrackPoint(device, NowMs - 31 * DayMs, 45.5, 9.2, 4.5, 0) }, CancellationToken.None);
+        await SiteSenseContext.Log.AppendAsync("tenant-a", device, new[] { new TrackPoint(device, NowMs - 1 * DayMs, 45.5, 9.2, 4.5, 0) }, CancellationToken.None);
+        await admin.PutAsync("/api/v1/test/clock", ClockBody(NowMs));
+
+        // Act
+        var response = await admin.PostAsync(RetentionRun, null);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var left = await TrackPoint.ReadAsync("tenant-a", device, NowMs - 40 * DayMs, NowMs + 1, CancellationToken.None);
+        var only = Assert.Single(left);
+        Assert.Equal(NowMs - 1 * DayMs, only.TimestampMs);
+    }
+
+    [Fact]
     public async Task RunRetention_Twice_SameResult()
     {
         // Arrange

@@ -21,7 +21,7 @@ Known limits and what to do with more time.
 - No cursor paging (SS-11, issue #43, is postponed). A read returns all records in the time range, so a large range returns a large list. With more time: add a cursor to `ReadRangeAsync` when SS-11 (#43) is picked up.
 
 ## SS-32 — Position retention
-- Only the raw `Position` log is purged. The filtered track (`TrackPoint`, Q16) does not exist yet; the story that adds it adds one `DeleteBeforeAsync` line to `RetentionJob`.
+- The raw `Position` log and the `TrackPoint` log are both purged with the same cutoff in `RetentionJob`.
 - Empty device folders stay after their last hour file is deleted, and so does the device's lock. With more time: remove an empty folder and its lock under that lock.
 - The hourly retention schedule is off on the in-memory test host (`Hangfire:Storage=InMemory`); tests run it through the test endpoint.
 
