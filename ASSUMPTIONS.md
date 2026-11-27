@@ -465,3 +465,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NAV-02
 - Status: Accepted
 
+## Q51 — How is the simulator run, and does it set up the site itself?
+- Assumption: a console app run with `dotnet run`, plus an optional compose service `simulator` under the profile `sim`, so `docker compose up` still starts only the system. By default it creates the site, uploads the map and registers its devices with the test admin (409 = already there); `--no-setup` turns this off.
+- Why: the owner wanted a container, but the system start must not depend on it; positions of unregistered devices are dropped (Q12), so a fresh stack needs the setup.
+- Requirement IDs: SIM-01, NF-01
+- Status: Accepted
+
+## Q93 — Where on the map do simulated devices walk?
+- Assumption: only on `kind=path` lines, using path vertices strictly inside the site perimeter (shared vertices join paths, rounded to 1e-7 degrees). Movement uses a local equirectangular scale in lon/lat; logs go to the console (no logging package), and time comes from a `TimeProvider`.
+- Why: 11 path vertices of the real map lie outside the perimeter and ingest would drop them; the simulator references no project, so no shared projection, and the error is negligible at site size.
+- Requirement IDs: SIM-01
+- Status: Accepted

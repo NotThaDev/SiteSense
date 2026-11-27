@@ -84,6 +84,24 @@ No setup needed: every variable has a default. To override one, copy `.env.examp
 2. Start Redis and Keycloak (`docker compose up redis keycloak keycloak-init`), then run the API: `dotnet run --project backend/SiteSense.Api`. The store goes to `backend/SiteSense.Api/.store/` (`Store:RootPath`, gitignored).
 3. Read the API: the OpenAPI document is at `/openapi/v1.json` and the Scalar UI at `/scalar/v1`.
 
+## Simulator
+
+Console device simulator: moves test devices along the site paths and sends their positions to the API as the gateway.
+
+Run on the host, with `docker compose up` running:
+
+```bash
+dotnet run --project simulator/SiteSense.Simulator -- --devices 5 --duration-s 30
+```
+
+Run in Docker (plain `docker compose up` does not start it):
+
+```bash
+docker compose --profile sim up simulator
+```
+
+Setup runs by default: it creates the site, uploads the map and registers the devices with the test admin. `--no-setup` turns it off. Options: [`docs/simulator.md`](docs/simulator.md).
+
 ## Tech stack
 
 <p align="center">
