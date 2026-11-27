@@ -87,4 +87,21 @@ public sealed class OpenApiTests : IClassFixture<ApiFactory>
         Assert.Contains("403", codes);
         Assert.Contains("404", codes);
     }
+
+    [Fact]
+    public async Task GetOpenApi_Routes_Has422AndRequiredFromTo()
+    {
+        // Arrange
+        // Act
+        var body = await _client.GetStringAsync("/openapi/v1.json");
+
+        // Assert
+        using var doc = JsonDocument.Parse(body);
+        var post = doc.RootElement.GetProperty("paths").GetProperty("/api/v1/sites/{siteId}/routes").GetProperty("post");
+        Assert.True(post.GetProperty("responses").TryGetProperty("422", out _));
+        var required = doc.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("RouteRequest").GetProperty("required")
+            .EnumerateArray().Select(e => e.GetString()).ToArray();
+        Assert.Equal(new[] { "from", "to" }, required.OrderBy(n => n).ToArray());
+    }
 }
