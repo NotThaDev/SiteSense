@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Store;
 
@@ -22,6 +23,43 @@ public sealed class SiteMap : IDocument
 
     public static Task<SiteMap?> GetAsync(string tenantId, string siteId, CancellationToken ct) =>
         SiteSenseContext.Store.GetAsync<SiteMap>(tenantId, siteId, ct);
+
+    // RFC 7946 FeatureCollection with the import's own keys; a JsonObject keeps them exact (no naming policy).
+    public JsonObject ToGeoJson()
+    {
+        var features = new JsonArray();
+        foreach (var a in Areas)
+        {
+            var props = Props("area", a.Id, ("name", a.Name), ("areaType", a.AreaType));
+            if (a.Capacity is not null) props["capacity"] = a.Capacity;
+            features.Add(Feature(new JsonObject { ["type"] = "Polygon", ["coordinates"] = Json(a.Coordinates) }, props));
+        }
+        foreach (var p in Paths)
+            features.Add(Feature(new JsonObject { ["type"] = "LineString", ["coordinates"] = Json(p.Coordinates) },
+                Props("path", p.Id, ("surface", p.Surface), ("steps", p.Steps), ("slopePercent", p.SlopePercent), ("widthM", p.WidthM))));
+        foreach (var ap in AssemblyPoints)
+            features.Add(Feature(new JsonObject { ["type"] = "Point", ["coordinates"] = Json(ap.Coordinates) },
+                Props("assemblyPoint", ap.Id, ("name", ap.Name), ("capacity", ap.Capacity))));
+        foreach (var e in Entrances)
+            features.Add(Feature(new JsonObject { ["type"] = "Point", ["coordinates"] = Json(e.Coordinates) },
+                Props("entrance", e.Id, ("name", e.Name))));
+        return new JsonObject { ["type"] = "FeatureCollection", ["features"] = features };
+    }
+
+    private static JsonObject Feature(JsonObject geometry, JsonObject props) =>
+        new() { ["type"] = "Feature", ["geometry"] = geometry, ["properties"] = props };
+
+    private static JsonObject Props(string kind, string id, params (string Key, object Value)[] rest)
+    {
+        var o = new JsonObject { ["kind"] = kind, ["id"] = id };
+        foreach (var (k, v) in rest) o[k] = JsonValue.Create(v);
+        return o;
+    }
+
+    private static JsonNode Json(Array coordinates) =>
+        coordinates is double[] pos
+            ? new JsonArray(pos.Select(c => (JsonNode)JsonValue.Create(c)).ToArray())
+            : new JsonArray(coordinates.Cast<Array>().Select(Json).ToArray());
 
     // expectedVersion null = replace the latest map (last write wins); a number must be the stored version (0 = new), else ConcurrencyException.
     public static async Task<MapImportResult> ImportAsync(

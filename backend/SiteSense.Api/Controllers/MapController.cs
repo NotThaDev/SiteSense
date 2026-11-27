@@ -10,10 +10,26 @@ namespace SiteSense.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/sites/{siteId}/map")]
-[Authorize(Policy = SiteSensePolicies.CanManage)]
 public sealed class MapController : ControllerBase
 {
+    [HttpGet]
+    [Authorize(Policy = SiteSensePolicies.CanSeeAggregates)]
+    [Produces("application/geo+json")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType<ProblemDetails>(404)]
+    public async Task<IActionResult> Get(string siteId, CancellationToken ct)
+    {
+        var tenantId = User.TenantId();
+        if (await Site.GetAsync(tenantId, siteId, ct) is null) return Problem(statusCode: 404, title: "Site not found");
+        var map = await SiteMap.GetAsync(tenantId, siteId, ct);
+        if (map is null) return Problem(statusCode: 404, title: "Map not found");
+
+        Response.Headers.ETag = $"\"{map.Version}\"";
+        return Content(map.ToGeoJson().ToJsonString(), "application/geo+json");
+    }
+
     [HttpPut]
+    [Authorize(Policy = SiteSensePolicies.CanManage)]
     [Consumes("application/geo+json", "application/json")]
     [ProducesResponseType<MapVersionResponse>(200)]
     [ProducesResponseType<ProblemDetails>(404)]
