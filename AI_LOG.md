@@ -97,3 +97,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-17 with the plan / validate / approve / implement / verify workflow; no routing in this story.
 - AI produced: plan and ADR 0001 (Opus), plan review (Sonnet), Domain graph builder, segment/polygon test, map adapter and tests (Haiku).
 - Corrected or discarded: the Sonnet review asked for an exact segment/polygon rule, strict tolerance, no self-loops, connector edge cases and the ADR file name fixed by the ai-process skill. The point-in-polygon test is shared with SS-22 (one `PlanarGeometry.Locate`) instead of a second copy. The owner chose the recommended options for Q18, Q19, Q21, Q25, Q86 and Q87.
+
+## 2026-11-27 — SS-32: Position retention
+- Goal: delete position log hour files older than each tenant's `RetentionDays`, hourly and from the test endpoint.
+- Prompt (summary): plan SS-32 with the plan / validate / approve / implement / verify workflow; ask the owner on every open point.
+- AI produced: plan, `DeleteBeforeAsync`, `ITenantJob`, `RetentionJob` and wiring (Opus), plan review (Sonnet), store, crash and API tests (Haiku).
+- Corrected or discarded: the Sonnet review asked for the exact append lock on delete, where `RetentionDays` is read, no hourly schedule on the test host, a cutoff exactly on the hour and an append-during-delete test. The owner chose the recommended options for Q48, Q95 and Q96.
