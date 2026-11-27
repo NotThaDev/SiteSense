@@ -56,3 +56,8 @@ Known limits and what to do with more time.
 - The login cookie lives 1 hour and an open socket does not slide it: when it expires the hub closes and the user logs in again.
 - Nothing moves until the producers exist: positions (SS-50), then the occupancy and alert stories. Until then the map shows the structure and the status chip.
 - The map still uses the public OpenStreetMap tile server (see SS-46).
+
+## SS-50 — Position events
+- A crash after the processing save and before the publish loses those `PositionUpdated` events (at most once, Q115). The track is correct; catch-up cannot return events never logged.
+- `areaId` is `null` until SS-25 assigns areas.
+- A late batch older than the retention cutoff finds no older track records and is published as new; retention deletes it at the next run.
