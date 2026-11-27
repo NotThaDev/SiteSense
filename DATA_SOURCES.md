@@ -1,5 +1,14 @@
 # Data sources
 
+## OpenStreetMap tiles (map view)
+
+- Source: OpenStreetMap standard tile layer, `https://tile.openstreetmap.org/{z}/{x}/{y}.png`.
+- Used at runtime: the browser loads the tiles for the site page map (SS-48). Nothing is stored.
+- License: Open Data Commons Open Database License (ODbL) 1.0 — https://opendatacommons.org/licenses/odbl/1-0/
+- Attribution: © OpenStreetMap contributors, shown in the map corner and linked to https://www.openstreetmap.org/copyright
+- Tile usage policy (https://operations.osmfoundation.org/policies/tiles/): light, interactive use only. The browser sends a `Referer`, so the app must not set `Referrer-Policy: no-referrer`.
+- Library: Leaflet (BSD-2-Clause) draws the map; `react-leaflet` is the React binding.
+
 ## OpenStreetMap: Cittadella Universitaria, Catania
 
 - Source: OpenStreetMap, site perimeter = way 231201634.

@@ -438,3 +438,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: these are the endpoints that exist today; the rest waits for the stories that add them.
 - Requirement IDs: API-01
 - Status: Accepted
+
+## Q93 — Who may read the site map (`GET /api/v1/sites/{siteId}/map`)?
+- Assumption: every user role (`CanSeeAggregates`). The map is the site layout, not personal data. What is drawn on top depends on the role: Admin the structure (SS-48), Safety devices and alerts, Viewer occupancy, each in its own story. Upload stays Admin-only.
+- Why: Safety and Viewer views (routes, evacuation, occupancy) need the layout; no individual data is in the map (Q09, PRV-03).
+- Requirement IDs: API-06, PRV-03
+- Status: Accepted

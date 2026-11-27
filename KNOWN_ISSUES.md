@@ -28,3 +28,4 @@ Known limits and what to do with more time.
 - The cookie keeps the roles of the login; a role change in Keycloak applies at the next login (cookie life: 1 hour, sliding).
 - The API builds the OIDC redirect URI from the `Host` header that nginx forwards; a different UI port needs a matching redirect URI in the realm.
 - No silent token renewal; the API does not call Keycloak with the user's tokens after login.
+- The map view uses the public OpenStreetMap tile server: fine for development and light interactive use only. A production deployment needs its own tile server or a tile provider.

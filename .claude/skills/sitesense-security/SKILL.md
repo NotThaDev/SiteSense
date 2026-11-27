@@ -51,6 +51,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 |---|---|
 | `POST /api/v1/sites` | `CanManage` |
 | `GET /api/v1/sites` | `CanManage` (Q86) |
+| `GET /api/v1/sites/{siteId}/map` | `CanSeeAggregates` (Q93) |
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
 | `GET /api/v1/sites/{siteId}/devices` | `CanManage` (Q85) |
