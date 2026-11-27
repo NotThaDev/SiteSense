@@ -1,6 +1,6 @@
 # SS-23 — Ordered processing and drain
 
-- Status: Draft
+- Status: Approved
 - Issue: #118
 - Plan PR: #120   Implementation PRs: #<n>
 
@@ -164,3 +164,4 @@ PR 1 (model and processor) targets the plan branch; PR 2 (wiring, endpoint, API 
 |---|---|---|
 | 2026-11-27 | First draft | — |
 | 2026-11-27 | Second mark after the append; per-device state machine with one worker; drain `500` on a failed run; startup scan in `StartAsync`; restart test with a fixed store root; Q05/Q16 updates; retried batches listed as a known issue | Sonnet validation: lost batch race, undefined enqueue during a run, error path, test host lifetime |
+| 2026-11-27 | Status Approved | User OK in chat |
