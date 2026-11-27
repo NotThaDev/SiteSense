@@ -24,15 +24,15 @@ Terms (see `../../.claude/skills/sitesense-context/SKILL.md`):
 - *Event*: a notification saved with its sequence number. Three types: `PositionUpdated`, `OccupancyChanged`,
   `AlertRaised` (RTM-02).
 - *Seq*: a number per tenant that grows by one for each event (RTM-05).
-- *Audience*: the roles allowed to receive an event type (security skill, SignalR section).
+- *Audience*: the named policy a caller must pass to receive an event type (security skill, SignalR section).
 
 ## Goal
 
 - Any service can call one method to publish an event. The event is saved with the next seq of its tenant,
   and only then sent over SignalR (RTM-03).
-- A user connects to the hub, joins a site of its own tenant, and receives only the event types its role may
-  see (RTM-01, RTM-02, Q36, Q63).
-- `GET /api/v1/events?after={seq}` returns the saved events after `seq`, with the same role filter (RTM-05, Q35).
+- A user connects to the hub, joins a site of its own tenant, and receives only the event types its policies allow
+  it to see (RTM-01, RTM-02, Q36, Q63).
+- `GET /api/v1/events?after={seq}` returns the saved events after `seq`, with the same audience filter (RTM-05, Q35).
 
 Out of scope: who produces events. `PositionUpdated` is wired into the processor once SS-23 is on `main`;
 `OccupancyChanged` with SS-27, `AlertRaised` with SS-28/SS-30/SS-33. The browser UI and the nginx WebSocket
@@ -65,13 +65,13 @@ sequenceDiagram
   S->>P: PublishAsync(tenant, site, type, data)
   P->>P: lock tenant, seq = last + 1
   P->>L: AppendAsync (fsync)
-  P->>H: send to each role group of the audience (5 s timeout, errors logged)
+  P->>H: send to the site's audience group (5 s timeout, errors logged)
   P->>P: unlock
   H->>C: event envelope
   C->>C: disconnect, reconnect
   C->>P: GET /api/v1/events?after=41
   P->>L: read seq 42 … 1041
-  P-->>C: events the role may see + lastSeq + hasMore
+  P-->>C: events the caller may see + lastSeq + hasMore
 ```
 
 ### Event envelope (same JSON on the hub and in `GET /events`)
@@ -118,27 +118,30 @@ sequenceDiagram
 
 ### Audience (one map, used by hub and catch-up)
 
-| Type | Roles |
-|---|---|
-| `PositionUpdated` | Safety |
-| `AlertRaised` | Safety |
-| `OccupancyChanged` | Admin, Safety, Viewer |
+Who sees what goes through the named policies, never role strings in code (IDN-03, Q108):
 
+| Type | Policy (audience) | Passes today |
+|---|---|---|
+| `PositionUpdated` | `CanSeeIndividuals` | Safety |
+| `AlertRaised` | `CanSeeIndividuals` | Safety (Q36) |
+| `OccupancyChanged` | `CanSeeAggregates` | Admin, Safety, Viewer |
+
+- `EventAudience` (pure, no auth calls): `PolicyFor(type)`, `Policies` (the two above),
+  `CanSee(type, passedPolicies)`.
+- The caller's passed policies are computed once per request or per `JoinSite` with
+  `IAuthorizationService.AuthorizeAsync(user, policy)` for each of the two policies.
 - The audience is derived from the type, not stored per event. A Viewer sees gaps in seq; that is expected.
-- Roles of the caller: the user roles (`Admin`, `Safety`, `Viewer`) found in the token's `roles` claim.
-  Q61 says one per user; if a token holds several, the caller sees the union (each role's group, each role's
-  types). This can never widen what a Viewer-only user sees.
 - A token without any user role (a gateway with `positions:write` only) fails `CanSeeAggregates`: `403` on the
   hub negotiate and on `GET /events`.
 
 ### Hub
 
 - `SiteHub`, mapped at `/api/v1/realtime` (Q106): under `/api` so the UI's existing nginx `/api` proxy covers it.
-- `[Authorize(Policy = CanSeeAggregates)]`. Tenant and roles come from the token only.
+- `[Authorize(Policy = CanSeeAggregates)]`. Tenant and policies come from the token only.
 - `JoinSite(siteId)`: if `FileDocumentStore.IsValidName(siteId)` is false **or** `Site.GetAsync` returns null,
   throw `HubException("Site not found")`: the same answer for an invalid name, an unknown site and a site of
-  another tenant (IDN-02). Then add the connection to `tenant:{tenantId}:site:{siteId}:role:{role}` for each of
-  its user roles (Q63). A valid name has no `:`, so a group name cannot be forged.
+  another tenant (IDN-02). Then add the connection to `tenant:{tenantId}:site:{siteId}:audience:{policy}` for each
+  audience policy it passes (Q63 changed by Q108: one group per policy, not per role). A valid name has no `:`, so a group name cannot be forged.
 - `LeaveSite(siteId)` removes the connection from the same groups.
 - A connection stays in a site's groups if the site is deleted later; it just receives nothing more. Accepted.
 - `MapHub<SiteHub>("/api/v1/realtime", o => o.CloseOnAuthenticationExpiration = true)`.
@@ -146,14 +149,15 @@ sequenceDiagram
   the `access_token` query value **only** when `Request.Path.StartsWithSegments("/api/v1/realtime",
   StringComparison.OrdinalIgnoreCase)` and there is no `Authorization` header. Nowhere else.
 - No request logging of query strings exists today; if one is added, it must redact `access_token`.
-- Group send: for each role in the type's audience, `Clients.Group(name).SendAsync(type, envelope, ct)`.
+- Group send: one group per event, the one of the type's policy: `Clients.Group(name).SendAsync(type, envelope, ct)`.
+  A Safety connection is in both groups and gets each event once.
 
 ### Catch-up endpoint
 
 `GET /api/v1/events?after={seq}` on a new `EventsController`, policy `CanSeeAggregates`.
 - `after` optional, default `0`, must be `>= 0` (else `400` ProblemDetails).
 - Reads seqs `after+1` to `after+1000` (`ReadRangeAsync` with `fromMs = (after+1)*100`, `toMs = (after+1001)*100`),
-  keeps those the caller's roles may see.
+  keeps those the caller's passed policies may see.
 - Returns `200 { "items": [envelope…], "lastSeq": n, "hasMore": bool }`. `lastSeq` is the last seq the window
   covered (at most the tenant's current last seq), so a Viewer whose window held only Safety events still
   advances. `hasMore` is `lastSeq < current last seq`. The client calls again with `after = lastSeq` while
@@ -166,12 +170,12 @@ sequenceDiagram
 |---|---|---|---|---|
 | 1 | `ReadLastAsync<T>(tenantId, key, ct)` on `IAppendLog` + `FileAppendLog` (rules in "Event log and seq"). Shortcut comment: reads the whole newest file | `backend/SiteSense.Api/Store/IAppendLog.cs`, `backend/SiteSense.Api/Store/FileAppendLog.cs` | Unit tests: empty → null; two files → last record of the newest; newest file holds only a torn line → last of the previous file; unterminated whole tail → that record; unparseable tail → record before it | 1 |
 | 2 | `TenantEvent` record (`[JsonIgnore] TimestampMs => Seq * 100`) and `EventTypes` constants | `backend/SiteSense.Api/Realtime/TenantEvent.cs` | Round-trip test: serialize with `StorePaths.Json`, deserialize, same values; no `timestampMs` in the JSON | 1 |
-| 3 | `EventAudience`: type → roles map; `UserRoles(ClaimsPrincipal)` (user roles in the token); `CanSee(type, roles)` | `backend/SiteSense.Api/Realtime/EventAudience.cs` | Unit test per type × role, plus a two-role token | 1 |
+| 3 | `EventAudience`: type → policy map; `PolicyFor(type)`, `Policies`, `CanSee(type, passedPolicies)` | `backend/SiteSense.Api/Realtime/EventAudience.cs` | Unit test per type × passed policies; architecture test `Backend_DoesNotCheckRolesInCode` passes unchanged | 1 |
 | 4 | `IRealtimePublisher` + `EventPublisher.PublishAsync`: per-tenant `SemaphoreSlim`, seq load via `ReadLastAsync`, `AppendAsync`, then `IEventSender.SendAsync` with a 5 s token, errors logged and swallowed. `NullEventSender` until PR 2 | `backend/SiteSense.Api/Realtime/IRealtimePublisher.cs`, `backend/SiteSense.Api/Realtime/EventPublisher.cs`, `backend/SiteSense.Api/Realtime/IEventSender.cs` | Tests in `EventPublisherTests` below | 1 |
-| 5 | `EventPublisher.ReadAfterAsync(tenantId, after, roles, ct)` → items, lastSeq, hasMore (window of 1,000 seqs) | `backend/SiteSense.Api/Realtime/EventPublisher.cs` | Tests in `EventPublisherTests` below | 1 |
+| 5 | `EventPublisher.ReadAfterAsync(tenantId, after, passedPolicies, ct)` → items, lastSeq, hasMore (window of 1,000 seqs) | `backend/SiteSense.Api/Realtime/EventPublisher.cs` | Tests in `EventPublisherTests` below | 1 |
 | 6 | DI: `EventPublisher` singleton, `IRealtimePublisher` → it, `IEventSender` → `NullEventSender`. The log is `SiteSenseContext.Log` (not in DI) | `backend/SiteSense.Api/Program.cs` | Builds, existing tests pass | 1 |
 | 7 | `EventsController` `GET /api/v1/events?after=` with `[ProducesResponseType]` 200/400/401/403 | `backend/SiteSense.Api/Controllers/EventsController.cs` | `EventsTests` below pass | 1 |
-| 8 | Policy table row for `/events` from Proposed to decided; ASSUMPTIONS Q34, Q35, Q105, Q106, Q107 | `.claude/skills/sitesense-security/SKILL.md`, `ASSUMPTIONS.md` | Rows present | 1 |
+| 8 | Policy table row for `/events` from Proposed to decided; SignalR section: groups per audience policy and the type → policy table; ASSUMPTIONS Q34, Q35, Q105, Q106, Q107, Q108, and Q63 set to Changed | `.claude/skills/sitesense-security/SKILL.md`, `ASSUMPTIONS.md` | Rows present | 1 |
 | 9 | Test package `Microsoft.AspNetCore.SignalR.Client` (exact version matching 10.0.14, central management, test project only) and helper `HubClient.ConnectAsync(factory, token)` (recipe below) | `Directory.Packages.props`, `tests/SiteSense.Tests/SiteSense.Tests.csproj`, `tests/SiteSense.Tests/Api/Realtime/HubClient.cs` | One test connects as Safety and calls `JoinSite` on an existing site | 2 |
 | 10 | `OnMessageReceived`: query token only on the hub path, only without an `Authorization` header | `backend/SiteSense.Api/Auth/AuthSetup.cs` | Query token works on the hub; same token as `?access_token=` on `GET /api/v1/sites/{id}` → `401` | 2 |
 | 11 | `SiteHub` (`JoinSite`, `LeaveSite`), `AddSignalR`, `MapHub` with `CloseOnAuthenticationExpiration` | `backend/SiteSense.Api/Realtime/SiteHub.cs`, `backend/SiteSense.Api/Program.cs` | Join tests in `SiteHubTests` pass | 2 |
@@ -234,6 +238,7 @@ in step 10 with a plain `HttpClient` call to `/api/v1/realtime/negotiate?negotia
 |---|---|---|---|
 | Q34 | Is every `PositionUpdated` saved with a seq, and throttled? | **a) Saved with a seq, one per filtered position, no throttle** · b) Throttle per device | a) (user) |
 | Q35 | Does `GET /events` filter by role? | **a) Yes, same audience map as the hub** · b) No filter | a) (user) |
+| Q108 | How is the audience checked without role strings in code (IDN-03)? | **a) Per event type a named policy (`CanSeeIndividuals`, `CanSeeAggregates`), checked with `IAuthorizationService`; hub groups per policy** · b) Read the role claims in `Realtime/` and exempt the file from the architecture test | a) (user) |
 | Q105 | How is the event log keyed so "after seq" is cheap? | **a) `IAppendLog` with `TimestampMs = seq × 100` (36,000 seqs per file)** · b) Keyed by publish time, full scan and sort by seq on each catch-up · c) A new seq-indexed log type | a) (user) |
 | Q106 | Hub path | **a) `/api/v1/realtime`** (covered by the UI's `/api` proxy) · b) `/hubs/site` | a) (user) |
 | Q107 | When is `OccupancyChanged` sent? | **a) On area change (push) and from the per-minute job when the 5-minute rule drops a device, only if the snapshot changed** · b) Job only · c) Push only | a) (user) |
@@ -245,3 +250,4 @@ in step 10 with a plain `HttpClient` call to `/api/v1/realtime/negotiate?negotia
 | 2026-11-27 | First draft | |
 | 2026-11-27 | `AppendAsync` under the tenant lock; `ReadLastAsync` counts a whole unterminated tail and falls back to older files; seq × 100 buckets; union of user roles; JSON element and `[JsonIgnore]` rules; 5 s send timeout; SignalR test recipe; query token only on the hub path without a header; invalid site name = not found; `/events` returns `lastSeq` and `hasMore`; steps split | Sonnet validation: seq reuse after a torn record, O(file) appends, multi-role tokens, JSON round-trip, send timeout, test recipe, query-token scope, paging with role filter |
 | 2026-11-27 | Q35, Q105 and Q106 decided: a) | User review in chat |
+| 2026-11-27 | Audience by named policy, hub groups per policy (Q108, changes Q63) | Implementation of step 3 hit the IDN-03 architecture test; user chose policies |
