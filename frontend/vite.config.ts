@@ -10,5 +10,6 @@ const api = { target: process.env.API_URL ?? 'http://localhost:5073', changeOrig
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  server: { proxy: { '/api': api, '/signin-oidc': api, '/signout-callback-oidc': api } },
+  // ws: only on /api (the SignalR hub).
+  server: { proxy: { '/api': { ...api, ws: true }, '/signin-oidc': api, '/signout-callback-oidc': api } },
 })
