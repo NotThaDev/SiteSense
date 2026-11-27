@@ -50,7 +50,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | Method + path | Policy |
 |---|---|
 | `POST /api/v1/sites` | `CanManage` |
-| `GET /api/v1/sites` | `CanManage` (Q86) |
+| `GET /api/v1/sites` | `CanManage` (Q109) |
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
 | `GET /api/v1/sites/{siteId}/devices` | `CanManage` (Q85) |
@@ -67,7 +67,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `POST /api/v1/test/jobs/{jobName}/run` | `TestMode` |
 | `POST /api/v1/test/drain` | `TestMode` |
 | `GET /api/v1/me` | Authenticated (fallback policy, Q78) |
-| `GET /api/v1/auth/login`, `GET /api/v1/auth/logout` | Anonymous (browser login, Q87) |
+| `GET /api/v1/auth/login`, `GET /api/v1/auth/logout` | Anonymous (browser login, Q110) |
 | SignalR hub | Authenticated; groups and audiences in the SignalR section |
 
 ## Fixed rules
@@ -80,7 +80,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | Valid token whose `tenant_id` is not in the `Tenants` configuration | `403` ProblemDetails, on every endpoint | Q14, decided |
 | Authorization in code | Named policies only (`RequireAuthorization("…")`). Never `IsInRole` or role strings in handlers. | IDN-03 |
 | Tenant filter | In the store or query layer, applied to every read and write. Not ad hoc in handlers. | IDN-02 |
-| Browser (admin UI) call | Cookie from the BFF login; a call without `Authorization: Bearer` must send `X-CSRF: 1`, else `403` ProblemDetails | Q88, decided |
+| Browser (admin UI) call | Cookie from the BFF login; a call without `Authorization: Bearer` must send `X-CSRF: 1`, else `403` ProblemDetails | Q111, decided |
 
 Test-mode behaviour: see `../sitesense-context/SKILL.md`.
 
