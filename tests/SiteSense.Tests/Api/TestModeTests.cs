@@ -9,6 +9,14 @@ namespace SiteSense.Tests.Api;
 
 public sealed class TestModeApiFactory : ApiFactory
 {
+    public TestModeApiFactory()
+    {
+    }
+
+    internal TestModeApiFactory(string storeRoot, bool keepStore) : base(storeRoot, keepStore)
+    {
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
