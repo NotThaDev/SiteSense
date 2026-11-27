@@ -95,7 +95,7 @@ sequenceDiagram
 | 4 | Proxies as above; `@microsoft/signalr` added at an exact version | `frontend/nginx.conf`, `frontend/vite.config.ts` | WebSocket opens through both | impl |
 | 5 | FE: session reads `capabilities`; the gate needs `seeAggregates`; `manage` shows the Admin actions; no role name in a condition | `session.tsx`, `App.tsx`, pages | Viewer sees read-only pages | impl |
 | 6 | FE: `useSiteEvents(siteId)` hook (connect, join, catch-up, status) and map layers for occupancy, devices, alerts | `frontend/src/realtime.ts`, `MapView.tsx`, `SitePage.tsx` | events render | impl |
-| 7 | Docs: ASSUMPTIONS Q116 (alert payload), Q117 (hub Origin check), Q118 (UI per role), Q119 (sites list access); security skill rows; KNOWN_ISSUES; README | docs | docs match the code | impl |
+| 7 | Docs: ASSUMPTIONS Q116 (alert payload), Q117 (hub Origin check), Q118 (UI per role), Q109 changed (sites list for all roles); security skill rows; KNOWN_ISSUES; README | docs | docs match the code | impl |
 
 ## Risks
 
