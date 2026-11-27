@@ -2,6 +2,7 @@ using Scalar.AspNetCore;
 using SiteSense.Api.Auth;
 using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Helpers;
+using SiteSense.Api.Realtime;
 using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +20,10 @@ builder.Services.AddControllers()
 // Same rule for the OpenAPI generator, so the schema marks the same fields required.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.RespectRequiredConstructorParameters = true);
 builder.Services.AddProblemDetails();
+// Realtime: the publisher is the only producer of events; PR 2 swaps the sender for SignalR.
+builder.Services.AddSingleton<IEventSender, NullEventSender>();
+builder.Services.AddSingleton<EventPublisher>();
+builder.Services.AddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<EventPublisher>());
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

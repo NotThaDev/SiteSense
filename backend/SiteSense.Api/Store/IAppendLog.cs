@@ -9,4 +9,6 @@ public interface IAppendLog
     Task<int> AppendNewAsync<T>(string tenantId, string key, IReadOnlyList<T> records, CancellationToken ct) where T : class, ILogRecord;
     // Records with fromMs <= TimestampMs < toMs, ordered by TimestampMs (append order on ties). Only newline-terminated lines count; lines that do not parse are skipped.
     Task<IReadOnlyList<T>> ReadRangeAsync<T>(string tenantId, string key, long fromMs, long toMs, CancellationToken ct) where T : class, ILogRecord;
+    // The record stored last (newest hour file, last line), or null when the key has none. Same line rules as ReadRangeAsync.
+    Task<T?> ReadLastAsync<T>(string tenantId, string key, CancellationToken ct) where T : class, ILogRecord;
 }
