@@ -647,3 +647,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: a policy change must not need a UI change (IDN-03).
 - Requirement IDs: IDN-03
 - Status: Accepted
+
+## Q26 — Which plausibility and noise filter does the track use?
+- Assumption: a speed gate plus an accuracy-weighted average. A position is dropped when `distance − (accuracy1 + accuracy2) > vMax · Δt` against the last kept point (`vMax` = 7 m/s, configurable). Kept points are averaged with the previous kept point, weights `1 / accuracyM²`. After `K` = 3 consecutive drops that agree with each other, the last one is kept and the filter restarts from it (recovery from a false drop).
+- Why: simple, deterministic (a replay gives the same track) and easy to test; accuracy is used twice, as the gate tolerance and as the weight.
+- Alternatives rejected:
+  - Kalman 2D: more code and parameters to tune for the same visible result.
+  - Gate only: drops jumps but leaves the GPS noise in the track.
+- Requirement IDs: TRK-03
+- Status: Accepted
