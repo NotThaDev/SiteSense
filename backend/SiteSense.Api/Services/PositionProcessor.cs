@@ -1,13 +1,14 @@
 using System.Threading.Channels;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Realtime;
 using SiteSense.Api.Store;
 
 namespace SiteSense.Api.Services;
 
 // Ordered processing (TRK-02, Q06, Q100): one worker, so each device runs alone and in timestamp order. Drain is per tenant (Q102).
 // Reads SiteSenseContext on every call, never in a field (Q38): test hosts replace it.
-public sealed class PositionProcessor(ILogger<PositionProcessor> logger) : BackgroundService
+public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<PositionProcessor> logger) : BackgroundService
 {
     // A device missing from _devices is idle.
     private enum RunState { Queued, Running, RunningDirty }
@@ -113,7 +114,8 @@ public sealed class PositionProcessor(ILogger<PositionProcessor> logger) : Backg
 
     // Processes raw positions from DirtyFromMs in timestamp order. A start at or before the cursor is late: new revision, replay (Q06).
     // A version conflict means a mark landed during the run: reload and run again.
-    private static async Task RunAsync(string tenantId, string deviceId, CancellationToken ct)
+    // After a successful save, publishes PositionUpdated once per position not processed before (SS-50, Q115).
+    private async Task RunAsync(string tenantId, string deviceId, CancellationToken ct)
     {
         while (true)
         {
@@ -123,6 +125,7 @@ public sealed class PositionProcessor(ILogger<PositionProcessor> logger) : Backg
             var revision = late ? doc.Revision + 1 : doc.Revision;
             // Upper bound is exclusive; long.MaxValue also covers timestamps ahead of the clock (Q39).
             var raw = await Position.ReadAsync(tenantId, deviceId, from, long.MaxValue, ct);
+            var fresh = await NewPositionsAsync(tenantId, deviceId, doc, late, from, raw, ct);
             if (raw.Count > 0)
             {
                 // Pass-through until the filter (SS-24, Q101).
@@ -135,11 +138,51 @@ public sealed class PositionProcessor(ILogger<PositionProcessor> logger) : Backg
             try
             {
                 await DeviceProcessing.SaveAsync(tenantId, doc, ct);
+                await PublishAsync(tenantId, deviceId, fresh, ct);
                 return;
             }
             catch (ConcurrencyException)
             {
                 // A mark landed during the run: reload and run again.
+            }
+        }
+    }
+
+    // From the saved state only (cursor, revision), so a retry after a failed save computes the same set.
+    // Raw log records, not TrackPoint.ReadAsync: its fold would hide points written by a failed attempt.
+    private static async Task<IReadOnlyList<Position>> NewPositionsAsync(string tenantId, string deviceId, DeviceProcessing saved, bool late, long from, IReadOnlyList<Position> raw, CancellationToken ct)
+    {
+        if (saved.CursorMs is not { } cursor) return raw;
+        HashSet<long> known = [];
+        if (late)
+        {
+            var old = await SiteSenseContext.Log.ReadRangeAsync<TrackPoint>(tenantId, deviceId, from, cursor + 1, ct);
+            known = old.Where(t => t.Revision <= saved.Revision).Select(t => t.TimestampMs).ToHashSet();
+        }
+        return raw.Where(p => p.TimestampMs > cursor || !known.Contains(p.TimestampMs)).ToList();
+    }
+
+    // At most once: a crash before this loses the events (KNOWN_ISSUES). A failure is logged and skipped, never fails the run.
+    private async Task PublishAsync(string tenantId, string deviceId, IReadOnlyList<Position> fresh, CancellationToken ct)
+    {
+        if (fresh.Count == 0) return;
+        var device = await Device.GetAsync(tenantId, deviceId, ct);
+        if (device is null) return;
+        foreach (var p in fresh)
+        {
+            try
+            {
+                await publisher.PublishAsync(tenantId, device.SiteId, EventTypes.PositionUpdated,
+                    new PositionUpdatedData(deviceId, p.TimestampMs, p.Lat, p.Lon, null), ct);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // No coordinates in the log (PRV).
+                logger.LogWarning(ex, "PositionUpdated not published for device {DeviceId} at {TimestampMs}", deviceId, p.TimestampMs);
             }
         }
     }
