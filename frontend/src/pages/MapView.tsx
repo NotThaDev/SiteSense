@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import L from 'leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
-import { Maximize2, Minimize2 } from 'lucide-react'
+import { Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ApiError, api, toastError } from '@/api'
 
 type Props = Record<string, string | number | boolean | undefined>
@@ -50,33 +51,45 @@ function FitBounds({ data }: { data: FeatureCollection }) {
   return null
 }
 
-// Leaflet measures its container once: after entering or leaving full screen it must measure again.
-function ResizeOnChange({ full }: { full: boolean }) {
+// Leaflet measures its container once; in the dialog the size settles after the open animation, so measure again.
+function ResizeAfterOpen() {
   const map = useMap()
-  useEffect(() => { map.invalidateSize() }, [map, full])
+  useEffect(() => { const t = setTimeout(() => map.invalidateSize(), 200); return () => clearTimeout(t) }, [map])
   return null
+}
+
+// The map itself, used in the card and in the large dialog.
+// isolate: Leaflet's z-indexes (400–1000) stay inside the map, so popovers and dialogs draw above it.
+function MapCanvas({ data, etag }: { data: FeatureCollection; etag: string }) {
+  return (
+    <div className="relative isolate h-full overflow-hidden rounded-xl border">
+      <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
+        <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
+        <GeoJSON key={etag} data={data}
+          style={f => style(f as Feature<Geometry, Props>)}
+          pointToLayer={(f, latlng) => L.circleMarker(latlng, style(f as Feature<Geometry, Props>))}
+          // Top-left padding keeps an opened popup clear of the zoom control.
+          onEachFeature={(f, layer) => layer.bindPopup(() => popup(f as Feature<Geometry, Props>), { autoPanPaddingTopLeft: L.point(60, 60) })} />
+        <FitBounds data={data} />
+        <ResizeAfterOpen />
+      </MapContainer>
+      <ul className="absolute bottom-2 left-2 rounded-md border bg-background/90 p-2 text-xs shadow" style={{ zIndex: 1000 }}>
+        {LEGEND.map(([label, color]) => (
+          <li key={label} className="flex items-center gap-1.5">
+            <span className="inline-block size-2.5 rounded-sm" style={{ background: color }} />{label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 export default function MapView({ siteId, reloadKey }: { siteId: string; reloadKey: number }) {
   const [data, setData] = useState<FeatureCollection | null>(null)
   const [etag, setEtag] = useState('')
   const [empty, setEmpty] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
-  // 'native' = browser full screen; 'window' = fallback that covers the window when full screen is refused (iframes, some browsers).
-  const [mode, setMode] = useState<'off' | 'native' | 'window'>('off')
-  const full = mode !== 'off'
-  useEffect(() => {
-    const onChange = () => setMode(document.fullscreenElement === box.current ? 'native' : m => (m === 'native' ? 'off' : m))
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMode(m => (m === 'window' ? 'off' : m)) }
-    document.addEventListener('fullscreenchange', onChange)
-    document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('fullscreenchange', onChange); document.removeEventListener('keydown', onKey) }
-  }, [])
-  const toggleFull = () => {
-    if (mode === 'native') void document.exitFullscreen()
-    else if (mode === 'window') setMode('off')
-    else box.current?.requestFullscreen().catch(() => setMode('window'))
-  }
+  const [large, setLarge] = useState(false)
   useEffect(() => {
     api<FeatureCollection>('GET', `/sites/${siteId}/map`)
       .then(r => { setData(r.data); setEtag(r.etag ?? ''); setEmpty(false) })
@@ -88,31 +101,18 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
   if (empty) return <p className="text-sm text-muted-foreground">Upload a map to see it here</p>
   if (!data) return null
   return (
-    // isolate: Leaflet's z-indexes (400–1000) stay inside the map, so popovers and dialogs draw above it.
-    <div ref={box} className={`isolate overflow-hidden bg-background ${mode === 'window' ? 'fixed inset-0 z-50' : 'relative rounded-xl border'}`}
-      style={{ height: full ? '100%' : 420 }}>
-      <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
-        <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
-        <GeoJSON key={etag} data={data}
-          style={f => style(f as Feature<Geometry, Props>)}
-          pointToLayer={(f, latlng) => L.circleMarker(latlng, style(f as Feature<Geometry, Props>))}
-          // Top-left padding keeps an opened popup clear of the zoom control.
-          onEachFeature={(f, layer) => layer.bindPopup(() => popup(f as Feature<Geometry, Props>), { autoPanPaddingTopLeft: L.point(60, 60) })} />
-        <FitBounds data={data} />
-        <ResizeOnChange full={full} />
-      </MapContainer>
-      <Button type="button" variant="outline" size="icon" onClick={toggleFull} className="absolute top-2 right-2 shadow" style={{ zIndex: 1000 }}
-        aria-label={full ? 'Exit full screen' : 'Full screen'} title={full ? 'Exit full screen' : 'Full screen'}>
-        {full ? <Minimize2 /> : <Maximize2 />}
+    <div className="relative" style={{ height: 420 }}>
+      <MapCanvas data={data} etag={etag} />
+      <Button type="button" variant="outline" size="icon" onClick={() => setLarge(true)} className="absolute top-2 right-2 shadow"
+        style={{ zIndex: 1000 }} aria-label="Enlarge map" title="Enlarge map">
+        <Maximize2 />
       </Button>
-      <ul className="absolute bottom-2 left-2 rounded-md border bg-background/90 p-2 text-xs shadow" style={{ zIndex: 1000 }}>
-        {LEGEND.map(([label, color]) => (
-          <li key={label} className="flex items-center gap-1.5">
-            <span className="inline-block size-2.5 rounded-sm" style={{ background: color }} />{label}
-          </li>
-        ))}
-      </ul>
+      <Dialog open={large} onOpenChange={setLarge}>
+        <DialogContent className="flex h-[90vh] w-[95vw] max-w-[95vw] flex-col p-2 sm:max-w-[95vw]">
+          <DialogTitle className="sr-only">Site map</DialogTitle>
+          <div className="min-h-0 flex-1">{large && <MapCanvas data={data} etag={etag} />}</div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
