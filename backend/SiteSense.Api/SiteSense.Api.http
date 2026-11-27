@@ -71,3 +71,10 @@ Authorization: Bearer {{gatewayToken}}
 Content-Type: application/json
 
 {"deviceId":"dev-001","positions":[{"timestampMs":1793268000000,"lat":37.5250,"lon":15.0710,"accuracyM":4.5}]}
+
+### Fastest walking route between two points (any role); 422 reason START_TOO_FAR or UNREACHABLE
+POST {{host}}/api/v1/sites/cittadella-catania/routes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"from":{"lat":37.5265406,"lon":15.0778147},"to":{"lat":37.5265299,"lon":15.0777732}}

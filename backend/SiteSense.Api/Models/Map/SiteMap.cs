@@ -96,7 +96,10 @@ public sealed class SiteMap : IDocument
     }
 
     // Local metres from the perimeter centroid: the same origin MapValidator uses for its tolerance check (MAP-02).
-    public RouteGraph BuildRouteGraph(NavigationSettings nav)
+    public RouteGraph BuildRouteGraph(NavigationSettings nav) => BuildRouteContext(nav).Graph;
+
+    // The graph and the projection it was built with: one projection, so route points convert back exactly.
+    public (RouteGraph Graph, LocalProjection Projection) BuildRouteContext(NavigationSettings nav)
     {
         var perimeter = Areas.Single(a => a.AreaType == "perimeter").Coordinates[0];
         var projection = LocalProjection.FromCentroid(perimeter.Select(p => (Lon: p[0], Lat: p[1])).ToList());
@@ -107,8 +110,9 @@ public sealed class SiteMap : IDocument
             .Where(a => a.AreaType is "restricted" or "hazard")
             .Select(a => (IReadOnlyList<IReadOnlyList<(double X, double Y)>>)a.Coordinates.Select(Local).ToList())
             .ToList();
-        return RouteGraphBuilder.Build(paths, blocked,
+        var graph = RouteGraphBuilder.Build(paths, blocked,
             new GraphSettings(nav.WalkingSpeedMps, nav.UnpavedSpeedFactor, nav.StepsSpeedFactor, nav.ConnectToleranceM));
+        return (graph, projection);
     }
 
     private const int MaxLatestAttempts = 3;

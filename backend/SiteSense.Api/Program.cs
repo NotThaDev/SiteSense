@@ -17,6 +17,7 @@ builder.Services.AddHealthChecks();
 builder.AddSiteSenseJobs();
 // Ordered processing (TRK-02): one singleton, also a hosted service so its startup scan runs before the server starts.
 builder.Services.AddSingleton<PositionProcessor>();
+builder.Services.AddSingleton<RouteService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
 // Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
 builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);
