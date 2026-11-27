@@ -104,7 +104,7 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
     <div className="relative" style={{ height: 420 }}>
       <MapCanvas data={data} etag={etag} />
       <Button type="button" variant="outline" size="icon" onClick={() => setLarge(true)} className="absolute top-2 right-2 shadow"
-        style={{ zIndex: 1000 }} aria-label="Enlarge map" title="Enlarge map">
+        aria-label="Enlarge map" title="Enlarge map">
         <Maximize2 />
       </Button>
       <Dialog open={large} onOpenChange={setLarge}>

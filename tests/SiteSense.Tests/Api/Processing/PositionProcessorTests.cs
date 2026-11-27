@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Realtime;
 using SiteSense.Api.Services;
 using SiteSense.Api.Store;
 
@@ -19,7 +20,7 @@ public sealed class PositionProcessorTests : IAsyncLifetime
     private readonly IDocumentStore _prevStore = SiteSenseContext.Store;
     private readonly IAppendLog _prevLog = SiteSenseContext.Log;
     private readonly FakeLog _log;
-    private readonly PositionProcessor _p = new(NullLogger<PositionProcessor>.Instance);
+    private readonly PositionProcessor _p = new(new NoopPublisher(), NullLogger<PositionProcessor>.Instance);
 
     public PositionProcessorTests()
     {
@@ -195,5 +196,11 @@ public sealed class PositionProcessorTests : IAsyncLifetime
             if (typeof(T) == typeof(Position) && OnReadPositions is { } hook) await hook(tenantId);
             return await inner.ReadRangeAsync<T>(tenantId, key, fromMs, toMs, ct);
         }
+    }
+
+    private sealed class NoopPublisher : IRealtimePublisher
+    {
+        public Task<TenantEvent> PublishAsync<TData>(string tenantId, string siteId, string type, TData data, CancellationToken ct) =>
+            Task.FromResult(new TenantEvent(1, type, siteId, 0, default));
     }
 }
