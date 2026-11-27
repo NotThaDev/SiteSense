@@ -1,7 +1,7 @@
 # SS-28 — Alarm core and `AreaIntrusion`
 
-- Status: Draft
-- Issue: not created yet
+- Status: In review
+- Issue: #155
 - Plan PR: #<n>   Implementation PRs: #<n>, #<n>
 
 ## Problem
@@ -27,6 +27,8 @@ flowchart LR
 3. **UI**: sidebar entry "Alarms" opening a table of the site's alarms.
 4. **SS-28 `AreaIntrusion`** (EVT-02): one alarm per entry of a device into a `restricted` or `hazard` area, on top of the core.
 
+Each alarm has a state, `Active` or `NotActive` (state machine below).
+
 Out of scope: `DeviceSilent` (SS-30), `ZoneAnomaly` (SS-33), `SuddenImmobility`; alarm retention; live updates on the Alarms page (the map already shows them live).
 
 ## Solution
@@ -49,9 +51,20 @@ flowchart LR
   R --> H["SiteHub (Safety audience)"]
 ```
 
-**The `Alert` document.** Fields: `Id`, `TenantId`, `Version`, `SiteId`, `Type`, `EventTimeMs`, `DeviceId?`, `AreaId?`, `Late` (device and area are null when not relevant, as in the contract). `Type` uses exactly the contract strings `AreaIntrusion`, `ZoneAnomaly`, `SuddenImmobility`, `DeviceSilent`. A static `Alert.CreateAsync` returns null when the id exists (same pattern as `Device.CreateAsync`: `Version = 0`, `ConcurrencyException` means duplicate).
+**The `Alert` document.** Fields: `Id`, `TenantId`, `Version`, `SiteId`, `Type`, `EventTimeMs`, `DeviceId?`, `AreaId?`, `Late`, `State`, `EndTimeMs?` (device and area are null when not relevant, as in the contract). `Type` uses exactly the contract strings `AreaIntrusion`, `ZoneAnomaly`, `SuddenImmobility`, `DeviceSilent`. A static `Alert.CreateAsync` returns null when the id exists (same pattern as `Device.CreateAsync`: `Version = 0`, `ConcurrencyException` means duplicate).
 
 **Alarm id.** Built only from the alarm's inputs: `SHA-256(type|siteId|deviceId|areaId|eventTimeMs)` as **lowercase** hex (the store escapes uppercase letters with `!`, which it then rejects; device ids may not pass the name check either). A retry, a replay of a late batch, or a second job run builds the same id, the create is rejected, and nothing is published (JOB-02, EVT-03).
+
+**State machine.** Each alarm has a `State`: `Active` or `NotActive`. It is created `Active`. The only transition is `Active → NotActive`, done by the **producer** when the cause ends (never by a user, for now). There is no way back: a new cause is a new alarm with a new id.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Active: NotifyAlarmAsync (publishes AlertRaised)
+  Active --> NotActive: DeactivateAlarmAsync (publishes AlertUpdated)
+  NotActive --> [*]
+```
+
+`AlarmManager.DeactivateAlarmAsync(tenantId, alertId, endTimeMs)` loads the alert, and if it is `Active` saves it as `NotActive` with `EndTimeMs` (versioned save), then publishes `AlertUpdated` `{ alertId, state, endTimeMs }`. Already `NotActive`, or unknown id: nothing saved, nothing published (idempotent). `AlertUpdated` is a new event type with the same audience as `AlertRaised` (`CanSeeIndividuals`). More states (acknowledged, closed by a user) are out of scope.
 
 **Late flag.** The producer passes `late`. The manager stores it and never changes it.
 
@@ -64,12 +77,13 @@ flowchart LR
 3. A point is "in" area A when `PlanarGeometry.Locate` gives `Inside` or `OnBoundary` (touching a hazard edge counts as an entry). The tolerance is a constant in the detector.
 4. An entry is a point in A whose previous track point is not in A. The previous point comes from the revision-folded `TrackPoint.ReadAsync` over a bounded lookback before the run's first point (constant, 10 minutes). No previous point in the window counts as "outside", so a first point inside is an entry.
 5. One entry = one alarm: `eventTimeMs` = the entry point's timestamp, `late` = the run is a replay (`from <= cursor`).
+6. An exit is a point not in A whose previous point is in A. The detector finds the device's `Active` `AreaIntrusion` alarms for A (`Alert.ListActiveAsync`, filtered in memory) and calls `DeactivateAlarmAsync` with the exit point's timestamp. Ends of an alarm found in a replay are handled the same way and are idempotent.
 
 No new per-device state. A late point that splits a stay inside an area can create a second alarm for the later entry (new entry time = new id). This is accepted and goes to `KNOWN_ISSUES.md`.
 
-**API.** `GET /api/v1/sites/{siteId}/alerts?fromMs=&toMs=&type=&limit=&cursor=`, policy `CanSeeIndividuals` (same as the `AlertRaised` audience, Q36: `Safety` yes, `Viewer` `403`; `Admin` follows the policy). Items as the contract inside `{ "items": [...], "nextCursor": ... }`: `alertId, type, eventTimeMs, deviceId, areaId, late`. Sorted **newest first** by `eventTimeMs`, then `alertId`; the cursor encodes both. `limit` default 100, max 500; `nextCursor` is `null` on the last page. Unknown site or other tenant's site: `404` (ProblemDetails).
+**API.** `GET /api/v1/sites/{siteId}/alerts?fromMs=&toMs=&type=&limit=&cursor=`, policy `CanSeeIndividuals` (same as the `AlertRaised` audience, Q36: `Safety` yes, `Viewer` `403`; `Admin` follows the policy). Items as the contract inside `{ "items": [...], "nextCursor": ... }`: `alertId, type, eventTimeMs, deviceId, areaId, late, state, endTimeMs` (the last two are additions to the contract; filter `state=Active|NotActive` added too). Sorted **newest first** by `eventTimeMs`, then `alertId`; the cursor encodes both. `limit` default 100, max 500; `nextCursor` is `null` on the last page. Unknown site or other tenant's site: `404` (ProblemDetails).
 
-**UI.** Sidebar entry "Alarms" (route `/alarms`), shown to users who pass `can.seeIndividuals`. The page has a site selector and a table: time, type, device, area, late. Newest first, as the API returns them.
+**UI.** Sidebar entry "Alarms" (route `/alarms`), shown to users who pass `can.seeIndividuals`. The page has a site selector and a table: time, type, device, area, late, state (badge `Active` / `NotActive`). Newest first, as the API returns them. It is **live**: it loads the first page, then follows the hub for the selected site. `AlertRaised` adds a row on top, `AlertUpdated` changes the state of the row with that `alertId`. `realtime.ts` learns `AlertUpdated` and keeps a state per alert.
 
 ## Steps
 
@@ -77,12 +91,12 @@ Stacked PRs: plan PR, then PR 1 (core + endpoint + UI) on the plan branch, then 
 
 | # | Step | Files | Done when | PR |
 |---|---|---|---|---|
-| 1 | `Alert` store document, type constants, lowercase-hex id, `CreateAsync`, `AlertRaisedData` | `backend/SiteSense.Api/Alarms/Alert.cs`, `Realtime/TenantEvent.cs` | Unit test: same inputs give same id; second `CreateAsync` returns null | 1 |
-| 2 | `AlarmManager` (singleton, takes `IRealtimePublisher`) + registration | `backend/SiteSense.Api/Alarms/AlarmManager.cs`, `Program.cs` (DI block) | Test: two calls with the same alarm give one stored alert and one `AlertRaised`; publish error logged, not thrown | 1 |
+| 1 | `Alert` store document (with `State`, `EndTimeMs`), type constants, lowercase-hex id, `CreateAsync`, `ListActiveAsync`; `AlertRaisedData`, `AlertUpdatedData`, `EventTypes.AlertUpdated` + audience | `backend/SiteSense.Api/Alarms/Alert.cs`, `Realtime/TenantEvent.cs`, `Realtime/EventAudience.cs` | Unit test: same inputs give same id; second `CreateAsync` returns null; `AlertUpdated` audience is `CanSeeIndividuals` | 1 |
+| 2 | `AlarmManager` (singleton, takes `IRealtimePublisher`): `NotifyAlarmAsync`, `DeactivateAlarmAsync` + registration | `backend/SiteSense.Api/Alarms/AlarmManager.cs`, `Program.cs` (DI block) | Tests: two notifies give one stored alert and one `AlertRaised`; deactivate gives `NotActive` and one `AlertUpdated`, a second deactivate gives nothing; publish error logged, not thrown | 1 |
 | 3 | `GET /sites/{siteId}/alerts` with filters, cursor, tenant isolation | `Controllers/AlertsController.cs`, `Dtos/AlertListResponse.cs` | Tests in `tests/SiteSense.Tests/Api/Alarms/`: filters, paging, `404` other tenant, `403` for `Viewer`; `OpenApiTests` still passes | 1 |
-| 4 | Sidebar entry and Alarms page | `frontend/src/components/AppSidebar.tsx`, `frontend/src/App.tsx`, `frontend/src/pages/AlarmsPage.tsx`, `frontend/src/api.ts` | In the browser: entry visible for `Safety`, hidden for `Viewer`; table lists the site's alarms | 1 |
+| 4 | Sidebar entry and Alarms page | `frontend/src/components/AppSidebar.tsx`, `frontend/src/App.tsx`, `frontend/src/pages/AlarmsPage.tsx`, `frontend/src/realtime.ts`, `frontend/src/api.ts` | In the browser: entry visible for `Safety`, hidden for `Viewer`; table lists the site's alarms with state; a new alarm and a state change show without reload | 1 |
 | 5 | Move the area projection and the restricted/hazard filter out of `BuildRouteGraph` into a shared helper | `Models/Map/SiteMap.cs`, new helper next to it | Existing route-graph tests still pass, no behaviour change | 2 |
-| 6 | Intrusion detector, called from the processor before the save | `Services/PositionProcessor.cs`, `Alarms/AreaIntrusionDetector.cs` | Tests: walk in, out, in = 2 alarms; replay of the same batch = 0 new; late batch marked `late`; no map = no alarm; failure keeps the dirty marker | 2 |
+| 6 | Intrusion detector, called from the processor before the save | `Services/PositionProcessor.cs`, `Alarms/AreaIntrusionDetector.cs` | Tests: walk in, out, in = 2 alarms, the first `NotActive` after the exit; replay of the same batch = 0 new; late batch marked `late`; no map = no alarm; failure keeps the dirty marker | 2 |
 | 7 | Simulator check "enter hazard area", `docs/architecture.md` line, `ASSUMPTIONS.md`, `KNOWN_ISSUES.md`, `AI_LOG.md` | `simulator/`, `docs/architecture.md`, root `.md` files | End-to-end: a simulated device enters the area, the alarm appears in the table and as `AlertRaised` | 2 |
 
 ## Risks
@@ -106,10 +120,10 @@ Stacked PRs: plan PR, then PR 1 (core + endpoint + UI) on the plan branch, then 
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| 1 | Where does `AreaIntrusion` run? | (a) In the processor, push, alarm within seconds (SS-35 plan). (b) A per-minute `ISiteJob` scanning the last minute of track points: matches "one job per alarm" literally, but the alarm arrives up to 1 min late | |
-| 2 | Alarms page scope | (a) Site selector, one site at a time (the endpoint is per site). (b) All sites, N requests merged in the browser | |
-| 3 | Page updates | (a) Load on open plus a Refresh button. (b) Also subscribe to `AlertRaised` | |
-| 4 | Create the GitHub issue for SS-28 now? | (a) Yes, before the plan PR. (b) Later | |
+| 1 | Where does `AreaIntrusion` run? | (a) In the processor, push, alarm within seconds (SS-35 plan). (b) A per-minute `ISiteJob` scanning the last minute of track points: matches "one job per alarm" literally, but the alarm arrives up to 1 min late | (a) chosen: in the processor |
+| 2 | Alarms page scope | (a) Site selector, one site at a time (the endpoint is per site). (b) All sites, N requests merged in the browser | (a) chosen: one site at a time |
+| 3 | Page updates | (a) Load on open plus a Refresh button. (b) Also subscribe to `AlertRaised` | (b) chosen: live on `AlertRaised` and `AlertUpdated` |
+| 4 | Create the GitHub issue for SS-28 now? | (a) Yes, before the plan PR. (b) Later | (a) chosen: issue #155 |
 
 ## Changelog
 
@@ -117,3 +131,4 @@ Stacked PRs: plan PR, then PR 1 (core + endpoint + UI) on the plan branch, then 
 |---|---|---|
 | 2026-11-28 | First draft | New story |
 | 2026-11-28 | Added `SiteId`/nullable fields, lowercase hex id, `AlertRaisedData`, detector before save over `fresh` only, map/projection helper, lookback window, boundary rule, cursor and order, test folder, OpenAPI and docs steps | Sonnet validation findings |
+| 2026-11-28 | Decisions on open questions 1-4; alarm state machine (`Active`/`NotActive`, producer-driven, `AlertUpdated` event), live Alarms page | User |
