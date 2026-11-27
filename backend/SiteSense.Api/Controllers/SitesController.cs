@@ -50,9 +50,9 @@ public sealed class SitesController : ControllerBase
         return Ok(new SiteIdResponse(saved.Id));
     }
 
-    // Admin only, like the device list. Sorted by siteId (ordinal). Full scan, no paging (SS-11, postponed).
+    // All roles (Q109, changed in SS-49): site names are not personal data. Sorted by siteId (ordinal). Full scan, no paging (SS-11, postponed).
     [HttpGet]
-    [Authorize(Policy = SiteSensePolicies.CanManage)]
+    [Authorize(Policy = SiteSensePolicies.CanSeeAggregates)]
     [ProducesResponseType<SiteListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> List(CancellationToken ct)

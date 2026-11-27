@@ -13,4 +13,9 @@ public sealed class AuthOptions
     public bool RequireHttpsMetadata { get; set; } = true;
     // Public client used by the browser login (BFF); no secret, PKCE protects the code.
     public string UiClientId { get; set; } = "sitesense-ui";
+
+    // Browser origins allowed to open the hub WebSocket with the cookie (Q117). Empty means the local UI defaults;
+    // not defaulted in the initializer, because the configuration binder appends to an existing array.
+    public string[] UiOrigins { get; set; } = [];
+    public static readonly string[] DefaultUiOrigins = ["http://localhost:3000", "http://localhost:5173"];
 }

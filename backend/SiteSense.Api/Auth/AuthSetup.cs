@@ -28,9 +28,14 @@ public static class AuthSetup
         var failures = new List<string>();
         if (string.IsNullOrWhiteSpace(options.Issuer)) failures.Add("Auth:Issuer is required.");
         if (string.IsNullOrWhiteSpace(options.Audience)) failures.Add("Auth:Audience is required.");
+        if (options.UiOrigins.Length == 0) options.UiOrigins = AuthOptions.DefaultUiOrigins;
+        foreach (var origin in options.UiOrigins)
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                failures.Add($"Auth:UiOrigins entry '{origin}' must be an absolute http(s) URL.");
         if (failures.Count > 0)
             throw new OptionsValidationException(AuthOptions.Section, typeof(AuthOptions), failures);
 
+        builder.Services.AddSingleton(options);
         builder.Services.AddAuthentication(SmartScheme)
             // Bearer header: JWT (gateways, scripts, tests); otherwise the UI cookie.
             .AddPolicyScheme(SmartScheme, null, o => o.ForwardDefaultSelector = ctx =>
