@@ -30,7 +30,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | Domain | `backend/SiteSense.Domain` | Pure algorithms and geometric primitives only: `Coordinate`, `Polygon`, geometry (point in area, distance), the pedestrian graph and route finder, GPS filters | Nothing: no package and no project reference | ASP.NET, Hangfire, SignalR, ML.NET, the store, persistence, file IO, HTTP, a clock, logging |
 | Api | `backend/SiteSense.Api` | Composition root and the Api folders (below) | Domain | Nothing (top layer) |
 | Apps | `simulator/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
-| Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api, StoreCrashWriter | Nothing else |
+| Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api, StoreCrashWriter, Simulator | Nothing else |
 | Test helper | `tests/SiteSense.StoreCrashWriter` | Console child process for the store crash test: writes documents, or with `append` appends positions, until killed | Api | Any other use |
 
 - `SiteSense.Domain.csproj` has no `PackageReference` and no `ProjectReference`. Never add one.
@@ -81,6 +81,8 @@ Tenant safety:
 - Job class: in `BackgroundJobs/`, named `<What>Job.cs`. Examples: `AnomalyScanJob.cs`, `SilentDeviceJob.cs`, `RetentionJob.cs`.
 - The job class is only the trigger. It calls a service in `Services/` or a model method; the logic lives there, not in the job.
 - Every recurring schedule is registered in one place, `Program.cs`, one line per job, so all schedules read together.
+- A periodic check that runs per site implements `ISiteJob` and is registered as a keyed service under its job name (`AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices")`), plus one `SiteJobRunner.Schedule(...)` line after `Build()`. `SiteJobRunner` fans it out every minute, one Hangfire job per site, and `POST /api/v1/test/jobs/{jobName}/run` runs it at once.
+- Idempotency (JOB-02): the run's slot (the minute of `SiteSenseContext.Time`, Unix ms) is a job argument, so a retry reuses it. Everything a job writes gets an id built only from its inputs, parts joined with `_` (store ids are `[A-Za-z0-9_-]{1,128}`), and is created with `Version = 0`; `ConcurrencyException` means "already done". The id names the fact that must happen once: the slot by default, or the fact's own time when it spans many minutes (a silence episode).
 
 ### Projects
 
@@ -89,7 +91,7 @@ Tenant safety:
 | `backend/SiteSense.Domain` | Class library | none |
 | `backend/SiteSense.Api` | ASP.NET Core web app | Domain |
 | `simulator/SiteSense.Simulator` | Console app | none |
-| `tests/SiteSense.Tests` | xUnit test project | Domain, Api, StoreCrashWriter |
+| `tests/SiteSense.Tests` | xUnit test project | Domain, Api, StoreCrashWriter, Simulator |
 | `tests/SiteSense.StoreCrashWriter` | Console child process killed by the store crash test | Api |
 
 - `frontend/` holds the admin UI (SS-46); the demo client joins it in its own story. It is a separate app in its own container (`ui`, nginx on `http://localhost:3000`) that serves the Vite build and reverse-proxies `/api`, `/signin-oidc` and `/signout-callback-oidc` to the API, so the browser sees one origin. The API serves no static files (Q89).

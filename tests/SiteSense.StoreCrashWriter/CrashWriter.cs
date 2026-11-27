@@ -18,6 +18,15 @@ public static class CrashWriter
             await UniqueForever(args[0], args.Length > 2 ? long.Parse(args[2]) : 0);
             return;
         }
+        if (args.Length > 2 && args[1] == "purge")
+        {
+            var purgeLog = new FileAppendLog(args[0]);
+            // The test waits for this line, so its kill lands while files are being deleted, not during startup.
+            Console.WriteLine("ready");
+            var deleted = await purgeLog.DeleteBeforeAsync<Position>("tenant-a", long.Parse(args[2]), CancellationToken.None);
+            Console.WriteLine(deleted);
+            return;
+        }
         var store = new FileDocumentStore(args[0]);
         var payload = new string('x', 256 * 1024);
         for (var i = 0; ; i++)

@@ -9,7 +9,7 @@ public sealed class FileAppendLog : IAppendLog
     private const string HourFormat = "yyyy-MM-dd'T'HH";
     private const long HourMs = 3_600_000;
 
-    // shortcut: one semaphore per device log is never removed; fine for thousands of devices, evict when counts grow
+    // shortcut: one semaphore per device log is never removed, not even by retention; fine for thousands of devices, evict when counts grow
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly string _root;
 
@@ -36,16 +36,70 @@ public sealed class FileAppendLog : IAppendLog
             foreach (var path in Directory.EnumerateFiles(dir, "*.jsonl").OrderBy(p => p, StringComparer.Ordinal))
             {
                 ct.ThrowIfCancellationRequested();
-                if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), HourFormat, CultureInfo.InvariantCulture,
-                        DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var hour))
-                    continue;
-                var startMs = new DateTimeOffset(hour, TimeSpan.Zero).ToUnixTimeMilliseconds();
+                if (!TryHourStartMs(path, out var startMs)) continue;
                 if (startMs >= toMs || startMs + HourMs <= fromMs) continue;
                 ReadFile(path, fromMs, toMs, result);
             }
         }
         // OrderBy is stable, so ties keep append order.
         return Task.FromResult<IReadOnlyList<T>>(result.OrderBy(r => r.TimestampMs).ToList());
+    }
+
+    // shortcut: reads the whole newest file; fine for bounded files, add a tail read when files grow
+    public Task<T?> ReadLastAsync<T>(string tenantId, string key, CancellationToken ct) where T : class, ILogRecord
+    {
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        StorePaths.CheckName(key, nameof(key));
+        var dir = DirOf<T>(tenantId, key);
+        if (!Directory.Exists(dir)) return Task.FromResult<T?>(null);
+        foreach (var path in Directory.EnumerateFiles(dir, "*.jsonl").OrderByDescending(p => p, StringComparer.Ordinal))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), HourFormat, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out _))
+                continue;
+            if (ReadLastRecord<T>(path) is { } last) return Task.FromResult<T?>(last);
+        }
+        return Task.FromResult<T?>(null);
+    }
+
+    public async Task<int> DeleteBeforeAsync<T>(string tenantId, long beforeMs, CancellationToken ct) where T : class, ILogRecord
+    {
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        var typeDir = Path.Combine(_root, StorePaths.FileName(tenantId), typeof(T).Name);
+        if (!Directory.Exists(typeDir)) return 0;
+        var deleted = 0;
+        foreach (var dir in Directory.EnumerateDirectories(typeDir))
+        {
+            ct.ThrowIfCancellationRequested();
+            // Same path string as DirOf, so this is the lock AppendCoreAsync takes for the key.
+            var gate = _locks.GetOrAdd(dir, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                foreach (var path in Directory.EnumerateFiles(dir, "*.jsonl"))
+                {
+                    if (!TryHourStartMs(path, out var startMs) || startMs + HourMs > beforeMs) continue;
+                    File.Delete(path);
+                    deleted++;
+                }
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+        return deleted;
+    }
+
+    private static bool TryHourStartMs(string path, out long startMs)
+    {
+        startMs = 0;
+        if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), HourFormat, CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var hour))
+            return false;
+        startMs = new DateTimeOffset(hour, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        return true;
     }
 
     private async Task<int> AppendCoreAsync<T>(string tenantId, string key, IReadOnlyList<T> records, bool skipStored, CancellationToken ct) where T : class, ILogRecord
@@ -136,6 +190,28 @@ public sealed class FileAppendLog : IAppendLog
         {
             if (r.TimestampMs >= fromMs && r.TimestampMs < toMs) result.Add(r);
         });
+    }
+
+    // Null for a missing file, an empty file or one with no record.
+    private static T? ReadLastRecord<T>(string path) where T : class, ILogRecord
+    {
+        byte[] bytes;
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            bytes = new byte[fs.Length];
+            fs.ReadExactly(bytes);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return null;
+        }
+        var tail = bytes.AsSpan(Array.LastIndexOf(bytes, (byte)'\n') + 1);
+        // A whole record cut before its newline counts, because the next append ends it with '\n'.
+        if (!tail.IsEmpty && TryParse<T>(tail) is { } torn) return torn;
+        T? last = null;
+        ParseLines<T>(bytes, r => last = r);
+        return last;
     }
 
     private static void ParseLines<T>(byte[] bytes, Action<T> onRecord) where T : class, ILogRecord
