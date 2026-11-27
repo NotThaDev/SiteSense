@@ -9,7 +9,7 @@ public sealed class FileAppendLog : IAppendLog
     private const string HourFormat = "yyyy-MM-dd'T'HH";
     private const long HourMs = 3_600_000;
 
-    // shortcut: one semaphore per device log is never removed; fine for thousands of devices, evict when counts grow
+    // shortcut: one semaphore per device log is never removed, not even by retention; fine for thousands of devices, evict when counts grow
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly string _root;
 
@@ -36,10 +36,7 @@ public sealed class FileAppendLog : IAppendLog
             foreach (var path in Directory.EnumerateFiles(dir, "*.jsonl").OrderBy(p => p, StringComparer.Ordinal))
             {
                 ct.ThrowIfCancellationRequested();
-                if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), HourFormat, CultureInfo.InvariantCulture,
-                        DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var hour))
-                    continue;
-                var startMs = new DateTimeOffset(hour, TimeSpan.Zero).ToUnixTimeMilliseconds();
+                if (!TryHourStartMs(path, out var startMs)) continue;
                 if (startMs >= toMs || startMs + HourMs <= fromMs) continue;
                 ReadFile(path, fromMs, toMs, result);
             }
@@ -64,6 +61,45 @@ public sealed class FileAppendLog : IAppendLog
             if (ReadLastRecord<T>(path) is { } last) return Task.FromResult<T?>(last);
         }
         return Task.FromResult<T?>(null);
+    }
+
+    public async Task<int> DeleteBeforeAsync<T>(string tenantId, long beforeMs, CancellationToken ct) where T : class, ILogRecord
+    {
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        var typeDir = Path.Combine(_root, StorePaths.FileName(tenantId), typeof(T).Name);
+        if (!Directory.Exists(typeDir)) return 0;
+        var deleted = 0;
+        foreach (var dir in Directory.EnumerateDirectories(typeDir))
+        {
+            ct.ThrowIfCancellationRequested();
+            // Same path string as DirOf, so this is the lock AppendCoreAsync takes for the key.
+            var gate = _locks.GetOrAdd(dir, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                foreach (var path in Directory.EnumerateFiles(dir, "*.jsonl"))
+                {
+                    if (!TryHourStartMs(path, out var startMs) || startMs + HourMs > beforeMs) continue;
+                    File.Delete(path);
+                    deleted++;
+                }
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+        return deleted;
+    }
+
+    private static bool TryHourStartMs(string path, out long startMs)
+    {
+        startMs = 0;
+        if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), HourFormat, CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var hour))
+            return false;
+        startMs = new DateTimeOffset(hour, TimeSpan.Zero).ToUnixTimeMilliseconds();
+        return true;
     }
 
     private async Task<int> AppendCoreAsync<T>(string tenantId, string key, IReadOnlyList<T> records, bool skipStored, CancellationToken ct) where T : class, ILogRecord

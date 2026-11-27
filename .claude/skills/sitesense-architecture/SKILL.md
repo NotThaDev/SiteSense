@@ -30,7 +30,7 @@ Related: [context](../sitesense-context/SKILL.md) · [security](../sitesense-sec
 | Domain | `backend/SiteSense.Domain` | Pure algorithms and geometric primitives only: `Coordinate`, `Polygon`, geometry (point in area, distance), the pedestrian graph and route finder, GPS filters | Nothing: no package and no project reference | ASP.NET, Hangfire, SignalR, ML.NET, the store, persistence, file IO, HTTP, a clock, logging |
 | Api | `backend/SiteSense.Api` | Composition root and the Api folders (below) | Domain | Nothing (top layer) |
 | Apps | `simulator/SiteSense.Simulator`, demo client | Device simulator, demo client | HTTP and SignalR only | Server internals |
-| Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api, StoreCrashWriter | Nothing else |
+| Tests | `tests/SiteSense.Tests` | All server tests, in `Domain/` and `Api/` subfolders | Domain, Api, StoreCrashWriter, Simulator | Nothing else |
 | Test helper | `tests/SiteSense.StoreCrashWriter` | Console child process for the store crash test: writes documents, or with `append` appends positions, until killed | Api | Any other use |
 
 - `SiteSense.Domain.csproj` has no `PackageReference` and no `ProjectReference`. Never add one.
@@ -91,7 +91,7 @@ Tenant safety:
 | `backend/SiteSense.Domain` | Class library | none |
 | `backend/SiteSense.Api` | ASP.NET Core web app | Domain |
 | `simulator/SiteSense.Simulator` | Console app | none |
-| `tests/SiteSense.Tests` | xUnit test project | Domain, Api, StoreCrashWriter |
+| `tests/SiteSense.Tests` | xUnit test project | Domain, Api, StoreCrashWriter, Simulator |
 | `tests/SiteSense.StoreCrashWriter` | Console child process killed by the store crash test | Api |
 
 - The demo client gets its own project in its own story, under `frontend/`.

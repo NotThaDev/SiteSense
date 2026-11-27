@@ -31,11 +31,31 @@ public sealed class SiteJobRunner(IServiceProvider services, IBackgroundJobClien
     public Task RunSiteAsync(string jobName, string tenantId, string siteId, long slotMs, CancellationToken ct) =>
         services.GetRequiredKeyedService<ISiteJob>(jobName).RunAsync(tenantId, siteId, slotMs, ct);
 
-    // False for an unknown job name. Only the caller's tenant runs (tenant isolation); returns when every site is done (C-7.2c).
+    // Tenant jobs (Q96): one Hangfire job per configured tenant on each run.
+    public static void ScheduleTenantJob(IRecurringJobManager manager, string jobName, string cron) =>
+        manager.AddOrUpdate<SiteJobRunner>(jobName, r => r.EnqueueTenantsAsync(jobName, CancellationToken.None), cron);
+
+    public Task EnqueueTenantsAsync(string jobName, CancellationToken ct)
+    {
+        var slotMs = CurrentSlotMs();
+        foreach (var tenantId in SiteSenseContext.Tenants.Keys)
+            jobs.Enqueue<SiteJobRunner>(r => r.RunTenantAsync(jobName, tenantId, slotMs, CancellationToken.None));
+        return Task.CompletedTask;
+    }
+
+    public Task RunTenantAsync(string jobName, string tenantId, long slotMs, CancellationToken ct) =>
+        services.GetRequiredKeyedService<ITenantJob>(jobName).RunAsync(tenantId, slotMs, ct);
+
+    // False for an unknown job name. Only the caller's tenant runs (tenant isolation); returns when the tenant job or every site is done (C-7.2c).
     public async Task<bool> RunNowAsync(string jobName, string tenantId, CancellationToken ct)
     {
-        if (services.GetKeyedService<ISiteJob>(jobName) is null) return false;
         var slotMs = CurrentSlotMs();
+        if (services.GetKeyedService<ITenantJob>(jobName) is not null)
+        {
+            await RunTenantAsync(jobName, tenantId, slotMs, ct);
+            return true;
+        }
+        if (services.GetKeyedService<ISiteJob>(jobName) is null) return false;
         foreach (var site in await Site.ListAsync(tenantId, ct))
             await RunSiteAsync(jobName, tenantId, site.Id, slotMs, ct);
         return true;
