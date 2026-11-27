@@ -187,6 +187,9 @@ public sealed class PositionProcessorTests : IAsyncLifetime
         public Task<int> DeleteBeforeAsync<T>(string tenantId, long beforeMs, CancellationToken ct) where T : class, ILogRecord =>
             inner.DeleteBeforeAsync<T>(tenantId, beforeMs, ct);
 
+        public Task<T?> ReadLastAsync<T>(string tenantId, string key, CancellationToken ct) where T : class, ILogRecord =>
+            inner.ReadLastAsync<T>(tenantId, key, ct);
+
         public async Task<IReadOnlyList<T>> ReadRangeAsync<T>(string tenantId, string key, long fromMs, long toMs, CancellationToken ct) where T : class, ILogRecord
         {
             if (typeof(T) == typeof(Position) && OnReadPositions is { } hook) await hook(tenantId);
