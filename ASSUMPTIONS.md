@@ -188,7 +188,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - One file per type (e.g. `devices.json`): every save rewrites all documents of the type and serializes all writers.
   - Keeping every version (`<id>.v<n>.json`): more files and a cleanup job, for no requirement.
 - Requirement IDs: JDB-01, JDB-02, JDB-07
-- Status: Accepted (documents). Positions: see Q83 and docs/adr/0001-position-storage.md.
+- Status: Accepted (documents). Positions: see Q83 and docs/adr/0003-position-storage.md.
 
 ## Q75 — One persistence interface or two?
 - Assumption: two. `IDocumentStore` for documents (read, replace whole, version) and, from SS-12, a separate interface for append-only records (positions, track points, events). One component still writes to disk.

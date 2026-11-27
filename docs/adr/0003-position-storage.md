@@ -1,4 +1,4 @@
-# 0001 — Position storage
+# 0003 — Position storage
 
 - Status: Accepted
 - Requirement IDs: JDB-06, JDB-02, JDB-04, JDB-07, JDB-09
