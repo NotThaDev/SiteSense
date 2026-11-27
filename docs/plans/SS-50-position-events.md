@@ -1,8 +1,8 @@
 # SS-50 — Publish `PositionUpdated` from position processing
 
-- Status: In review
+- Status: Approved
 - Issue: #139
-- Plan PR: #<n>   Implementation PR: #<n>
+- Plan PR: #140   Implementation PR: #<n>
 
 ## Problem
 
@@ -110,7 +110,7 @@ sequenceDiagram
 |---|---|---|---|
 | 1 | Which events now | `PositionUpdated` only / also a simple occupancy | `PositionUpdated` only (user, 2026-11-27) |
 | 2 | Branch | Standalone from `main` / on top of the UI stack | From `main` (user, 2026-11-27) |
-| 3 | Crash between save and publish | At most once, documented (a failed attempt before the save is covered by the saved-state rule) / publish before save (at least once, clients drop repeated `deviceId + timestampMs`) | — |
+| 3 | Crash between save and publish | At most once, documented (a failed attempt before the save is covered by the saved-state rule) / publish before save (at least once, clients drop repeated `deviceId + timestampMs`) | At most once (user, 2026-11-27) |
 
 ## Changelog
 
@@ -118,3 +118,4 @@ sequenceDiagram
 |---|---|---|
 | 2026-11-27 | First version | User: publish the real-time signal so the map UI can work |
 | 2026-11-27 | New set from the saved state (cursor, revision), raw log read with end-exclusive range, per-event try/catch, instance method, retention edge, more tests | Sonnet plan validation |
+| 2026-11-27 | Open question 3 decided; Approved | User review |
