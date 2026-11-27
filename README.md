@@ -106,6 +106,8 @@ Setup runs by default: it creates the site, uploads the map and registers the de
 
 A small React UI (sites, map upload and Leaflet map view on OpenStreetMap tiles, devices), a separate `ui` container (nginx) that serves the build and proxies the API, so the browser sees one origin. Log in goes through Keycloak.
 
+Every role can open the UI; what it shows follows the capabilities from `GET /api/v1/me`, not role names. Admin manages sites, maps and devices; Safety and Viewer get read-only pages. The site map is live over the SignalR hub: area occupancy for all roles, plus device dots and a live alerts list for Safety, with a Live / Reconnecting / Offline chip. Browser origins allowed to open the hub are set in `Auth:UiOrigins`.
+
 - Docker: `docker compose up --build`, open <http://localhost:3000/>, log in as `admin-a` / `Password1!` (other test users: see above). After pulling this change, run once `docker compose up -d --force-recreate keycloak` so the realm gets the `sitesense-ui` client.
 - Dev mode: `docker compose up -d keycloak`, run the API with `dotnet watch --project backend/SiteSense.Api` (port 5073), then `cd frontend && npm install && npm run dev` and open <http://localhost:5173/>. The Vite proxy targets `http://localhost:5073`; set `API_URL=http://localhost:8080` to use the API in Docker instead.
 

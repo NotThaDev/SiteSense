@@ -50,7 +50,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | Method + path | Policy |
 |---|---|
 | `POST /api/v1/sites` | `CanManage` |
-| `GET /api/v1/sites` | `CanManage` (Q109) |
+| `GET /api/v1/sites` | `CanSeeAggregates` (Q109, changed in SS-49) |
 | `GET /api/v1/sites/{siteId}/map` | `CanSeeAggregates` (Q114) |
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
@@ -67,9 +67,9 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `PUT /api/v1/test/clock` | `TestMode` |
 | `POST /api/v1/test/jobs/{jobName}/run` | `TestMode` |
 | `POST /api/v1/test/drain` | `TestMode` |
-| `GET /api/v1/me` | Authenticated (fallback policy, Q78) |
+| `GET /api/v1/me` | Authenticated (fallback policy, Q78); returns `capabilities` per policy (Q118) |
 | `GET /api/v1/auth/login`, `GET /api/v1/auth/logout` | Anonymous (browser login, Q110) |
-| SignalR hub | Authenticated; groups and audiences in the SignalR section |
+| SignalR hub | Authenticated; groups and audiences in the SignalR section. The browser WebSocket upgrade (cookie `GET` on `/api/v1/realtime`, no `X-CSRF`) passes only with an `Origin` in `Auth:UiOrigins`; negotiate still needs `X-CSRF` (Q117) |
 
 ## Fixed rules
 

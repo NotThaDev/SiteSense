@@ -51,3 +51,8 @@ Known limits and what to do with more time.
 - The API builds the OIDC redirect URI from the `Host` header that nginx forwards; a different UI port needs a matching redirect URI in the realm.
 - No silent token renewal; the API does not call Keycloak with the user's tokens after login.
 - The map view uses the public OpenStreetMap tile server: fine for development and light interactive use only. A production deployment needs its own tile server or a tile provider.
+
+## SS-49 — Live map
+- The login cookie lives 1 hour and an open socket does not slide it: when it expires the hub closes and the user logs in again.
+- Nothing moves until the producers exist: positions (SS-50), then the occupancy and alert stories. Until then the map shows the structure and the status chip.
+- The map still uses the public OpenStreetMap tile server (see SS-46).

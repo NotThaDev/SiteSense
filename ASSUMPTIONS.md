@@ -414,7 +414,8 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Assumption: Admin only (`CanManage`), sorted by `siteId`, no paging until SS-11.
 - Why: the endpoint is not in the API contract; it serves the admin UI. Same rule as the device list (Q85).
 - Requirement IDs: API-01, API-04
-- Status: Accepted
+- Changed (SS-49): all user roles may list sites (`CanSeeAggregates`). Site names are not personal data, and Safety and Viewer need to pick a site.
+- Status: Changed
 
 ## Q110 — How does the admin UI log in?
 - Assumption: the API is a Backend for Frontend: `GET /api/v1/auth/login` redirects to Keycloak, the API swaps the code for tokens with PKCE (public client `sitesense-ui`, no secret), and gives the browser an encrypted `HttpOnly`, `SameSite=Lax` cookie. Tokens never reach JavaScript.
@@ -619,4 +620,24 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Assumption: every user role (`CanSeeAggregates`). The map is the site layout, not personal data. What is drawn on top depends on the role: Admin the structure (SS-48), Safety devices and alerts, Viewer occupancy, each in its own story. Upload stays Admin-only.
 - Why: Safety and Viewer views (routes, evacuation, occupancy) need the layout; no individual data is in the map (Q09, PRV-03).
 - Requirement IDs: API-06, PRV-03
+- Status: Accepted
+
+## Q116 — What is the `AlertRaised` event payload?
+- Assumption: `data = { alertId, type, eventTimeMs, deviceId, areaId, late }`, the same fields as the contract's alert item. Fixed now so the live map (SS-49) and the alert story agree.
+- Why: the producing story does not exist yet; a guess written down once is cheaper than two stories disagreeing.
+- Requirement IDs: RTM-01
+- Status: Accepted
+
+## Q117 — How does the browser open the hub WebSocket with the cookie?
+- Assumption: a browser WebSocket cannot send `X-CSRF`, so the CSRF check exempts only a cookie `GET` whose path equals `/api/v1/realtime` and whose `Origin` is in `Auth:UiOrigins` (default `http://localhost:3000`, `http://localhost:5173`). Negotiate is a POST and still needs `X-CSRF`. Other or missing origin: `403`. Bearer and `access_token` callers are unchanged.
+- Why: standard defence against cross-site WebSocket hijacking; user chose the Origin check over a short-lived hub token (SS-49).
+- Alternatives rejected:
+  - Short-lived hub token: one more endpoint and token to protect.
+- Requirement IDs: IDN-01, RTM-01
+- Status: Accepted
+
+## Q118 — Does the UI decide from role names?
+- Assumption: no. `GET /api/v1/me` returns `capabilities: { manage, seeIndividuals, seeAggregates }`, computed with the named policies; the UI shows pages and actions from these flags. Roles are only shown in the badge.
+- Why: a policy change must not need a UI change (IDN-03).
+- Requirement IDs: IDN-03
 - Status: Accepted
