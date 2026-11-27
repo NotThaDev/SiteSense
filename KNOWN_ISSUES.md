@@ -32,3 +32,9 @@ Known limits and what to do with more time.
 - Two vertices less than 1 cm apart can stay separate nodes if they fall on each side of a 1 cm grid line (Q19); identical coordinates always join.
 - Connectors compare all endpoint pairs (O(n²)) and each edge is tested against every blocked polygon (with a bounding-box reject); fine for hundreds of paths, add a grid index for thousands.
 - The graph is not cached yet: SS-19 adds the per-map-version cache (Q86).
+## SS-23 — Ordered processing and drain
+- Drain waits until the tenant has zero pending runs, so a constant load (a running simulator) can delay it. With more time: a per-tenant sequence number, wait only for runs queued before the drain.
+- A late position replays every later point of that device; the track log grows by one revision per late batch. Retention removes old hours.
+- A retried batch made only of duplicates still marks the device and causes a needless replay (same output, newer revision).
+- A failed run leaves the device marked; it is retried only by its next batch or a restart, and drain answers `500` until then.
+- Ingest writes the marker doc twice per batch (two extra fsyncs); not measured against the ingest target yet.

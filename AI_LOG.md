@@ -97,3 +97,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-17 with the plan / validate / approve / implement / verify workflow; no routing in this story.
 - AI produced: plan and ADR 0001 (Opus), plan review (Sonnet), Domain graph builder, segment/polygon test, map adapter and tests (Haiku).
 - Corrected or discarded: the Sonnet review asked for an exact segment/polygon rule, strict tolerance, no self-loops, connector edge cases and the ADR file name fixed by the ai-process skill. The point-in-polygon test is shared with SS-22 (one `PlanarGeometry.Locate`) instead of a second copy. The owner chose the recommended options for Q18, Q19, Q21, Q25, Q86 and Q87.
+
+## 2026-11-27 — SS-23 ordered processing and drain
+- Goal: process each device's positions in timestamp order, replay late ones, and add `POST /api/v1/test/drain`.
+- Prompt (summary): plan with the owner's decisions on Q06, Q39, Q100–Q103; Sonnet review of the plan; Haiku and Sonnet subagents for models, processor, wiring, tests and records.
+- AI produced: plan file, `DeviceProcessing`, `TrackPoint`, `PositionProcessor`, ingest marks, drain endpoint, unit and API tests, these records.
+- Corrected or discarded: the plan review found a lost-batch race (a run could clear a marker before its positions were written): fixed with a second mark after the append. It also replaced "a few workers" with one worker and a per-device state machine, and made drain answer 500 after a failed run.

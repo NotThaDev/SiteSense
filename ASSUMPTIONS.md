@@ -372,7 +372,8 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Store only the filtered track: a filter change would lose the raw input it needs.
 - Requirement IDs: JDB-06, JDB-09
-- Status: Accepted
+- Changed (SS-23): until the filter (SS-24), `TrackPoint/` holds a pass-through of the raw positions with a revision per replay (Q06, Q101).
+- Status: Changed
 
 ## Q83 — How are positions stored?
 - Assumption: in JSON lines, one file per tenant, device and UTC hour: `<root>/<tenantId>/Position/<deviceId>/<yyyy-MM-ddTHH>.jsonl`. A late position goes to the file of its own hour. Each append writes all its lines and fsyncs each touched file before it returns. A missing final newline is written first before an append, so a torn line is kept on its own line and never rewritten. On read, only newline-terminated lines count, and lines that do not parse are skipped. One lock per device log (tenant, type and key), held until restart. Records with equal timestamps keep append order.
@@ -384,7 +385,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q05 — When does the API accept a position batch, and what does "accepted" mean?
-- Assumption: `202` only after the new positions are appended to the raw position log and fsynced. Positions outside the site perimeter are dropped in memory before any write, never stored and never logged with coordinates; a point on the perimeter boundary is kept. A device whose site has no map or no perimeter gets `202` with every position dropped. The same device and timestamp is stored once: the first stored wins, later copies (in the same batch or a retry) count as duplicates. The check and the write run under the log's per-device lock, so concurrent retries cannot both write. The `202` body is `{ received, stored, duplicates, outsidePerimeter }`. A crash between two hour files of one batch leaves part of it on disk with no `202`; the gateway's retry completes it (at least once). The raw log is the hand-off to processing: ordered processing, drain and restart replay belong to SS-23.
+- Assumption: `202` only after the new positions are appended to the raw position log and fsynced. Positions outside the site perimeter are dropped in memory before any write, never stored and never logged with coordinates; a point on the perimeter boundary is kept. A device whose site has no map or no perimeter gets `202` with every position dropped. The same device and timestamp is stored once: the first stored wins, later copies (in the same batch or a retry) count as duplicates. The check and the write run under the log's per-device lock, so concurrent retries cannot both write. The `202` body is `{ received, stored, duplicates, outsidePerimeter }`. A crash between two hour files of one batch leaves part of it on disk with no `202`; the gateway's retry completes it (at least once). The raw log and the device's processing marker are the hand-off to processing (Q100).
 - Why: a retry must have no side effect, and an accepted position must survive a restart.
 - Requirement IDs: TRK-01, API-02, PRV-02, NF-05
 - Status: Accepted
@@ -463,5 +464,55 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Assumption: yes, with the same test as path edges.
 - Why: a connector is walked like any other stretch; skipping the check could route through a hazard edge.
 - Requirement IDs: NAV-02
+- Status: Accepted
+
+## Q06 — How are late positions processed, and how does a replay avoid duplicates?
+- Assumption: a position older than the device's cursor replays that device from its timestamp: every later point is processed again with revision + 1. Track points are append-only; a read keeps the highest revision per timestamp, so a replay or a crashed run never duplicates a point. Events (later stories) are keyed by (type, device, area, eventTimeMs).
+- Why: a late point changes the filtered result of every later point, so only a replay keeps the track consistent.
+- Alternatives rejected:
+  - Insert the late point only, without recomputing later points: later filtered points would ignore it.
+- Requirement IDs: TRK-02, EVT-03
+- Status: Accepted
+
+## Q39 — What happens to a position whose timestamp is ahead of the (simulated) clock?
+- Assumption: accepted and processed by timestamp like any other; the clock never rejects input.
+- Why: the simulator may run ahead of a frozen test clock, and rejecting its positions would break the test runs.
+- Alternatives rejected:
+  - Drop beyond now + tolerance: breaks a simulator running ahead of a frozen test clock.
+  - Store and hold until the clock reaches it: drain could not finish.
+- Requirement IDs: TRK-02, C-7.2b
+- Status: Accepted
+
+## Q100 — How does processing find accepted but unprocessed positions after a restart?
+- Assumption: ingest sets a durable per-device marker (`dirtyFromMs`) before and after the raw append; the processor clears it with a version check; on start, every marked device is queued before the server accepts requests.
+- Why: the marker is durable and small, so a restart finds exactly the devices with unprocessed positions, whatever their age.
+- Alternatives rejected:
+  - Replay a lookback window: misses an older late batch.
+  - Full replay on start: start time grows with data.
+- Requirement IDs: TRK-02, NF-05
+- Status: Accepted
+
+## Q101 — What does SS-23 processing write before the filter and areas exist?
+- Assumption: a pass-through `TrackPoint` log (one track point per raw position, with a revision); SS-24 replaces the step with the filter, SS-25 adds the area.
+- Why: order, replay and drain can be tested end to end before the filter exists.
+- Alternatives rejected:
+  - No output yet: order, replay and drain would not be testable end to end.
+- Requirement IDs: TRK-02
+- Status: Accepted
+
+## Q102 — Which positions does `POST /api/v1/test/drain` wait for?
+- Assumption: those of the caller's tenant only; `204` when none is pending, `500` ProblemDetails when a run of that tenant failed since the last drain.
+- Why: a check of one tenant must not wait for, or be failed by, another tenant's load.
+- Alternatives rejected:
+  - All tenants: one tenant's load would delay or fail another tenant's check.
+- Requirement IDs: C-7.2d
+- Status: Accepted
+
+## Q103 — What form does the work marker take?
+- Assumption: one `DeviceProcessing` document per device (`cursorMs`, `revision`, `dirtyFromMs`).
+- Why: the state of a device is read and updated in one place, with a version check.
+- Alternatives rejected:
+  - A per-device marker log: counting consumed markers needs a full read.
+- Requirement IDs: TRK-02
 - Status: Accepted
 
