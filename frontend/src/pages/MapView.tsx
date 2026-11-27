@@ -14,6 +14,9 @@ const LEGEND: [string, string][] = [
 
 function style(f?: Feature<Geometry, Props>): L.PathOptions {
   const p = f?.properties ?? {}
+  // Leaflet applies this style to the circle markers too, so points get their colours here.
+  if (p.kind === 'assemblyPoint') return { radius: 7, fillColor: '#16a34a', fillOpacity: 1, color: '#14532d', weight: 1 } as L.CircleMarkerOptions
+  if (p.kind === 'entrance') return { radius: 6, fillColor: '#2563eb', fillOpacity: 1, color: '#ffffff', weight: 2 } as L.CircleMarkerOptions
   if (p.kind === 'path') {
     return { color: p.steps ? '#111827' : '#374151', weight: p.steps ? 4 : 3, dashArray: p.surface === 'unpaved' ? '4 4' : undefined }
   }
@@ -66,10 +69,9 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
         <GeoJSON key={etag} data={data}
           style={f => style(f as Feature<Geometry, Props>)}
-          pointToLayer={(f, latlng) => L.circleMarker(latlng, f.properties.kind === 'assemblyPoint'
-            ? { radius: 7, fillColor: '#16a34a', fillOpacity: 1, color: '#14532d', weight: 1 }
-            : { radius: 6, fillColor: '#2563eb', fillOpacity: 1, color: '#ffffff', weight: 2 })}
-          onEachFeature={(f, layer) => layer.bindPopup(() => popup(f as Feature<Geometry, Props>))} />
+          pointToLayer={(f, latlng) => L.circleMarker(latlng, style(f as Feature<Geometry, Props>))}
+          // Top-left padding keeps an opened popup clear of the zoom control.
+          onEachFeature={(f, layer) => layer.bindPopup(() => popup(f as Feature<Geometry, Props>), { autoPanPaddingTopLeft: L.point(60, 60) })} />
         <FitBounds data={data} />
       </MapContainer>
       <ul className="absolute bottom-2 left-2 rounded-md border bg-background/90 p-2 text-xs shadow" style={{ zIndex: 1000 }}>
