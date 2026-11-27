@@ -2,7 +2,7 @@
 
 - Status: In review
 - Issue: #116
-- Plan PR: (this PR)   Implementation PRs: (next)
+- Plan PR: #119   Implementation PRs: (next)
 
 ## Problem
 Every position a device sends is stored forever. The position log (SS-12) writes one file per device
