@@ -1,8 +1,8 @@
 # SS-48 — Site map view with Leaflet
 
-- Status: In review
+- Status: Approved
 - Issue: #121
-- Plan PR: #<n>   Implementation PR: #<n>
+- Plan PR: #122   Implementation PR: #<n>
 
 ## Problem
 
@@ -118,7 +118,7 @@ sequenceDiagram
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| 1 | Who may read the map (`GET .../map`)? | All user roles (`CanSeeAggregates`): the layout is not personal data, and Safety and Viewer views (routes, occupancy) will need it / Admin only (`CanManage`), widen later | — |
+| 1 | Who may read the map (`GET .../map`)? | All user roles (`CanSeeAggregates`): the layout is not personal data, and Safety and Viewer views (routes, occupancy) will need it / Admin only (`CanManage`), widen later | All roles (`CanSeeAggregates`); what is drawn on top depends on the role: Admin the structure (this story), Safety devices and alerts, Viewer occupancy, each with its own story (user, 2026-11-27) |
 | 2 | Devices on the map | Not now: no position-read endpoint, Admin does not see positions (Q09) / change Q09 | Not now (user, 2026-11-27) |
 | 3 | Base layer | OSM tiles with attribution / none | OSM tiles (user, 2026-11-27) |
 | 4 | Where the work goes | New story SS-48 stacked on SS-46 FE / inside SS-46 | SS-48 (user, 2026-11-27) |
@@ -128,4 +128,5 @@ sequenceDiagram
 | Date | Change | Why (review comment or finding) |
 |---|---|---|
 | 2026-11-27 | First version | User asked for a Leaflet view of the uploaded map |
+| 2026-11-27 | Open question 1 decided: all roles read the map, layers per role later; Approved | User review |
 | 2026-11-27 | Class-level policy moved to PUT, exact GeoJSON keys, null capacity left out, react-leaflet pitfalls (fit bounds, redraw key), reload hook, 404 empty state, more tests, DATA_SOURCES format | Sonnet plan validation |
