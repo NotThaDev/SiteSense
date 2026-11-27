@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
@@ -19,6 +20,7 @@
     <ProjectReference Include="..\..\backend\SiteSense.Domain\SiteSense.Domain.csproj" />
     <ProjectReference Include="..\..\backend\SiteSense.Api\SiteSense.Api.csproj" />
     <ProjectReference Include="..\SiteSense.StoreCrashWriter\SiteSense.StoreCrashWriter.csproj" />
+    <ProjectReference Include="..\..\simulator\SiteSense.Simulator\SiteSense.Simulator.csproj" />
   </ItemGroup>
 
 </Project>

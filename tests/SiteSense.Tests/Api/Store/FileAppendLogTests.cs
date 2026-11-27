@@ -351,6 +351,158 @@ public sealed class FileAppendLogTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(100, read.Select(r => r.TimestampMs).Distinct().Count());
     }
 
+    [Fact]
+    public async Task ReadLast_EmptyLog_ReturnsNull()
+    {
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Null(last);
+    }
+
+    [Fact]
+    public async Task ReadLast_TwoFiles_ReturnsLastRecordOfNewestFile()
+    {
+        await Append([P(T0 + 1000), P(T0 + 2000)]);
+        await Append([P(T0 + Hour + 1000), P(T0 + Hour + 2000)]);
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + Hour + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task ReadLast_NewestFileOnlyTornLine_ReturnsLastOfPreviousFile()
+    {
+        await Append([P(T0 + 1000), P(T0 + 2000)]);
+        var dir = Path.GetDirectoryName(Assert.Single(Files()))!;
+        var newest = DateTimeOffset.FromUnixTimeMilliseconds(T0 + Hour).UtcDateTime.ToString("yyyy-MM-dd'T'HH", System.Globalization.CultureInfo.InvariantCulture);
+        await File.WriteAllTextAsync(Path.Combine(dir, newest + ".jsonl"), "{\"devi");
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task ReadLast_UnterminatedWholeTail_ReturnsThatRecord()
+    {
+        await Append([P(T0 + 1000)]);
+        var json = JsonSerializer.Serialize(P(T0 + 2000), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await File.AppendAllTextAsync(Assert.Single(Files()), json);
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task ReadLast_UnparseableTail_ReturnsRecordBefore()
+    {
+        await Append([P(T0 + 1000), P(T0 + 2000)]);
+        await File.AppendAllTextAsync(Assert.Single(Files()), "{\"devi");
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task DeleteBefore_HourEndedBeforeCutoff_DeletesFile()
+    {
+        await Append([P(T0 + 1000)]);
+
+        var deleted = await new FileAppendLog(_root).DeleteBeforeAsync<Position>(Tenant, T0 + Hour + 5, CancellationToken.None);
+
+        Assert.Equal(1, deleted);
+        Assert.Empty(Files());
+    }
+
+    [Fact]
+    public async Task DeleteBefore_HourEndsAfterCutoff_KeepsFile()
+    {
+        await Append([P(T0 + 1000)]);
+
+        var deleted = await new FileAppendLog(_root).DeleteBeforeAsync<Position>(Tenant, T0 + Hour / 2, CancellationToken.None);
+
+        var read = await Read(T0, T0 + Hour);
+        Assert.Equal(0, deleted);
+        Assert.Equal(T0 + 1000, Assert.Single(read).TimestampMs);
+    }
+
+    [Fact]
+    public async Task DeleteBefore_CutoffOnHourBoundary_DeletesOnlyEndedHour()
+    {
+        await Append([P(T0 + 1000), P(T0 + Hour + 1000)]);
+
+        var deleted = await new FileAppendLog(_root).DeleteBeforeAsync<Position>(Tenant, T0 + Hour, CancellationToken.None);
+
+        Assert.Equal(1, deleted);
+        Assert.Empty(await Read(T0, T0 + Hour));
+        Assert.Equal(T0 + Hour + 1000, Assert.Single(await Read(T0 + Hour, T0 + 2 * Hour)).TimestampMs);
+    }
+
+    [Fact]
+    public async Task DeleteBefore_OtherTenantAndOtherType_Untouched()
+    {
+        await Append([P(T0 + 1000)]);
+        await Append([P(T0 + 1000)], tenant: "tenant-b");
+        var otherType = Path.Combine(_root, Tenant, "Other", Key, "2020-01-01T00.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(otherType)!);
+        await File.WriteAllTextAsync(otherType, "{}\n");
+
+        var deleted = await new FileAppendLog(_root).DeleteBeforeAsync<Position>(Tenant, T0 + 10 * Hour, CancellationToken.None);
+
+        Assert.Equal(1, deleted);
+        Assert.Single(await Read(T0, T0 + Hour, tenant: "tenant-b"));
+        Assert.True(File.Exists(otherType));
+    }
+
+    [Fact]
+    public async Task DeleteBefore_RunTwice_SecondDeletesNothing()
+    {
+        var log = new FileAppendLog(_root);
+        await Append([P(T0 + 1000), P(T0 + Hour + 1000)], log: log);
+
+        var first = await log.DeleteBeforeAsync<Position>(Tenant, T0 + 10 * Hour, CancellationToken.None);
+        var second = await log.DeleteBeforeAsync<Position>(Tenant, T0 + 10 * Hour, CancellationToken.None);
+
+        Assert.Equal(2, first);
+        Assert.Equal(0, second);
+    }
+
+    [Fact]
+    public async Task DeleteBefore_NonHourFileName_Ignored()
+    {
+        await Append([P(T0 + 1000)]);
+        var notes = Path.Combine(Path.GetDirectoryName(Files()[0])!, "notes.jsonl");
+        await File.WriteAllTextAsync(notes, "{}\n");
+
+        var deleted = await new FileAppendLog(_root).DeleteBeforeAsync<Position>(Tenant, T0 + 10 * Hour, CancellationToken.None);
+
+        Assert.Equal(1, deleted);
+        Assert.True(File.Exists(notes));
+    }
+
+    [Fact]
+    public async Task DeleteBefore_ConcurrentAppendSameDevice_NoTornFile()
+    {
+        var log = new FileAppendLog(_root);
+        for (var i = 0; i < 24; i++)
+            await Append([P(T0 + i * Hour + 1)], log: log);
+
+        var delete = log.DeleteBeforeAsync<Position>(Tenant, T0 + 24 * Hour, CancellationToken.None);
+        var append = Task.Run(async () =>
+        {
+            for (var j = 0; j < 200; j++)
+                await Append([P(T0 + 30 * Hour + j)], log: log);
+        });
+        await append;
+
+        Assert.Equal(24, await delete);
+        Assert.Equal(200, (await Read(T0 + 30 * Hour, T0 + 31 * Hour, log: log)).Count);
+        Assert.Empty(await Read(T0, T0 + 24 * Hour, log: log));
+    }
+
     // Removes the last n bytes of the file.
     private static void CutTail(string path, int n)
     {

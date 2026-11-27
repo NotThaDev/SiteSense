@@ -35,7 +35,7 @@ public sealed class Site : IDocument
     public static Task<Site?> GetAsync(string tenantId, string id, CancellationToken ct) =>
         FileDocumentStore.IsValidName(id) ? SiteSenseContext.Store.GetAsync<Site>(tenantId, id, ct) : Task.FromResult<Site?>(null);
 
-    // Full scan, no index (SS-11, postponed); order is not fixed.
-    public static Task<IReadOnlyList<Site>> GetAllAsync(string tenantId, CancellationToken ct) =>
+    // Every site of the tenant, in no fixed order.
+    public static Task<IReadOnlyList<Site>> ListAsync(string tenantId, CancellationToken ct) =>
         SiteSenseContext.Store.ListAsync<Site>(tenantId, ct);
 }

@@ -85,3 +85,33 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan per the planning skill, Sonnet validation, Haiku implementation in two stacked PRs.
 - AI produced: plan `docs/plans/SS-22-batch-ingest.md`, `PlanarGeometry.Locate`, `FileAppendLog.AppendNewAsync`, `PositionIngest` service, DTOs, controller, tests (dedupe, torn line, concurrency, crash and resend, perimeter, foreign device, 5,000 batch).
 - Corrected or discarded: the validator found that a torn-but-parsable last line and the `501` tests were missed; the first `AppendNewAsync` truncated the torn tail, replaced so a whole record without its newline counts as stored and gets its newline (keeps Q83); the point-in-polygon helper was unified with SS-17 by the owner's decision (one `Locate` returning `OnBoundary`, each caller decides).
+
+## 2026-11-26 — SS-31: Hangfire and idempotent jobs
+- Goal: periodic per-site jobs on Hangfire with Redis storage, no duplicates on retry, and the test run endpoint.
+- Prompt (summary): plan SS-31 with the plan / validate / approve / implement / verify workflow; no real jobs, only the mechanism.
+- AI produced: plan (Opus), plan review (Sonnet), `ISiteJob`, `SiteJobRunner`, Hangfire wiring, test endpoint, tests (Haiku), docs (Opus).
+- Corrected or discarded: the review showed that a Hangfire storage cannot be swapped in tests (now chosen by `Hangfire:Storage`), that store ids allow no dots (parts joined with `_`), and asked for a concurrent-run test. The owner chose option A for all seven open questions.
+
+## 2026-11-26 — SS-17: Route graph
+- Goal: build an in-memory pedestrian graph from the site map, in metres, ready for routing (SS-19, SS-20, SS-21).
+- Prompt (summary): implement SS-17 with the plan / validate / approve / implement / verify workflow; no routing in this story.
+- AI produced: plan and ADR 0001 (Opus), plan review (Sonnet), Domain graph builder, segment/polygon test, map adapter and tests (Haiku).
+- Corrected or discarded: the Sonnet review asked for an exact segment/polygon rule, strict tolerance, no self-loops, connector edge cases and the ADR file name fixed by the ai-process skill. The point-in-polygon test is shared with SS-22 (one `PlanarGeometry.Locate`) instead of a second copy. The owner chose the recommended options for Q18, Q19, Q21, Q25, Q86 and Q87.
+
+## 2026-11-27 — SS-39: Device simulator
+- Goal: a console app that walks N devices along the site paths and sends realistic position batches as the gateway, to test tracking and realtime.
+- Prompt (summary): implement SS-39 from a plan written by the main session, without a plan PR (owner's choice); Sonnet validation, Haiku implementation, Sonnet verification.
+- AI produced: plan (Opus), plan review (Sonnet), `PathGraph`, `SimulatedDevice`, `ApiClient`, `SimulatorOptions`, `SimulatorApp`, Dockerfile, compose service under the `sim` profile, tests and docs (Haiku), end-to-end check on an isolated compose stack (Sonnet).
+- Corrected or discarded: the repo check found 11 path vertices outside the perimeter, so the graph keeps only vertices inside it (Q93). The review found that `.dockerignore` excluded `simulator/`, that a top-level `Program` would clash with the Api's `Program` in the tests, and asked for time through `TimeProvider`, secrets from env vars and tests of the retry rules.
+
+## 2026-11-27 — SS-32: Position retention
+- Goal: delete position log hour files older than each tenant's `RetentionDays`, hourly and from the test endpoint.
+- Prompt (summary): plan SS-32 with the plan / validate / approve / implement / verify workflow; ask the owner on every open point.
+- AI produced: plan, `DeleteBeforeAsync`, `ITenantJob`, `RetentionJob` and wiring (Opus), plan review (Sonnet), store, crash and API tests (Haiku).
+- Corrected or discarded: the Sonnet review asked for the exact append lock on delete, where `RetentionDays` is read, no hourly schedule on the test host, a cutoff exactly on the hour and an append-during-delete test. The owner chose the recommended options for Q48, Q95 and Q96.
+
+## 2026-11-27 — SS-23 ordered processing and drain
+- Goal: process each device's positions in timestamp order, replay late ones, and add `POST /api/v1/test/drain`.
+- Prompt (summary): plan with the owner's decisions on Q06, Q39, Q100–Q103; Sonnet review of the plan; Haiku and Sonnet subagents for models, processor, wiring, tests and records.
+- AI produced: plan file, `DeviceProcessing`, `TrackPoint`, `PositionProcessor`, ingest marks, drain endpoint, unit and API tests, these records.
+- Corrected or discarded: the plan review found a lost-batch race (a run could clear a marker before its positions were written): fixed with a second mark after the append. It also replaced "a few workers" with one worker and a per-device state machine, and made drain answer 500 after a failed run.

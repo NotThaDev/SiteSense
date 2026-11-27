@@ -57,7 +57,7 @@ public sealed class SitesController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> List(CancellationToken ct)
     {
-        var sites = await Site.GetAllAsync(User.TenantId(), ct);
+        var sites = await Site.ListAsync(User.TenantId(), ct);
         return Ok(new SiteListResponse(sites.OrderBy(s => s.Id, StringComparer.Ordinal).Select(SiteResponse.From).ToList()));
     }
 

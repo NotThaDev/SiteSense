@@ -10,7 +10,7 @@ How the solution is laid out. Rules for adding code: `.claude/skills/sitesense-a
 | `backend/SiteSense.Api`         | Composition root: controllers, entities and DTOs, services, store, auth, ML.NET, SignalR, Hangfire jobs                                               | Domain      |
 | `simulator/SiteSense.Simulator` | Console device simulator; talks to the API over HTTP and SignalR only                                                                                 | none        |
 | `frontend/` (reserved)          | The demo client, added in its own story; talks to the API over HTTP and SignalR only. Never under `simulator/`.                                       | none        |
-| `tests/SiteSense.Tests`         | All server tests, in `Domain/` and `Api/` subfolders                                                                                                  | Domain, Api, StoreCrashWriter |
+| `tests/SiteSense.Tests`         | All server tests, in `Domain/` and `Api/` subfolders                                                                                                  | Domain, Api, StoreCrashWriter, Simulator |
 | `tests/SiteSense.StoreCrashWriter` | Console child process for the store crash test: writes documents until the test kills it                                                        | Api |
 
 ```mermaid
