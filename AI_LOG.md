@@ -127,3 +127,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): "what is missing for SS-41 and SS-42", then "prepare everything for delivery".
 - AI produced: the gap list (missing endpoints, missing NF-02 tests, ADR number clash), ADR 0004 (anomaly detector parameters, Proposed), the KNOWN_ISSUES "Delivery" section, and the rename of the position-storage ADR to 0003.
 - Corrected or discarded: the memory index still said "ZIP via `git archive`", which drops `.git` (the delivery ZIP must include it). It was corrected to a fresh `git clone`. In ADR 0004 the AI claimed that "trial series" had been used to choose the SR-CNN threshold. No trials were run, so the claim was removed and the threshold is marked as not tuned. The ADR stays Proposed because the detector is not implemented.
+
+## 2026-11-28 — SS-19 Fastest route
+- Goal: fastest walking route endpoint on the SS-17 graph, plus a route tool and layer filters on the map page.
+- Prompt (summary): plan file, Sonnet validation, then subagents for the A* router, the endpoint with its cache, docs and the UI.
+- AI produced: `RouteFinder` (A* with snapping), `RouteService` (graph cache), `RoutesController`, DTOs, tests, plan `docs/plans/SS-19-fastest-route.md`, these docs.
+- Corrected or discarded: the validation added versions and `Lazy` to the cache, a route context from one projection, and the cache, auth and OpenAPI tests; `[Produces]` was dropped so the 422 keeps `application/problem+json`.
