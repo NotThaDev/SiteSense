@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
+import { Maximize2, Minimize2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { ApiError, api, toastError } from '@/api'
 
 type Props = Record<string, string | number | boolean | undefined>
@@ -48,10 +50,25 @@ function FitBounds({ data }: { data: FeatureCollection }) {
   return null
 }
 
+// Leaflet measures its container once: after entering or leaving full screen it must measure again.
+function ResizeOnChange({ full }: { full: boolean }) {
+  const map = useMap()
+  useEffect(() => { map.invalidateSize() }, [map, full])
+  return null
+}
+
 export default function MapView({ siteId, reloadKey }: { siteId: string; reloadKey: number }) {
   const [data, setData] = useState<FeatureCollection | null>(null)
   const [etag, setEtag] = useState('')
   const [empty, setEmpty] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const [full, setFull] = useState(false)
+  useEffect(() => {
+    const onChange = () => setFull(document.fullscreenElement === box.current)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  const toggleFull = () => (document.fullscreenElement ? document.exitFullscreen() : box.current?.requestFullscreen())
   useEffect(() => {
     api<FeatureCollection>('GET', `/sites/${siteId}/map`)
       .then(r => { setData(r.data); setEtag(r.etag ?? ''); setEmpty(false) })
@@ -63,7 +80,7 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
   if (empty) return <p className="text-sm text-muted-foreground">Upload a map to see it here</p>
   if (!data) return null
   return (
-    <div className="relative overflow-hidden rounded-xl border" style={{ height: 420 }}>
+    <div ref={box} className="relative overflow-hidden rounded-xl border bg-background" style={{ height: full ? '100%' : 420 }}>
       <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
@@ -73,7 +90,12 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
           // Top-left padding keeps an opened popup clear of the zoom control.
           onEachFeature={(f, layer) => layer.bindPopup(() => popup(f as Feature<Geometry, Props>), { autoPanPaddingTopLeft: L.point(60, 60) })} />
         <FitBounds data={data} />
+        <ResizeOnChange full={full} />
       </MapContainer>
+      <Button type="button" variant="outline" size="icon" onClick={toggleFull} className="absolute top-2 right-2 shadow" style={{ zIndex: 1000 }}
+        aria-label={full ? 'Exit full screen' : 'Full screen'} title={full ? 'Exit full screen' : 'Full screen'}>
+        {full ? <Minimize2 /> : <Maximize2 />}
+      </Button>
       <ul className="absolute bottom-2 left-2 rounded-md border bg-background/90 p-2 text-xs shadow" style={{ zIndex: 1000 }}>
         {LEGEND.map(([label, color]) => (
           <li key={label} className="flex items-center gap-1.5">
