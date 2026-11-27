@@ -1,4 +1,5 @@
-@host = http://localhost:5073
+@host = http://localhost:8080
+# Local dev (dotnet watch): @host = http://localhost:5073
 @token = paste-an-admin-access-token
 @gatewayToken = paste-a-gateway-access-token
 
