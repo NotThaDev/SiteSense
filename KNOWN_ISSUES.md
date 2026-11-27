@@ -42,3 +42,8 @@ Known limits and what to do with more time.
 - A retried batch made only of duplicates still marks the device and causes a needless replay (same output, newer revision).
 - A failed run leaves the device marked; it is retried only by its next batch or a restart, and drain answers `500` until then.
 - Ingest writes the marker doc twice per batch (two extra fsyncs); not measured against the ingest target yet.
+
+## SS-50 — Position events
+- A crash after the processing save and before the publish loses those `PositionUpdated` events (at most once, Q115). The track is correct; catch-up cannot return events never logged.
+- `areaId` is `null` until SS-25 assigns areas.
+- A late batch older than the retention cutoff finds no older track records and is published as new; retention deletes it at the next run.
