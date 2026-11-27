@@ -476,3 +476,26 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: 11 path vertices of the real map lie outside the perimeter and ingest would drop them; the simulator references no project, so no shared projection, and the error is negligible at site size.
 - Requirement IDs: SIM-01
 - Status: Accepted
+
+## Q48 — Does the site `timeZone` set the day boundaries of position retention?
+- Assumption: no. Retention is a rolling UTC window on the simulated clock: an hour file of the position log is deleted once its whole hour ends before `now − RetentionDays × 24 h`. The site `timeZone` is not used.
+- Why: the log is cut in UTC hours, so a UTC cutoff deletes whole files only, with no per-device site lookup and no DST edge cases. A position lives between N days and N days plus one hour. Chosen by the owner.
+- Alternatives rejected:
+  - Keep N whole local days of the site `timeZone`: needs the site of each device log and DST handling, for no gain the requirement asks for.
+- Requirement IDs: PRV-04, JOB-04
+- Status: Accepted
+
+## Q95 — What happens to a late position that is already older than the retention cutoff?
+- Assumption: ingest stores it as today; the next retention run deletes it.
+- Why: it lives at most until the next run (one hour). Dropping it at ingest would add a counter to the batch response, a contract change. Chosen by the owner.
+- Requirement IDs: PRV-04, TRK-01
+- Status: Accepted
+
+## Q96 — How often does the retention job run, and per what?
+- Assumption: once per tenant, every hour (Hangfire `Cron.Hourly`). It runs as a tenant job, not a site job, so it also clears the logs of devices that were deleted or moved.
+- Why: the log is cut in hour files, so a more frequent run deletes nothing more; per-site runs would miss logs of devices no longer registered. Chosen by the owner.
+- Alternatives rejected:
+  - Daily: expired positions could live up to ~25 h past the cutoff.
+  - Per-site job: misses logs of devices no longer registered on a site.
+- Requirement IDs: JOB-04, PRV-04
+- Status: Accepted

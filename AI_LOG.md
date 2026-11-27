@@ -103,3 +103,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement SS-39 from a plan written by the main session, without a plan PR (owner's choice); Sonnet validation, Haiku implementation, Sonnet verification.
 - AI produced: plan (Opus), plan review (Sonnet), `PathGraph`, `SimulatedDevice`, `ApiClient`, `SimulatorOptions`, `SimulatorApp`, Dockerfile, compose service under the `sim` profile, tests and docs (Haiku), end-to-end check on an isolated compose stack (Sonnet).
 - Corrected or discarded: the repo check found 11 path vertices outside the perimeter, so the graph keeps only vertices inside it (Q93). The review found that `.dockerignore` excluded `simulator/`, that a top-level `Program` would clash with the Api's `Program` in the tests, and asked for time through `TimeProvider`, secrets from env vars and tests of the retry rules.
+
+## 2026-11-27 — SS-32: Position retention
+- Goal: delete position log hour files older than each tenant's `RetentionDays`, hourly and from the test endpoint.
+- Prompt (summary): plan SS-32 with the plan / validate / approve / implement / verify workflow; ask the owner on every open point.
+- AI produced: plan, `DeleteBeforeAsync`, `ITenantJob`, `RetentionJob` and wiring (Opus), plan review (Sonnet), store, crash and API tests (Haiku).
+- Corrected or discarded: the Sonnet review asked for the exact append lock on delete, where `RetentionDays` is read, no hourly schedule on the test host, a cutoff exactly on the hour and an append-during-delete test. The owner chose the recommended options for Q48, Q95 and Q96.
