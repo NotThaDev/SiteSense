@@ -29,6 +29,8 @@ The compose service sets:
 
 It mounts `./data` read-only. The token issuer stays `http://localhost:8081` (`KC_HOSTNAME`), so the API accepts the token (Q02).
 
+While it runs, every processed position is published as a `PositionUpdated` event: connect to the hub (`/api/v1/realtime`) as Safety, or poll `GET /api/v1/events?after=0`, to watch the devices move.
+
 ## Setup
 
 Setup runs by default. Turn it off with `--no-setup`.
