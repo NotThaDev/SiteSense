@@ -233,9 +233,9 @@ in step 10 with a plain `HttpClient` call to `/api/v1/realtime/negotiate?negotia
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
 | Q34 | Is every `PositionUpdated` saved with a seq, and throttled? | **a) Saved with a seq, one per filtered position, no throttle** · b) Throttle per device | a) (user) |
-| Q35 | Does `GET /events` filter by role? | **a) Yes, same audience map as the hub** · b) No filter | a) |
-| Q105 | How is the event log keyed so "after seq" is cheap? | **a) `IAppendLog` with `TimestampMs = seq × 100` (36,000 seqs per file)** · b) Keyed by publish time, full scan and sort by seq on each catch-up · c) A new seq-indexed log type | |
-| Q106 | Hub path | **a) `/api/v1/realtime`** (covered by the UI's `/api` proxy) · b) `/hubs/site` | |
+| Q35 | Does `GET /events` filter by role? | **a) Yes, same audience map as the hub** · b) No filter | a) (user) |
+| Q105 | How is the event log keyed so "after seq" is cheap? | **a) `IAppendLog` with `TimestampMs = seq × 100` (36,000 seqs per file)** · b) Keyed by publish time, full scan and sort by seq on each catch-up · c) A new seq-indexed log type | a) (user) |
+| Q106 | Hub path | **a) `/api/v1/realtime`** (covered by the UI's `/api` proxy) · b) `/hubs/site` | a) (user) |
 | Q107 | When is `OccupancyChanged` sent? | **a) On area change (push) and from the per-minute job when the 5-minute rule drops a device, only if the snapshot changed** · b) Job only · c) Push only | a) (user) |
 
 ## Changelog
@@ -244,3 +244,4 @@ in step 10 with a plain `HttpClient` call to `/api/v1/realtime/negotiate?negotia
 |---|---|---|
 | 2026-11-27 | First draft | |
 | 2026-11-27 | `AppendAsync` under the tenant lock; `ReadLastAsync` counts a whole unterminated tail and falls back to older files; seq × 100 buckets; union of user roles; JSON element and `[JsonIgnore]` rules; 5 s send timeout; SignalR test recipe; query token only on the hub path without a header; invalid site name = not found; `/events` returns `lastSeq` and `hasMore`; steps split | Sonnet validation: seq reuse after a torn record, O(file) appends, multi-role tokens, JSON round-trip, send timeout, test recipe, query-token scope, paging with role filter |
+| 2026-11-27 | Q35, Q105 and Q106 decided: a) | User review in chat |
