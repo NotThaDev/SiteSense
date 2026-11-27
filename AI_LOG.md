@@ -121,3 +121,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): minimal React + shadcn admin UI, login through the API (BFF).
 - AI produced: plan, backend (sites list, BFF auth, CSRF, static files, tests), frontend.
 - Corrected or discarded: SPA PKCE was discarded for the BFF at user review. The Sonnet plan validation found the missing Keycloak scopeMappings/webOrigins, the SPA fallback masking API 404s and the missing `.dockerignore`. The review found the CSRF check skipped on any non-Bearer `Authorization` header; fixed with a test.
+
+## 2026-11-27 — SS-42: Delivery documentation
+- Goal: check the repository against the delivery list and fill the gaps in the documentation.
+- Prompt (summary): "what is missing for SS-41 and SS-42", then "prepare everything for delivery".
+- AI produced: the gap list (missing endpoints, missing NF-02 tests, ADR number clash), ADR 0004 (anomaly detector parameters, Proposed), the KNOWN_ISSUES "Delivery" section, and the rename of the position-storage ADR to 0003.
+- Corrected or discarded: the AI first suggested zipping with `git archive`, which drops `.git` (required by §9.1). We use a fresh `git clone` instead. In ADR 0004 the AI claimed that "trial series" had been used to choose the SR-CNN threshold. No trials were run, so the claim was removed and the threshold is marked as not tuned. The ADR stays Proposed because the detector is not implemented.

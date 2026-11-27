@@ -61,3 +61,12 @@ Known limits and what to do with more time.
 - A crash after the processing save and before the publish loses those `PositionUpdated` events (at most once, Q115). The track is correct; catch-up cannot return events never logged.
 - `areaId` is `null` until SS-25 assigns areas.
 - A late batch older than the retention cutoff finds no older track records and is published as new; retention deletes it at the next run.
+
+## Delivery — not implemented
+These requirements are not in the delivered version. The API answers `404` for their endpoints.
+- Navigation: `POST /sites/{id}/routes` and `/evacuation-route` (NAV-01…04, API-03). The route graph exists (SS-17, ADR 0001); the router, the snapping and the per-map-version graph cache do not. With more time: A* on the existing graph, with time cost from the site parameters.
+- Tracking filter and area hysteresis (TRK-03, TRK-04): stored track points are ordered and deduplicated, but not filtered, and `areaId` is `null`. With more time: a speed gate scaled by `accuracyM` and the real time gap, an accuracy-weighted smoother, and an enter/exit margin on area borders.
+- `GET /devices/{id}/track`, `GET /sites/{id}/occupancy`, `GET /sites/{id}/alerts` (API-04, EVT-01, EVT-02, EVT-03): the stored data exists (track log, event log), but the query endpoints and the `AreaIntrusion` alert do not.
+- AI: `ZoneAnomaly` (AI-01, AI-03) and `SuddenImmobility` (AI-02) are not implemented. ADR 0004 records the parameters we would use. The `anomaly-detection` and `silent-devices` jobs answer `404` on the test endpoint (TRK-06 not implemented).
+- Secondary index and cursor paging (JDB-05, JDB-08; SS-11) and the JDB-09 benchmark (SS-13, no `docs/RESULTS.md`).
+- NF-02 test gaps that follow from the above: there are no tests for navigation, the jump and border-noise filters, or AI detection.
