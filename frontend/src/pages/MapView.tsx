@@ -62,13 +62,21 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
   const [etag, setEtag] = useState('')
   const [empty, setEmpty] = useState(false)
   const box = useRef<HTMLDivElement>(null)
-  const [full, setFull] = useState(false)
+  // 'native' = browser full screen; 'window' = fallback that covers the window when full screen is refused (iframes, some browsers).
+  const [mode, setMode] = useState<'off' | 'native' | 'window'>('off')
+  const full = mode !== 'off'
   useEffect(() => {
-    const onChange = () => setFull(document.fullscreenElement === box.current)
+    const onChange = () => setMode(document.fullscreenElement === box.current ? 'native' : m => (m === 'native' ? 'off' : m))
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMode(m => (m === 'window' ? 'off' : m)) }
     document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('fullscreenchange', onChange); document.removeEventListener('keydown', onKey) }
   }, [])
-  const toggleFull = () => (document.fullscreenElement ? document.exitFullscreen() : box.current?.requestFullscreen())
+  const toggleFull = () => {
+    if (mode === 'native') void document.exitFullscreen()
+    else if (mode === 'window') setMode('off')
+    else box.current?.requestFullscreen().catch(() => setMode('window'))
+  }
   useEffect(() => {
     api<FeatureCollection>('GET', `/sites/${siteId}/map`)
       .then(r => { setData(r.data); setEtag(r.etag ?? ''); setEmpty(false) })
@@ -81,7 +89,8 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
   if (!data) return null
   return (
     // isolate: Leaflet's z-indexes (400–1000) stay inside the map, so popovers and dialogs draw above it.
-    <div ref={box} className="relative isolate overflow-hidden rounded-xl border bg-background" style={{ height: full ? '100%' : 420 }}>
+    <div ref={box} className={`isolate overflow-hidden bg-background ${mode === 'window' ? 'fixed inset-0 z-50' : 'relative rounded-xl border'}`}
+      style={{ height: full ? '100%' : 420 }}>
       <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
