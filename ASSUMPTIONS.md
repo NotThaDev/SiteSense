@@ -586,3 +586,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: the architecture test forbids role checks in code; named policies keep the rule in one map and let a new role join a policy without code change.
 - Requirement IDs: IDN-03, RTM-01, RTM-02, PRV-03
 - Status: Accepted
+
+## Q115 — What does `PositionUpdated` carry, and when is it sent?
+- Assumption: after a track point is saved, one `PositionUpdated` per position goes to the device's site (Safety audience, Q36). `data` = `{ deviceId, timestampMs, lat, lon, areaId }`, `areaId` is `null` until SS-25. A position already processed (duplicate batch, replay of a late batch) is not published again. Delivery is at most once: a crash between the save and the publish loses those events.
+- Why: the map needs a signal per moving device; sending only after the save (RTM-03) keeps events and track consistent; at most once avoids duplicate dots, and the track stays correct.
+- Requirement IDs: RTM-02, RTM-03, RTM-05
+- Status: Accepted
