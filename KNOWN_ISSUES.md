@@ -3,7 +3,7 @@
 Known limits and what to do with more time.
 
 ## SS-31 — Hangfire and idempotent jobs
-- No periodic job is registered yet: the test endpoint answers 404 for `anomaly-detection`, `silent-devices` and `retention` until SS-33, SS-30 and SS-32 add them.
+- The test endpoint answers 404 for `anomaly-detection` and `silent-devices` until SS-33 and SS-30 add them.
 - The recurring trigger fires on real time, while the slot comes from the simulated clock. With a frozen clock, every real minute gives the same slot, so the jobs create nothing new until the clock moves. This is intended in test mode.
 - An id built from long site and device ids can exceed the 128-character store limit, and ids that contain `_` can collide. With more time: hash the id parts.
 - `/health` does not check Redis (Q71). With more time: add a Redis health check.
@@ -19,7 +19,11 @@ Known limits and what to do with more time.
 - Locks are never evicted until restart. Documents keep one lock per document; logs keep one lock per device log. Memory grows with the number of devices and documents. With more time: remove idle locks with a reference count, or use a lock pool with a fixed size.
 - The raw log keeps duplicates. A retried batch or a partial batch is stored twice. Reads return both. With more time: dedup by device and timestamp in SS-22 (TRK-01).
 - No cursor paging (SS-11, issue #43, is postponed). A read returns all records in the time range, so a large range returns a large list. With more time: add a cursor to `ReadRangeAsync` when SS-11 (#43) is picked up.
-- No retention yet. Position files grow without limit. With more time: delete whole hour files older than the retention period in SS-32.
+
+## SS-32 — Position retention
+- The raw `Position` log and the `TrackPoint` log are both purged with the same cutoff in `RetentionJob`.
+- Empty device folders stay after their last hour file is deleted, and so does the device's lock. With more time: remove an empty folder and its lock under that lock.
+- The hourly retention schedule is off on the in-memory test host (`Hangfire:Storage=InMemory`); tests run it through the test endpoint.
 
 ## SS-22 — Batch ingest
 - Each batch re-reads the hour files it touches to find stored timestamps (up to ~3,600 lines per file). With more time, keep an in-memory set of timestamps per open hour file, if the JDB-09 benchmark shows the cost.
@@ -32,3 +36,9 @@ Known limits and what to do with more time.
 - Two vertices less than 1 cm apart can stay separate nodes if they fall on each side of a 1 cm grid line (Q19); identical coordinates always join.
 - Connectors compare all endpoint pairs (O(n²)) and each edge is tested against every blocked polygon (with a bounding-box reject); fine for hundreds of paths, add a grid index for thousands.
 - The graph is not cached yet: SS-19 adds the per-map-version cache (Q86).
+## SS-23 — Ordered processing and drain
+- Drain waits until the tenant has zero pending runs, so a constant load (a running simulator) can delay it. With more time: a per-tenant sequence number, wait only for runs queued before the drain.
+- A late position replays every later point of that device; the track log grows by one revision per late batch. Retention removes old hours.
+- A retried batch made only of duplicates still marks the device and causes a needless replay (same output, newer revision).
+- A failed run leaves the device marked; it is retried only by its next batch or a restart, and drain answers `500` until then.
+- Ingest writes the marker doc twice per batch (two extra fsyncs); not measured against the ingest target yet.
