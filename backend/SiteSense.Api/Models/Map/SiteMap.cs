@@ -1,6 +1,8 @@
 using System.Text.Json.Nodes;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Store;
+using SiteSense.Domain.Geometry;
+using SiteSense.Domain.Navigation;
 
 namespace SiteSense.Api.Models.Map;
 
@@ -91,6 +93,22 @@ public sealed class SiteMap : IDocument
             }
         }
         throw new MapUploadConflictException();
+    }
+
+    // Local metres from the perimeter centroid: the same origin MapValidator uses for its tolerance check (MAP-02).
+    public RouteGraph BuildRouteGraph(NavigationSettings nav)
+    {
+        var perimeter = Areas.Single(a => a.AreaType == "perimeter").Coordinates[0];
+        var projection = LocalProjection.FromCentroid(perimeter.Select(p => (Lon: p[0], Lat: p[1])).ToList());
+        IReadOnlyList<(double X, double Y)> Local(double[][] line) => line.Select(p => projection.ToLocal(p[0], p[1])).ToList();
+
+        var paths = Paths.Select(p => new GraphPath(p.Id, p.Surface == "unpaved", p.Steps, Local(p.Coordinates))).ToList();
+        var blocked = Areas
+            .Where(a => a.AreaType is "restricted" or "hazard")
+            .Select(a => (IReadOnlyList<IReadOnlyList<(double X, double Y)>>)a.Coordinates.Select(Local).ToList())
+            .ToList();
+        return RouteGraphBuilder.Build(paths, blocked,
+            new GraphSettings(nav.WalkingSpeedMps, nav.UnpavedSpeedFactor, nav.StepsSpeedFactor, nav.ConnectToleranceM));
     }
 
     private const int MaxLatestAttempts = 3;

@@ -76,10 +76,10 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q63 — How are SignalR groups organised?
-- Assumption: one group per tenant, site and role, named `tenant:{tenantId}:site:{siteId}:role:{role}`. The server adds a connection to its role group when the client joins a site, after checking the site belongs to the token's tenant. Each event is sent only to the role groups allowed to see it.
+- Assumption: one group per tenant, site and role, named `tenant:{tenantId}:site:{siteId}:role:{role}`. The server adds a connection to its role group when the client joins a site, after checking the site belongs to the token's tenant. Each event is sent only to the role groups allowed to see it. Changed by Q108: groups are per audience policy, not per role.
 - Why: site IDs are not unique across tenants, so the tenant must be part of the name; groups cannot be intersected, so the role is part of the name too. Filtering at join time means a send can never reach a role that must not see it.
 - Requirement IDs: RTM-01, RTM-02, PRV-03
-- Status: Accepted
+- Status: Changed
 
 ## Q64 — Are compiler warnings treated as errors?
 - Assumption: no. Warnings stay warnings; `Directory.Build.props` does not set `TreatWarningsAsErrors`.
@@ -372,7 +372,8 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Alternatives rejected:
   - Store only the filtered track: a filter change would lose the raw input it needs.
 - Requirement IDs: JDB-06, JDB-09
-- Status: Accepted
+- Changed (SS-23): until the filter (SS-24), `TrackPoint/` holds a pass-through of the raw positions with a revision per replay (Q06, Q101).
+- Status: Changed
 
 ## Q83 — How are positions stored?
 - Assumption: in JSON lines, one file per tenant, device and UTC hour: `<root>/<tenantId>/Position/<deviceId>/<yyyy-MM-ddTHH>.jsonl`. A late position goes to the file of its own hour. Each append writes all its lines and fsyncs each touched file before it returns. A missing final newline is written first before an append, so a torn line is kept on its own line and never rewritten. On read, only newline-terminated lines count, and lines that do not parse are skipped. One lock per device log (tenant, type and key), held until restart. Records with equal timestamps keep append order.
@@ -384,7 +385,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q05 — When does the API accept a position batch, and what does "accepted" mean?
-- Assumption: `202` only after the new positions are appended to the raw position log and fsynced. Positions outside the site perimeter are dropped in memory before any write, never stored and never logged with coordinates; a point on the perimeter boundary is kept. A device whose site has no map or no perimeter gets `202` with every position dropped. The same device and timestamp is stored once: the first stored wins, later copies (in the same batch or a retry) count as duplicates. The check and the write run under the log's per-device lock, so concurrent retries cannot both write. The `202` body is `{ received, stored, duplicates, outsidePerimeter }`. A crash between two hour files of one batch leaves part of it on disk with no `202`; the gateway's retry completes it (at least once). The raw log is the hand-off to processing: ordered processing, drain and restart replay belong to SS-23.
+- Assumption: `202` only after the new positions are appended to the raw position log and fsynced. Positions outside the site perimeter are dropped in memory before any write, never stored and never logged with coordinates; a point on the perimeter boundary is kept. A device whose site has no map or no perimeter gets `202` with every position dropped. The same device and timestamp is stored once: the first stored wins, later copies (in the same batch or a retry) count as duplicates. The check and the write run under the log's per-device lock, so concurrent retries cannot both write. The `202` body is `{ received, stored, duplicates, outsidePerimeter }`. A crash between two hour files of one batch leaves part of it on disk with no `202`; the gateway's retry completes it (at least once). The raw log and the device's processing marker are the hand-off to processing (Q100).
 - Why: a retry must have no side effect, and an accepted position must survive a restart.
 - Requirement IDs: TRK-01, API-02, PRV-02, NF-05
 - Status: Accepted
@@ -438,6 +439,181 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: these are the endpoints that exist today; the rest waits for the stories that add them.
 - Requirement IDs: API-01
 - Status: Accepted
+
+## Q52 — Is the Hangfire dashboard exposed?
+- Assumption: no. The dashboard is not mapped in any environment.
+- Why: not required; one less surface to secure. Job state is checked through the test endpoint and the stored results.
+- Alternatives rejected:
+  - Dashboard in test mode for Admin only: extra auth wiring for a page the evaluation does not use.
+- Requirement IDs: JOB-01
+- Status: Accepted
+
+## Q86 — How do periodic jobs run per site, and how does a retry avoid duplicates?
+- Assumption: one Hangfire recurring job per job name, every minute (UTC cron), enqueues one Hangfire job per site of every tenant, with the minute slot (from `SiteSenseContext.Time`, Q38) as an argument. A retry reuses the slot; the job creates its outputs with ids built only from its inputs and `Version = 0`, so a second create is rejected. No production job is registered in SS-31: a probe job in the test project proves the mechanism, and the test endpoint answers 404 for every name until SS-30, SS-32 and SS-33 add theirs.
+- Test endpoint: `POST /api/v1/test/jobs/{jobName}/run` runs only the caller's tenant (tenant isolation) and answers `204` when every site is done, like `PUT /test/clock`.
+- Storage per host: `Hangfire:Storage` is `Redis` (default, `ConnectionStrings:Redis` required) or `InMemory`, used only by the test host since CI has no Redis (Q72). Redis is published on `127.0.0.1:6379` for `dotnet run`.
+- Alternatives rejected:
+  - One recurring job per job and site: must be added and removed with every site.
+  - A small production job such as `heartbeat`: a fake job name in the API and a document per site every minute.
+  - Running every tenant from the test endpoint: an Admin of one tenant would touch another tenant.
+- Requirement IDs: JOB-01, JOB-02, C-7.2c
+- Status: Accepted
+
+## Q18 — Within `connectToleranceM`: endpoint to endpoint only, or also endpoint to the middle of another path?
+- Assumption: endpoint to endpoint only, between different paths, at a distance strictly less than `connectToleranceM`. A short connector edge joins them.
+- Why: MAP-03 speaks of endpoints that are less than `connectToleranceM` apart; crossings and T junctions share a vertex by the map rules.
+- Requirement IDs: MAP-03
+- Status: Accepted
+
+## Q19 — "Shared vertex": exact coordinates or with a tolerance?
+- Assumption: two vertices are the same graph node when their local x/y, rounded to 1 cm, are equal.
+- Why: identical GeoJSON coordinates always give the same node; the 1 cm grid also absorbs tiny rounding differences.
+- Requirement IDs: MAP-03
+- Status: Accepted
+
+## Q21 — Do `slopePercent` and `widthM` enter the route cost?
+- Assumption: no. Time = length / (`walkingSpeedMps` × `unpavedSpeedFactor` if unpaved × `stepsSpeedFactor` if steps); both factors multiply when both apply. Connectors use the plain walking speed.
+- Why: NAV-03 names only speed, surface and steps; slope has no site parameter and no direction.
+- Requirement IDs: NAV-03
+- Status: Accepted
+
+## Q25 — Is a stretch that only touches the boundary of a `restricted` or `hazard` area traversable?
+- Assumption: yes. A stretch (path edge or connector) is not traversable only if it passes through the inside of the area; touching or running along the boundary is allowed.
+- Why: a path along a fence is not inside the fenced area; blocking on contact would cut paths that only border it.
+- Requirement IDs: NAV-02
+- Status: Accepted
+
+## Q86 — When is the route graph cached per map version?
+- Assumption: SS-17 only builds the graph (`SiteMap.BuildRouteGraph`); SS-19, its first user, adds the in-memory cache keyed by tenant, site and map version.
+- Why: a cache with no caller is untested code.
+- Requirement IDs: MAP-03, NAV-01
+- Status: Accepted
+
+## Q87 — Are tolerance connectors checked against blocked areas?
+- Assumption: yes, with the same test as path edges.
+- Why: a connector is walked like any other stretch; skipping the check could route through a hazard edge.
+- Requirement IDs: NAV-02
+- Status: Accepted
+
+## Q51 — How is the simulator run, and does it set up the site itself?
+- Assumption: a console app run with `dotnet run`, plus an optional compose service `simulator` under the profile `sim`, so `docker compose up` still starts only the system. By default it creates the site, uploads the map and registers its devices with the test admin (409 = already there); `--no-setup` turns this off.
+- Why: the owner wanted a container, but the system start must not depend on it; positions of unregistered devices are dropped (Q12), so a fresh stack needs the setup.
+- Requirement IDs: SIM-01, NF-01
+- Status: Accepted
+
+## Q93 — Where on the map do simulated devices walk?
+- Assumption: only on `kind=path` lines, using path vertices strictly inside the site perimeter (shared vertices join paths, rounded to 1e-7 degrees). Movement uses a local equirectangular scale in lon/lat; logs go to the console (no logging package), and time comes from a `TimeProvider`.
+- Why: 11 path vertices of the real map lie outside the perimeter and ingest would drop them; the simulator references no project, so no shared projection, and the error is negligible at site size.
+- Requirement IDs: SIM-01
+- Status: Accepted
+
+## Q48 — Does the site `timeZone` set the day boundaries of position retention?
+- Assumption: no. Retention is a rolling UTC window on the simulated clock: an hour file of the position log is deleted once its whole hour ends before `now − RetentionDays × 24 h`. The site `timeZone` is not used.
+- Why: the log is cut in UTC hours, so a UTC cutoff deletes whole files only, with no per-device site lookup and no DST edge cases. A position lives between N days and N days plus one hour. Chosen by the owner.
+- Alternatives rejected:
+  - Keep N whole local days of the site `timeZone`: needs the site of each device log and DST handling, for no gain the requirement asks for.
+- Requirement IDs: PRV-04, JOB-04
+- Status: Accepted
+
+## Q95 — What happens to a late position that is already older than the retention cutoff?
+- Assumption: ingest stores it as today; the next retention run deletes it.
+- Why: it lives at most until the next run (one hour). Dropping it at ingest would add a counter to the batch response, a contract change. Chosen by the owner.
+- Requirement IDs: PRV-04, TRK-01
+- Status: Accepted
+
+## Q96 — How often does the retention job run, and per what?
+- Assumption: once per tenant, every hour (Hangfire `Cron.Hourly`). It runs as a tenant job, not a site job, so it also clears the logs of devices that were deleted or moved.
+- Why: the log is cut in hour files, so a more frequent run deletes nothing more; per-site runs would miss logs of devices no longer registered. Chosen by the owner.
+- Alternatives rejected:
+  - Daily: expired positions could live up to ~25 h past the cutoff.
+  - Per-site job: misses logs of devices no longer registered on a site.
+- Requirement IDs: JOB-04, PRV-04
+- Status: Accepted
+
+## Q06 — How are late positions processed, and how does a replay avoid duplicates?
+- Assumption: a position older than the device's cursor replays that device from its timestamp: every later point is processed again with revision + 1. Track points are append-only; a read keeps the highest revision per timestamp, so a replay or a crashed run never duplicates a point. Events (later stories) are keyed by (type, device, area, eventTimeMs).
+- Why: a late point changes the filtered result of every later point, so only a replay keeps the track consistent.
+- Alternatives rejected:
+  - Insert the late point only, without recomputing later points: later filtered points would ignore it.
+- Requirement IDs: TRK-02, EVT-03
+- Status: Accepted
+
+## Q39 — What happens to a position whose timestamp is ahead of the (simulated) clock?
+- Assumption: accepted and processed by timestamp like any other; the clock never rejects input.
+- Why: the simulator may run ahead of a frozen test clock, and rejecting its positions would break the test runs.
+- Alternatives rejected:
+  - Drop beyond now + tolerance: breaks a simulator running ahead of a frozen test clock.
+  - Store and hold until the clock reaches it: drain could not finish.
+- Requirement IDs: TRK-02, C-7.2b
+- Status: Accepted
+
+## Q100 — How does processing find accepted but unprocessed positions after a restart?
+- Assumption: ingest sets a durable per-device marker (`dirtyFromMs`) before and after the raw append; the processor clears it with a version check; on start, every marked device is queued before the server accepts requests.
+- Why: the marker is durable and small, so a restart finds exactly the devices with unprocessed positions, whatever their age.
+- Alternatives rejected:
+  - Replay a lookback window: misses an older late batch.
+  - Full replay on start: start time grows with data.
+- Requirement IDs: TRK-02, NF-05
+- Status: Accepted
+
+## Q101 — What does SS-23 processing write before the filter and areas exist?
+- Assumption: a pass-through `TrackPoint` log (one track point per raw position, with a revision); SS-24 replaces the step with the filter, SS-25 adds the area.
+- Why: order, replay and drain can be tested end to end before the filter exists.
+- Alternatives rejected:
+  - No output yet: order, replay and drain would not be testable end to end.
+- Requirement IDs: TRK-02
+- Status: Accepted
+
+## Q102 — Which positions does `POST /api/v1/test/drain` wait for?
+- Assumption: those of the caller's tenant only; `204` when none is pending, `500` ProblemDetails when a run of that tenant failed since the last drain.
+- Why: a check of one tenant must not wait for, or be failed by, another tenant's load.
+- Alternatives rejected:
+  - All tenants: one tenant's load would delay or fail another tenant's check.
+- Requirement IDs: C-7.2d
+- Status: Accepted
+
+## Q103 — What form does the work marker take?
+- Assumption: one `DeviceProcessing` document per device (`cursorMs`, `revision`, `dirtyFromMs`).
+- Why: the state of a device is read and updated in one place, with a version check.
+- Alternatives rejected:
+  - A per-device marker log: counting consumed markers needs a full read.
+- Requirement IDs: TRK-02
+- Status: Accepted
+
+## Q34 — Is every `PositionUpdated` saved with a seq, and throttled?
+- Assumption: yes, every filtered position is saved as one event with a seq. No throttling.
+- Why: catch-up after a disconnect needs every position the Safety role may see; a throttle would drop events that were never sent.
+- Requirement IDs: RTM-01, RTM-05
+- Status: Accepted
+
+## Q35 — Does `GET /events` filter by role?
+- Assumption: yes. The catch-up endpoint applies the same audience map as the hub, by policy (Q108).
+- Why: without a filter the catch-up would return alerts and positions to a Viewer that the hub never sends it.
+- Requirement IDs: RTM-05, PRV-03
+- Status: Accepted
+
+## Q105 — How is the event log keyed so "after seq" is cheap?
+- Assumption: events use `IAppendLog` with `TimestampMs = seq × 100`, so one hour file holds 36,000 seqs.
+- Why: a catch-up reads only the files from seq `after + 1` on; a publish-time key would need a full scan and sort per catch-up.
+- Requirement IDs: RTM-05, JDB-06
+- Status: Accepted
+
+## Q106 — Which path does the SignalR hub use?
+- Assumption: `/api/v1/realtime`, under `/api` so the UI's existing proxy covers it.
+- Why: the UI proxies `/api` already; a separate `/hubs` path would need a second proxy rule.
+- Requirement IDs: RTM-01
+- Status: Accepted
+
+## Q107 — When is `OccupancyChanged` sent?
+- Assumption: on area change (push), and from the per-minute job when the 5-minute rule drops a device, only if the snapshot changed.
+- Why: occupancy must update when an area changes, and a device going silent also changes the count; sending unchanged snapshots adds noise.
+- Requirement IDs: EVT-01, RTM-02, JOB-01
+- Status: Accepted
+
+## Q108 — How is the audience checked without role strings in code (IDN-03)?
+- Assumption: each event type maps to a named policy (`CanSeeIndividuals` or `CanSeeAggregates`), checked with `IAuthorizationService`. SignalR groups are per policy.
+- Why: the architecture test forbids role checks in code; named policies keep the rule in one map and let a new role join a policy without code change.
+- Requirement IDs: IDN-03, RTM-01, RTM-02, PRV-03
 
 ## Q93 — Who may read the site map (`GET /api/v1/sites/{siteId}/map`)?
 - Assumption: every user role (`CanSeeAggregates`). The map is the site layout, not personal data. What is drawn on top depends on the role: Admin the structure (SS-48), Safety devices and alerts, Viewer occupancy, each in its own story. Upload stays Admin-only.
