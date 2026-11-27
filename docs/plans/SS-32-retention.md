@@ -26,7 +26,7 @@ hour ended at or before `now − RetentionDays` days, on the simulated clock (SS
 for the caller's tenant and answers `204` when it has finished. A retry or a crash mid-run is safe.
 
 Out of scope: the filtered track log `TrackPoint` (Q16) does not exist yet; the story that adds it adds
-one line to the retention job (see step 3). Dropping too-old positions at ingest (Q93). Removing empty
+one line to the retention job (see step 3). Dropping too-old positions at ingest (Q95). Removing empty
 device folders.
 
 ## Solution
@@ -39,7 +39,7 @@ Three small pieces:
    deletes each hour file whose hour ends at or before `beforeMs` (`hourStart + 1 h <= beforeMs`). Each
    delete is one `File.Delete`, so a file is either whole or gone. Files whose name is not an hour are
    left alone. Returns how many files it deleted.
-2. **Tenant job**: retention is per tenant, not per site (Q94). A new `ITenantJob`
+2. **Tenant job**: retention is per tenant, not per site (Q96). A new `ITenantJob`
    (`RunAsync(tenantId, slotMs, ct)`) sits next to `ISiteJob`. `SiteJobRunner` learns two things:
    `RunNowAsync` runs a keyed `ITenantJob` once for the caller's tenant (site jobs unchanged; a name is
    registered as one kind only), and a `ScheduleTenantJob(manager, jobName, cron)` whose recurring job
@@ -48,7 +48,7 @@ Three small pieces:
 3. **Retention job**: `RetentionJob : ITenantJob`, keyed `"retention"`. It reads
    `SiteSenseContext.Tenants[tenantId].RetentionDays` (a tenant missing from configuration: log a warning,
    delete nothing). Cutoff = `slotMs − RetentionDays × 86 400 000` (UTC, Q48). Calls `DeleteBeforeAsync<Position>` and logs the
-   count. Scheduled `Cron.Hourly()` (Q94).
+   count. Scheduled `Cron.Hourly()` (Q96).
 
 Example: clock `2026-03-31T10:20Z`, `RetentionDays = 30` → cutoff `2026-03-01T10:20Z`.
 `2026-03-01T09.jsonl` (ends 10:00) is deleted; `2026-03-01T10.jsonl` (ends 11:00) is kept.
@@ -56,7 +56,7 @@ Example: clock `2026-03-31T10:20Z`, `RetentionDays = 30` → cutoff `2026-03-01T
 Why it is idempotent and crash-safe: the job only deletes, and only files that are fully expired.
 A second run with the same slot finds nothing to delete. A crash between two deletes leaves whole
 files only; the next run deletes the rest. A late position for an expired hour, appended after its
-file was deleted, recreates the file; the next run deletes it (Q93).
+file was deleted, recreates the file; the next run deletes it (Q95).
 
 ```mermaid
 sequenceDiagram
@@ -89,7 +89,7 @@ sequenceDiagram
 ## Risks
 | Risk | Impact | Mitigation |
 |---|---|---|
-| A delete races an append to the same hour file. | A late, already-expired position is lost or kept one hour longer. | Delete under the key's append lock; the position was expired anyway (Q93). |
+| A delete races an append to the same hour file. | A late, already-expired position is lost or kept one hour longer. | Delete under the key's append lock; the position was expired anyway (Q95). |
 | Off-by-one at the cutoff deletes a file that still holds recent positions. | Data loss inside the retention window. | Delete only when the whole hour ends at or before the cutoff; boundary tests both sides. |
 | Simulated clock jumps forward in tests. | Many files deleted at once. | Intended: the job follows the clock (SS-2). Tests set the clock explicitly. |
 | Tenant job reaches another tenant's files. | Tenant isolation breach. | Path built from the tenant id only (`StorePaths.CheckName`); test that the other tenant's files stay. |
@@ -123,11 +123,12 @@ sequenceDiagram
 |---|---|---|---|
 | Q14 | Where does `RetentionDays` live? | Tenant configuration (SS-43) | Accepted earlier (SS-43). |
 | Q48 | Site `timeZone` for day boundaries? | Rolling UTC · site-local midnight | Owner: rolling UTC. |
-| Q93 | Late position already older than the cutoff? | Store, next run deletes · drop at ingest | Owner: store, next run deletes. |
-| Q94 | Schedule and job shape? | Hourly tenant job · daily · per-site job | Owner: hourly tenant job. |
+| Q95 | Late position already older than the cutoff? | Store, next run deletes · drop at ingest | Owner: store, next run deletes. |
+| Q96 | Schedule and job shape? | Hourly tenant job · daily · per-site job | Owner: hourly tenant job. |
 
 ## Changelog
 | Date | Change | Why (review comment or finding) |
 |---|---|---|
 | 2026-11-27 | First version. | — |
+| 2026-11-27 | Renumbered Q93, Q94 to Q95, Q96 (Q93 taken on main by SS-39). | Merge conflict with main. |
 | 2026-11-27 | Exact lock and folder enumeration, where `RetentionDays` is read, Program.cs and comment updates, no schedule on the test host, crash test seeding, boundary and concurrency tests. | Sonnet validation. |
