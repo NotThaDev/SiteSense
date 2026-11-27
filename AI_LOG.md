@@ -109,3 +109,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan SS-32 with the plan / validate / approve / implement / verify workflow; ask the owner on every open point.
 - AI produced: plan, `DeleteBeforeAsync`, `ITenantJob`, `RetentionJob` and wiring (Opus), plan review (Sonnet), store, crash and API tests (Haiku).
 - Corrected or discarded: the Sonnet review asked for the exact append lock on delete, where `RetentionDays` is read, no hourly schedule on the test host, a cutoff exactly on the hour and an append-during-delete test. The owner chose the recommended options for Q48, Q95 and Q96.
+
+## 2026-11-27 — SS-23 ordered processing and drain
+- Goal: process each device's positions in timestamp order, replay late ones, and add `POST /api/v1/test/drain`.
+- Prompt (summary): plan with the owner's decisions on Q06, Q39, Q100–Q103; Sonnet review of the plan; Haiku and Sonnet subagents for models, processor, wiring, tests and records.
+- AI produced: plan file, `DeviceProcessing`, `TrackPoint`, `PositionProcessor`, ingest marks, drain endpoint, unit and API tests, these records.
+- Corrected or discarded: the plan review found a lost-batch race (a run could clear a marker before its positions were written): fixed with a second mark after the append. It also replaced "a few workers" with one worker and a per-device state machine, and made drain answer 500 after a failed run.

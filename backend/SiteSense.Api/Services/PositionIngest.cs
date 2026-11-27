@@ -5,7 +5,7 @@ using SiteSense.Domain.Geometry;
 
 namespace SiteSense.Api.Services;
 
-// Batch ingest (TRK-01, PRV-02): device check, perimeter drop before any write, write-once append. Processing reads the raw log later (SS-23).
+// Batch ingest (TRK-01, PRV-02): device check, perimeter drop before any write, write-once append. The marker hands the device to PositionProcessor (SS-23).
 public static class PositionIngest
 {
     private const double BoundaryToleranceM = 1e-6;
@@ -20,7 +20,16 @@ public static class PositionIngest
         var perimeter = map?.Areas.FirstOrDefault(a => a.AreaType == "perimeter");
 
         var inside = perimeter is null ? [] : PositionsInside(perimeter, positions);
-        var stored = inside.Count == 0 ? 0 : await Position.AppendNewAsync(tenantId, deviceId, inside, ct);
+        var stored = 0;
+        if (inside.Count > 0)
+        {
+            // Marked before and after the append (Q100): before, so a crash never leaves new raw positions without a marker;
+            // after, so a processor run that read the log before the append fails its version check and runs again.
+            var fromMs = inside.Min(p => p.TimestampMs);
+            await DeviceProcessing.MarkDirtyAsync(tenantId, deviceId, fromMs, ct);
+            stored = await Position.AppendNewAsync(tenantId, deviceId, inside, ct);
+            await DeviceProcessing.MarkDirtyAsync(tenantId, deviceId, fromMs, ct);
+        }
         var outside = positions.Count - inside.Count;
         var duplicates = inside.Count - stored;
 

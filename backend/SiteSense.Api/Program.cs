@@ -3,6 +3,7 @@ using Scalar.AspNetCore;
 using SiteSense.Api.Auth;
 using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Helpers;
+using SiteSense.Api.Services;
 using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,9 @@ var testMode = builder.Configuration.GetValue<bool>(SiteSensePolicies.TestModeSe
 builder.AddSiteSenseAuth(testMode);
 builder.Services.AddHealthChecks();
 builder.AddSiteSenseJobs();
+// Ordered processing (TRK-02): one singleton, also a hosted service so its startup scan runs before the server starts.
+builder.Services.AddSingleton<PositionProcessor>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
 // Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
 builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);
 builder.Services.AddControllers()

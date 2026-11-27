@@ -4,6 +4,7 @@ using SiteSense.Api.Auth;
 using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Dtos;
 using SiteSense.Api.Helpers;
+using SiteSense.Api.Services;
 
 namespace SiteSense.Api.Controllers;
 
@@ -32,4 +33,15 @@ public sealed class TestController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RunJob(string jobName, [FromServices] SiteJobRunner runner, CancellationToken ct) =>
         await runner.RunNowAsync(jobName, User.TenantId(), ct) ? NoContent() : NotFound();
+
+    // Answers when every position the caller's tenant sent so far is processed (C-7.2d, Q102); 500 when a run failed since the last drain.
+    [HttpPost("drain")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> Drain([FromServices] PositionProcessor processor, CancellationToken ct) =>
+        await processor.DrainAsync(User.TenantId(), ct)
+            ? NoContent()
+            : Problem(statusCode: StatusCodes.Status500InternalServerError, title: "Processing failed for some positions");
 }
