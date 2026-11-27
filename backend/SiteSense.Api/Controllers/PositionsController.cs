@@ -11,7 +11,7 @@ namespace SiteSense.Api.Controllers;
 [ApiController]
 [Route("api/v1/positions")]
 [Authorize(Policy = SiteSensePolicies.CanWritePositions)]
-public sealed class PositionsController(ILogger<PositionsController> logger) : ControllerBase
+public sealed class PositionsController(ILogger<PositionsController> logger, PositionProcessor processor) : ControllerBase
 {
     // 202 only after the new positions are fsynced (NF-05); a retry of the same batch stores nothing twice (TRK-01).
     [HttpPost]
@@ -28,6 +28,8 @@ public sealed class PositionsController(ILogger<PositionsController> logger) : C
         var result = await PositionIngest.IngestAsync(User.TenantId(), request.DeviceId, positions, logger, ct);
         if (result is null)
             return Problem(statusCode: StatusCodes.Status404NotFound, title: "Device not found");
+        // Positions inside the perimeter were marked: hand the device to ordered processing (TRK-02).
+        if (result.Received > result.OutsidePerimeter) processor.Enqueue(User.TenantId(), request.DeviceId);
         return StatusCode(StatusCodes.Status202Accepted, result);
     }
 }

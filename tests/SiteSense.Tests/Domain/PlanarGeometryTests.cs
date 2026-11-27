@@ -155,4 +155,68 @@ public sealed class PlanarGeometryTests
 
         Assert.Equal(PointLocation.Outside, result);
     }
+
+    [Fact]
+    public void CrossingSquare_IsInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square];
+
+        Assert.True(PlanarGeometry.SegmentCrossesInterior((-5, 5), (15, 5), rings));
+    }
+
+    [Fact]
+    public void TouchingCorner_IsNotInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square];
+
+        Assert.False(PlanarGeometry.SegmentCrossesInterior((-5, 5), (5, 15), rings));
+    }
+
+    [Fact]
+    public void AlongEdge_IsNotInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square];
+
+        Assert.False(PlanarGeometry.SegmentCrossesInterior((-5, 0), (15, 0), rings));
+    }
+
+    [Fact]
+    public void FullyInside_IsInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square];
+
+        Assert.True(PlanarGeometry.SegmentCrossesInterior((2, 2), (3, 3), rings));
+    }
+
+    [Fact]
+    public void BoundaryToBoundaryThroughInside_IsInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square];
+
+        Assert.True(PlanarGeometry.SegmentCrossesInterior((0, 5), (10, 5), rings));
+    }
+
+    [Fact]
+    public void OnlyInsideHole_IsNotInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square, Hole];
+
+        Assert.False(PlanarGeometry.SegmentCrossesInterior((4.5, 5), (5.5, 5), rings));
+    }
+
+    [Fact]
+    public void CrossingRingAroundHole_IsInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square, Hole];
+
+        Assert.True(PlanarGeometry.SegmentCrossesInterior((1, 5), (3, 5), rings));
+    }
+
+    [Fact]
+    public void FarAway_IsNotInside()
+    {
+        IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings = [Square];
+
+        Assert.False(PlanarGeometry.SegmentCrossesInterior((20, 20), (30, 30), rings));
+    }
 }

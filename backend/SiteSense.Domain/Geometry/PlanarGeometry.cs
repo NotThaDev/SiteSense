@@ -33,6 +33,57 @@ public static class PlanarGeometry
         return inside ? PointLocation.Inside : PointLocation.Outside;
     }
 
+    /// <summary>True if segment a→b passes through the inside of the polygon (rings: outer first, then holes). Touching or running along the boundary is not inside (Q25).</summary>
+    public static bool SegmentCrossesInterior((double X, double Y) a, (double X, double Y) b, IReadOnlyList<IReadOnlyList<(double X, double Y)>> rings)
+    {
+        const double Eps = 1e-6;
+        if (rings.Count == 0 || rings[0].Count == 0) return false;
+        if (a == b) return Locate(a, rings, Eps) == PointLocation.Inside;
+
+        var outer = rings[0];
+        if (Math.Max(a.X, b.X) < outer.Min(p => p.X) - Eps || Math.Min(a.X, b.X) > outer.Max(p => p.X) + Eps ||
+            Math.Max(a.Y, b.Y) < outer.Min(p => p.Y) - Eps || Math.Min(a.Y, b.Y) > outer.Max(p => p.Y) + Eps)
+            return false;
+
+        var r = (X: b.X - a.X, Y: b.Y - a.Y);
+        var rLength = Math.Sqrt(r.X * r.X + r.Y * r.Y);
+        var ts = new List<double> { 0, 1 };
+        foreach (var ring in rings)
+            foreach (var (c, d) in Edges(ring))
+            {
+                var s = (X: d.X - c.X, Y: d.Y - c.Y);
+                var ca = (X: c.X - a.X, Y: c.Y - a.Y);
+                var den = Cross(r, s);
+                if (Math.Abs(den) > 1e-12)
+                {
+                    var t = Cross(ca, s) / den;
+                    var u = Cross(ca, r) / den;
+                    if (t >= -1e-12 && t <= 1 + 1e-12 && u >= -1e-12 && u <= 1 + 1e-12)
+                        ts.Add(Math.Clamp(t, 0, 1));
+                }
+                else if (Math.Abs(Cross(ca, r)) / rLength < Eps)
+                {
+                    foreach (var p in new[] { c, d })
+                    {
+                        var t = ((p.X - a.X) * r.X + (p.Y - a.Y) * r.Y) / (rLength * rLength);
+                        if (t >= 0 && t <= 1) ts.Add(t);
+                    }
+                }
+            }
+
+        ts.Sort();
+        for (var k = 0; k + 1 < ts.Count; k++)
+        {
+            if (ts[k + 1] - ts[k] <= 1e-12) continue;
+            var mid = (ts[k] + ts[k + 1]) / 2;
+            var m = (X: a.X + r.X * mid, Y: a.Y + r.Y * mid);
+            if (Locate(m, rings, Eps) == PointLocation.Inside) return true;
+        }
+        return false;
+    }
+
+    private static double Cross((double X, double Y) u, (double X, double Y) v) => u.X * v.Y - u.Y * v.X;
+
     private static IEnumerable<((double X, double Y) A, (double X, double Y) B)> Edges(IReadOnlyList<(double X, double Y)> ring)
     {
         if (ring.Count < 2) yield break;
