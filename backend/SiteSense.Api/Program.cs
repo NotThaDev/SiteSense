@@ -1,3 +1,4 @@
+using Hangfire;
 using Scalar.AspNetCore;
 using SiteSense.Api.Auth;
 using SiteSense.Api.BackgroundJobs;
@@ -12,7 +13,8 @@ var testMode = builder.Configuration.GetValue<bool>(SiteSensePolicies.TestModeSe
 builder.AddSiteSenseAuth(testMode);
 builder.Services.AddHealthChecks();
 builder.AddSiteSenseJobs();
-// Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-32, SS-33).
+// Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
+builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
     .AddJsonOptions(o => o.JsonSerializerOptions.RespectRequiredConstructorParameters = true);
@@ -61,5 +63,8 @@ app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
 // Recurring site jobs, one line each, every minute (JOB-01), e.g.:
 // SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), "silent-devices");
+// Retention runs hourly per tenant (Q96). Not on the InMemory test host: a wall-clock run must not delete test data mid-test.
+if (builder.Configuration["Hangfire:Storage"] != "InMemory")
+    SiteJobRunner.ScheduleTenantJob(app.Services.GetRequiredService<IRecurringJobManager>(), RetentionJob.Name, Cron.Hourly());
 
 app.Run();
