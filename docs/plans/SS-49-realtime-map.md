@@ -1,8 +1,8 @@
 # SS-49 — Real-time site map per role
 
-- Status: In review
+- Status: Approved
 - Issue: #138
-- Plan PR: #<n>   Implementation PR: #<n>
+- Plan PR: #141   Implementation PR: #<n>
 - Depends on: SS-50 (#139) publishes `PositionUpdated`; occupancy and alerts come from their own stories
 
 ## Problem
@@ -120,7 +120,7 @@ sequenceDiagram
 
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| 1 | Who may list sites (`GET /api/v1/sites`) | All roles (`CanSeeAggregates`): site names are not personal data, and Safety and Viewer need to pick a site / Admin only, others type the site URL | — |
+| 1 | Who may list sites (`GET /api/v1/sites`) | All roles (`CanSeeAggregates`): site names are not personal data, and Safety and Viewer need to pick a site / Admin only, others type the site URL | All roles (`CanSeeAggregates`), Q109 changed (user, 2026-11-27) |
 | 2 | Roles on the map | Per role as in the Goal table / everything for Admin | Per role (user, 2026-11-27) |
 | 3 | Hub CSRF | Origin check / short-lived hub token | Origin check (user, 2026-11-27) |
 | 4 | Payload guesses for events not yet produced | Fix them now from the contract (Q115 in SS-50, Q116 here) / wait | Fix now (user, 2026-11-27) |
@@ -131,3 +131,4 @@ sequenceDiagram
 |---|---|---|
 | 2026-11-27 | First version | User: real-time on the map, per role |
 | 2026-11-27 | Capabilities from `/me` instead of role names (IDN-03); narrow CSRF exemption; endless reconnect and 401 handling; nginx WebSocket config; catch-up order | Sonnet plan validation |
+| 2026-11-27 | Open question 1 decided; Approved | User review |
