@@ -35,7 +35,7 @@ services:
       retries: 10
       start_period: 10s
 
-  # Admin UI; proxies API calls so the browser sees one origin (Q89).
+  # Admin UI; proxies API calls so the browser sees one origin (Q112).
   ui:
     build:
       context: ./frontend
