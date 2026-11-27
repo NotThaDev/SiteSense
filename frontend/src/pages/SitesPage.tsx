@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, toastError, type Site } from '@/api'
+import { useSession } from '@/session'
 import { SiteForm, defaultNavigation } from './SiteForm'
 
 const blank: Site = { siteId: '', name: '', timeZone: 'Europe/Rome', navigation: defaultNavigation }
@@ -13,6 +14,7 @@ export default function SitesPage() {
   const [sites, setSites] = useState<Site[] | null>(null)
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const { can } = useSession()
   const load = useCallback(() => api<{ items: Site[] }>('GET', '/sites').then(r => setSites(r.data.items)).catch(toastError), [])
   useEffect(() => { load() }, [load])
 
@@ -30,13 +32,13 @@ export default function SitesPage() {
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Sites</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
+        {can.manage && <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button>New site</Button></DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader><DialogTitle>New site</DialogTitle><DialogDescription>Defaults come from the example site.</DialogDescription></DialogHeader>
             <SiteForm initial={blank} submitLabel="Create site" onSubmit={create} />
           </DialogContent>
-        </Dialog>
+        </Dialog>}
       </div>
       <Table>
         <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Time zone</TableHead><TableHead>Id</TableHead></TableRow></TableHeader>

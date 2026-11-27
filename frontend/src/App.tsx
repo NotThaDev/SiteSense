@@ -23,11 +23,11 @@ function Gate({ title, text, children }: { title: string; text: string; children
 }
 
 export default function App() {
-  const { me, loading, isAdmin, login, logout } = useSession()
+  const { me, loading, can, login, logout } = useSession()
   let body: React.ReactNode
   if (loading) body = <p className="p-6 text-sm text-muted-foreground">Loading…</p>
-  else if (!me) body = <Gate title="Sign in" text="Log in to manage sites, maps and devices."><Button className="w-full" onClick={login}>Log in with Keycloak</Button></Gate>
-  else if (!isAdmin) body = <Gate title="Admin role required" text="Your account cannot use this app."><Button variant="outline" onClick={logout}>Log out</Button></Gate>
+  else if (!me) body = <Gate title="Sign in" text="Log in to see your sites."><Button className="w-full" onClick={login}>Log in with Keycloak</Button></Gate>
+  else if (!can.seeAggregates) body = <Gate title="No access" text="Your account cannot use this app."><Button variant="outline" onClick={logout}>Log out</Button></Gate>
   else return (
     <SidebarProvider>
       <AppSidebar />

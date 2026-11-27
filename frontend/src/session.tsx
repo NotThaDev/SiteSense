@@ -1,8 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api, setOnUnauthorized } from '@/api'
 
-type Me = { tenantId: string; roles: string[]; username: string | null }
-type Session = { me: Me | null; loading: boolean; isAdmin: boolean; login: () => void; logout: () => void }
+// The UI decides from these flags, never from role names (Q118).
+export type Can = { manage: boolean; seeIndividuals: boolean; seeAggregates: boolean }
+type Me = { tenantId: string; roles: string[]; username: string | null; capabilities: Can }
+const NONE: Can = { manage: false, seeIndividuals: false, seeAggregates: false }
+type Session = { me: Me | null; loading: boolean; can: Can; login: () => void; logout: () => void }
 
 const Ctx = createContext<Session | null>(null)
 
@@ -17,7 +20,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value: Session = {
     me, loading,
-    isAdmin: me?.roles.includes('Admin') ?? false,
+    can: me?.capabilities ?? NONE,
     login: () => { location.href = `/api/v1/auth/login?returnUrl=${encodeURIComponent(location.pathname + location.search)}` },
     logout: () => { location.href = '/api/v1/auth/logout' },
   }
