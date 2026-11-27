@@ -80,7 +80,8 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
   if (empty) return <p className="text-sm text-muted-foreground">Upload a map to see it here</p>
   if (!data) return null
   return (
-    <div ref={box} className="relative overflow-hidden rounded-xl border bg-background" style={{ height: full ? '100%' : 420 }}>
+    // isolate: Leaflet's z-indexes (400–1000) stay inside the map, so popovers and dialogs draw above it.
+    <div ref={box} className="relative isolate overflow-hidden rounded-xl border bg-background" style={{ height: full ? '100%' : 420 }}>
       <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
