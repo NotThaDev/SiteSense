@@ -352,6 +352,61 @@ public sealed class FileAppendLogTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
+    public async Task ReadLast_EmptyLog_ReturnsNull()
+    {
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Null(last);
+    }
+
+    [Fact]
+    public async Task ReadLast_TwoFiles_ReturnsLastRecordOfNewestFile()
+    {
+        await Append([P(T0 + 1000), P(T0 + 2000)]);
+        await Append([P(T0 + Hour + 1000), P(T0 + Hour + 2000)]);
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + Hour + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task ReadLast_NewestFileOnlyTornLine_ReturnsLastOfPreviousFile()
+    {
+        await Append([P(T0 + 1000), P(T0 + 2000)]);
+        var dir = Path.GetDirectoryName(Assert.Single(Files()))!;
+        var newest = DateTimeOffset.FromUnixTimeMilliseconds(T0 + Hour).UtcDateTime.ToString("yyyy-MM-dd'T'HH", System.Globalization.CultureInfo.InvariantCulture);
+        await File.WriteAllTextAsync(Path.Combine(dir, newest + ".jsonl"), "{\"devi");
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task ReadLast_UnterminatedWholeTail_ReturnsThatRecord()
+    {
+        await Append([P(T0 + 1000)]);
+        var json = JsonSerializer.Serialize(P(T0 + 2000), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        await File.AppendAllTextAsync(Assert.Single(Files()), json);
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
+    public async Task ReadLast_UnparseableTail_ReturnsRecordBefore()
+    {
+        await Append([P(T0 + 1000), P(T0 + 2000)]);
+        await File.AppendAllTextAsync(Assert.Single(Files()), "{\"devi");
+
+        var last = await new FileAppendLog(_root).ReadLastAsync<Position>(Tenant, Key, CancellationToken.None);
+
+        Assert.Equal(T0 + 2000, last?.TimestampMs);
+    }
+
+    [Fact]
     public async Task DeleteBefore_HourEndedBeforeCutoff_DeletesFile()
     {
         await Append([P(T0 + 1000)]);

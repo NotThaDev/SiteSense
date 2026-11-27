@@ -45,6 +45,24 @@ public sealed class FileAppendLog : IAppendLog
         return Task.FromResult<IReadOnlyList<T>>(result.OrderBy(r => r.TimestampMs).ToList());
     }
 
+    // shortcut: reads the whole newest file; fine for bounded files, add a tail read when files grow
+    public Task<T?> ReadLastAsync<T>(string tenantId, string key, CancellationToken ct) where T : class, ILogRecord
+    {
+        StorePaths.CheckName(tenantId, nameof(tenantId));
+        StorePaths.CheckName(key, nameof(key));
+        var dir = DirOf<T>(tenantId, key);
+        if (!Directory.Exists(dir)) return Task.FromResult<T?>(null);
+        foreach (var path in Directory.EnumerateFiles(dir, "*.jsonl").OrderByDescending(p => p, StringComparer.Ordinal))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!DateTime.TryParseExact(Path.GetFileNameWithoutExtension(path), HourFormat, CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out _))
+                continue;
+            if (ReadLastRecord<T>(path) is { } last) return Task.FromResult<T?>(last);
+        }
+        return Task.FromResult<T?>(null);
+    }
+
     public async Task<int> DeleteBeforeAsync<T>(string tenantId, long beforeMs, CancellationToken ct) where T : class, ILogRecord
     {
         StorePaths.CheckName(tenantId, nameof(tenantId));
@@ -172,6 +190,28 @@ public sealed class FileAppendLog : IAppendLog
         {
             if (r.TimestampMs >= fromMs && r.TimestampMs < toMs) result.Add(r);
         });
+    }
+
+    // Null for a missing file, an empty file or one with no record.
+    private static T? ReadLastRecord<T>(string path) where T : class, ILogRecord
+    {
+        byte[] bytes;
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            bytes = new byte[fs.Length];
+            fs.ReadExactly(bytes);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return null;
+        }
+        var tail = bytes.AsSpan(Array.LastIndexOf(bytes, (byte)'\n') + 1);
+        // A whole record cut before its newline counts, because the next append ends it with '\n'.
+        if (!tail.IsEmpty && TryParse<T>(tail) is { } torn) return torn;
+        T? last = null;
+        ParseLines<T>(bytes, r => last = r);
+        return last;
     }
 
     private static void ParseLines<T>(byte[] bytes, Action<T> onRecord) where T : class, ILogRecord

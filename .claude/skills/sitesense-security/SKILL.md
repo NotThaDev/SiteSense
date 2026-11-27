@@ -60,7 +60,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `GET /api/v1/sites/{siteId}/occupancy` | `CanSeeAggregates` |
 | `GET /api/v1/devices/{deviceId}/track` | `CanSeeIndividuals` |
 | `GET /api/v1/sites/{siteId}/alerts` | `CanSeeIndividuals` |
-| `GET /api/v1/events?after={seq}` | **Proposed:** `CanSeeAggregates`, payload filtered by role |
+| `GET /api/v1/events?after={seq}` | `CanSeeAggregates`; items filtered by audience policy (Q35, Q108) |
 | `PUT /api/v1/test/clock` | `TestMode` |
 | `POST /api/v1/test/jobs/{jobName}/run` | `TestMode` |
 | `POST /api/v1/test/drain` | `TestMode` |
@@ -102,18 +102,18 @@ Rule on credentials in the repo: `../dotnet-coding/SKILL.md`.
 
 ## SignalR
 
-**Decided (Q63):** one hub group per tenant, site and role: `tenant:{tenantId}:site:{siteId}:role:{role}`.
+**Decided (Q108, changes Q63):** one hub group per tenant, site and audience policy: `tenant:{tenantId}:site:{siteId}:audience:{policy}`.
 
 - On connect the hub requires `CanSeeAggregates`; tenant and role come from the token only. Browsers send the token as `access_token` in the query string, read only for the hub path.
 - The client asks to join a site; the server checks the site belongs to the caller's tenant (otherwise rejects), then adds the connection to its role group.
 - Events are sent once per target group; SignalR delivers to each connection. A Viewer is never in a Safety group, so individual data cannot reach it.
 - Connections close when the token expires (`CloseOnAuthenticationExpiration`); the client reconnects with a new token and joins again.
 
-| Event | Audience |
-|---|---|
-| `PositionUpdated` | `Safety` only |
-| `OccupancyChanged` | All user roles |
-| `AlertRaised` | `Safety` only, every alert type including `ZoneAnomaly` (**Decided, Q36**) |
+| Event | Audience | Policy |
+|---|---|---|
+| `PositionUpdated` | `Safety` only | `CanSeeIndividuals` |
+| `OccupancyChanged` | All user roles | `CanSeeAggregates` |
+| `AlertRaised` | `Safety` only, every alert type including `ZoneAnomaly` (**Decided, Q36**) | `CanSeeIndividuals` |
 
 Rules:
 - A user gets events of its own tenant only (RTM-01).

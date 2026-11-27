@@ -76,10 +76,10 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q63 — How are SignalR groups organised?
-- Assumption: one group per tenant, site and role, named `tenant:{tenantId}:site:{siteId}:role:{role}`. The server adds a connection to its role group when the client joins a site, after checking the site belongs to the token's tenant. Each event is sent only to the role groups allowed to see it.
+- Assumption: one group per tenant, site and role, named `tenant:{tenantId}:site:{siteId}:role:{role}`. The server adds a connection to its role group when the client joins a site, after checking the site belongs to the token's tenant. Each event is sent only to the role groups allowed to see it. Changed by Q108: groups are per audience policy, not per role.
 - Why: site IDs are not unique across tenants, so the tenant must be part of the name; groups cannot be intersected, so the role is part of the name too. Filtering at join time means a send can never reach a role that must not see it.
 - Requirement IDs: RTM-01, RTM-02, PRV-03
-- Status: Accepted
+- Status: Changed
 
 ## Q64 — Are compiler warnings treated as errors?
 - Assumption: no. Warnings stay warnings; `Directory.Build.props` does not set `TreatWarningsAsErrors`.
@@ -551,3 +551,38 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: TRK-02
 - Status: Accepted
 
+## Q34 — Is every `PositionUpdated` saved with a seq, and throttled?
+- Assumption: yes, every filtered position is saved as one event with a seq. No throttling.
+- Why: catch-up after a disconnect needs every position the Safety role may see; a throttle would drop events that were never sent.
+- Requirement IDs: RTM-01, RTM-05
+- Status: Accepted
+
+## Q35 — Does `GET /events` filter by role?
+- Assumption: yes. The catch-up endpoint applies the same audience map as the hub, by policy (Q108).
+- Why: without a filter the catch-up would return alerts and positions to a Viewer that the hub never sends it.
+- Requirement IDs: RTM-05, PRV-03
+- Status: Accepted
+
+## Q105 — How is the event log keyed so "after seq" is cheap?
+- Assumption: events use `IAppendLog` with `TimestampMs = seq × 100`, so one hour file holds 36,000 seqs.
+- Why: a catch-up reads only the files from seq `after + 1` on; a publish-time key would need a full scan and sort per catch-up.
+- Requirement IDs: RTM-05, JDB-06
+- Status: Accepted
+
+## Q106 — Which path does the SignalR hub use?
+- Assumption: `/api/v1/realtime`, under `/api` so the UI's existing proxy covers it.
+- Why: the UI proxies `/api` already; a separate `/hubs` path would need a second proxy rule.
+- Requirement IDs: RTM-01
+- Status: Accepted
+
+## Q107 — When is `OccupancyChanged` sent?
+- Assumption: on area change (push), and from the per-minute job when the 5-minute rule drops a device, only if the snapshot changed.
+- Why: occupancy must update when an area changes, and a device going silent also changes the count; sending unchanged snapshots adds noise.
+- Requirement IDs: EVT-01, RTM-02, JOB-01
+- Status: Accepted
+
+## Q108 — How is the audience checked without role strings in code (IDN-03)?
+- Assumption: each event type maps to a named policy (`CanSeeIndividuals` or `CanSeeAggregates`), checked with `IAuthorizationService`. SignalR groups are per policy.
+- Why: the architecture test forbids role checks in code; named policies keep the rule in one map and let a new role join a policy without code change.
+- Requirement IDs: IDN-03, RTM-01, RTM-02, PRV-03
+- Status: Accepted
