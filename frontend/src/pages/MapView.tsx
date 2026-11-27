@@ -83,7 +83,7 @@ function LiveLayers({ geo, live, individuals, now }: { geo: RefObject<L.GeoJSON 
     const seen = new Set<string>()
     live.devices.forEach((d, id) => {
       seen.add(id)
-      const opacity = now - d.timestampMs > STALE_MS ? 0.4 : 1
+      const opacity = now - d.timestampMs > STALE_MS ? 0.7 : 1
       let m = dots.current.get(id)
       if (m) m.setLatLng([d.lat, d.lon]).setStyle({ fillOpacity: opacity, opacity })
       else {
