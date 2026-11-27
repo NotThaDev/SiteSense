@@ -134,6 +134,94 @@ public sealed class BffTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task HubUpgrade_CookieWithUiOrigin_PassesCsrf()
+    {
+        // Arrange
+        var client = CookieClient("tenant-a", "Viewer");
+
+        // Act: a WebSocket upgrade is a cookie GET with an Origin and no X-CSRF; without a real upgrade the hub answers something else.
+        var response = await GetHub(client, "http://localhost:5173");
+
+        // Assert
+        Assert.False(await IsCsrfProblem(response));
+    }
+
+    [Theory]
+    [InlineData("https://evil.example")]
+    [InlineData(null)]
+    public async Task HubUpgrade_CookieWithOtherOrNoOrigin_Returns403Csrf(string? origin)
+    {
+        // Arrange
+        var client = CookieClient("tenant-a", "Viewer");
+
+        // Act
+        var response = await GetHub(client, origin);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.True(await IsCsrfProblem(response));
+    }
+
+    [Fact]
+    public async Task HubNegotiate_CookieWithUiOriginButNoCsrf_Returns403()
+    {
+        // Arrange
+        var client = CookieClient("tenant-a", "Viewer");
+        client.DefaultRequestHeaders.Add("Origin", "http://localhost:5173");
+
+        // Act
+        var response = await client.PostAsync("/api/v1/realtime/negotiate?negotiateVersion=1", new StringContent(string.Empty));
+
+        // Assert
+        Assert.True(await IsCsrfProblem(response));
+    }
+
+    [Fact]
+    public async Task HubNegotiate_CookieWithCsrf_Returns200()
+    {
+        // Arrange
+        var client = CookieClient("tenant-a", "Viewer");
+        client.DefaultRequestHeaders.Add("X-CSRF", "1");
+
+        // Act
+        var response = await client.PostAsync("/api/v1/realtime/negotiate?negotiateVersion=1", new StringContent(string.Empty));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Admin", true, false, true)]
+    [InlineData("Safety", false, true, true)]
+    [InlineData("Viewer", false, false, true)]
+    public async Task Me_Capabilities_PerRole(string role, bool manage, bool individuals, bool aggregates)
+    {
+        // Arrange
+        var client = CookieClient("tenant-a", role);
+        client.DefaultRequestHeaders.Add("X-CSRF", "1");
+
+        // Act
+        var response = await client.GetAsync("/api/v1/me");
+
+        // Assert
+        using var body = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var caps = body.RootElement.GetProperty("capabilities");
+        Assert.Equal(manage, caps.GetProperty("manage").GetBoolean());
+        Assert.Equal(individuals, caps.GetProperty("seeIndividuals").GetBoolean());
+        Assert.Equal(aggregates, caps.GetProperty("seeAggregates").GetBoolean());
+    }
+
+    private static Task<HttpResponseMessage> GetHub(HttpClient client, string? origin)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/realtime");
+        if (origin is not null) request.Headers.Add("Origin", origin);
+        return client.SendAsync(request);
+    }
+
+    private static async Task<bool> IsCsrfProblem(HttpResponseMessage response) =>
+        response.StatusCode == HttpStatusCode.Forbidden && (await response.Content.ReadAsStringAsync()).Contains("Missing CSRF header");
+
     private HttpClient NoRedirectClient() =>
         _factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 

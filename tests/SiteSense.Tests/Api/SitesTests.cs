@@ -418,7 +418,7 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
     [Theory]
     [InlineData("Viewer")]
     [InlineData("Safety")]
-    public async Task List_AsViewerOrSafety_Returns403(string role)
+    public async Task List_AsViewerOrSafety_Returns200(string role)
     {
         // Arrange
         var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", [role]));
@@ -427,7 +427,7 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
         var response = await client.GetAsync("/api/v1/sites");
 
         // Assert
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
