@@ -12,7 +12,19 @@ namespace SiteSense.Tests.Api;
 
 public class ApiFactory : WebApplicationFactory<Program>
 {
-    private readonly string _storeRoot = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
+    private readonly string _storeRoot;
+    private readonly bool _keepStore;
+
+    public ApiFactory() : this(Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N")), false)
+    {
+    }
+
+    // A fixed root that survives Dispose, so a second host can start on the same store (restart tests).
+    protected ApiFactory(string storeRoot, bool keepStore)
+    {
+        _storeRoot = storeRoot;
+        _keepStore = keepStore;
+    }
 
     public string StoreRoot => _storeRoot;
 
@@ -48,6 +60,6 @@ public class ApiFactory : WebApplicationFactory<Program>
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
-        if (disposing && Directory.Exists(_storeRoot)) Directory.Delete(_storeRoot, recursive: true);
+        if (disposing && !_keepStore && Directory.Exists(_storeRoot)) Directory.Delete(_storeRoot, recursive: true);
     }
 }
