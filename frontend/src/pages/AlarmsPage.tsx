@@ -1,0 +1,105 @@
+import { useEffect, useState } from 'react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { api, toastError, type Site } from '@/api'
+import { useSiteEvents, type AlertState } from '@/realtime'
+
+type Row = { alertId: string; type: string; eventTimeMs: number; deviceId: string | null; areaId: string | null; late: boolean; state: AlertState; endTimeMs: number | null }
+type Page = { items: Row[]; nextCursor: string | null }
+const PAGE = 50
+
+// Mounted per site (keyed), so the hub subscription and the rows follow the selected site.
+function AlarmsTable({ siteId }: { siteId: string }) {
+  const [rows, setRows] = useState<Row[] | null>(null)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const live = useSiteEvents(siteId)
+
+  useEffect(() => {
+    let stale = false
+    api<Page>('GET', `/sites/${siteId}/alerts?limit=${PAGE}`)
+      .then(r => { if (!stale) { setRows(r.data.items); setNextCursor(r.data.nextCursor) } })
+      .catch(e => { if (!stale) { setRows([]); toastError(e) } })
+    return () => { stale = true }
+  }, [siteId])
+
+  const loadMore = async () => {
+    if (!nextCursor) return
+    setLoadingMore(true)
+    try {
+      const r = await api<Page>('GET', `/sites/${siteId}/alerts?limit=${PAGE}&cursor=${encodeURIComponent(nextCursor)}`)
+      setRows(prev => [...(prev ?? []), ...r.data.items])
+      setNextCursor(r.data.nextCursor)
+    } catch (e) { toastError(e) } finally { setLoadingMore(false) }
+  }
+
+  // Live alarms not already loaded go on top; the hub's updates apply to every row.
+  const loadedIds = new Set(rows?.map(r => r.alertId))
+  const liveRows: Row[] = live.alerts
+    .filter(a => !loadedIds.has(a.alertId))
+    .map(a => ({ alertId: a.alertId, type: a.type, eventTimeMs: a.eventTimeMs, deviceId: a.deviceId, areaId: a.areaId, late: a.late, state: a.state, endTimeMs: null }))
+  const shown = [...liveRows, ...(rows ?? [])].map(r => {
+    const u = live.updates.get(r.alertId)
+    return u ? { ...r, state: u.state, endTimeMs: u.endTimeMs } : r
+  })
+
+  return (
+    <div className="grid gap-3">
+      <p className="text-xs text-muted-foreground">Live: {live.status}</p>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Time</TableHead><TableHead>Type</TableHead><TableHead>Device</TableHead>
+            <TableHead>Area</TableHead><TableHead>Late</TableHead><TableHead>State</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {shown.map(r => (
+            <TableRow key={r.alertId}>
+              <TableCell>{new Date(r.eventTimeMs).toLocaleString()}</TableCell>
+              <TableCell>{r.type}</TableCell>
+              <TableCell className="font-mono text-xs">{r.deviceId ?? '—'}</TableCell>
+              <TableCell className="font-mono text-xs">{r.areaId ?? '—'}</TableCell>
+              <TableCell>{r.late ? 'Yes' : 'No'}</TableCell>
+              <TableCell><Badge variant={r.state === 'Active' ? 'destructive' : 'secondary'}>{r.state}</Badge></TableCell>
+            </TableRow>
+          ))}
+          {rows && shown.length === 0 && <TableRow><TableCell colSpan={6} className="text-muted-foreground">No alarms.</TableCell></TableRow>}
+          {rows === null && <TableRow><TableCell colSpan={6} className="text-muted-foreground">Loading…</TableCell></TableRow>}
+        </TableBody>
+      </Table>
+      {nextCursor && <div><Button variant="outline" onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button></div>}
+    </div>
+  )
+}
+
+export default function AlarmsPage() {
+  const [sites, setSites] = useState<Site[] | null>(null)
+  const [siteId, setSiteId] = useState('')
+
+  useEffect(() => {
+    api<{ items: Site[] }>('GET', '/sites')
+      .then(r => { setSites(r.data.items); setSiteId(r.data.items[0]?.siteId ?? '') })
+      .catch(toastError)
+  }, [])
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold">Alarms</h1>
+        <select
+          aria-label="Site"
+          className="h-9 min-w-48 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          value={siteId}
+          onChange={e => setSiteId(e.target.value)}
+          disabled={!sites?.length}
+        >
+          {sites?.map(s => <option key={s.siteId} value={s.siteId}>{s.name}</option>)}
+        </select>
+      </div>
+      {sites?.length === 0 && <p className="text-muted-foreground">No sites yet.</p>}
+      {siteId && <AlarmsTable key={siteId} siteId={siteId} />}
+    </div>
+  )
+}

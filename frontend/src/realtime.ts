@@ -5,18 +5,21 @@ import { api } from '@/api'
 export type Status = 'live' | 'reconnecting' | 'offline'
 export type Device = { lat: number; lon: number; timestampMs: number }
 // receivedAt is client time: it drives the short pulse on the map.
-export type Alert = { alertId: string; type: string; eventTimeMs: number; deviceId: string; areaId: string | null; late: boolean; receivedAt: number }
-export type SiteEvents = { status: Status; occupancy: Map<string, number>; devices: Map<string, Device>; alerts: Alert[] }
+export type AlertState = 'Active' | 'NotActive'
+export type Alert = { alertId: string; type: string; eventTimeMs: number; deviceId: string; areaId: string | null; late: boolean; state: AlertState; receivedAt: number }
+// Last AlertUpdated per alertId, kept for the Alarms page (its rows may come from the API, not from `alerts`).
+export type AlertUpdate = { state: AlertState; endTimeMs: number | null }
+export type SiteEvents = { status: Status; occupancy: Map<string, number>; devices: Map<string, Device>; alerts: Alert[]; updates: Map<string, AlertUpdate> }
 
 type Evt = { seq: number; type: string; siteId: string; atMs: number; data: any }
 type View = Omit<SiteEvents, 'status'>
 
-const TYPES = ['PositionUpdated', 'OccupancyChanged', 'AlertRaised']
-const EMPTY: View = { occupancy: new Map(), devices: new Map(), alerts: [] }
+const TYPES = ['PositionUpdated', 'OccupancyChanged', 'AlertRaised', 'AlertUpdated']
+const EMPTY: View = { occupancy: new Map(), devices: new Map(), alerts: [], updates: new Map() }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 function apply(v: View, events: Evt[]): View {
-  let { occupancy, devices, alerts } = v
+  let { occupancy, devices, alerts, updates } = v
   for (const e of events) {
     if (e.type === 'OccupancyChanged') {
       occupancy = new Map(occupancy)
@@ -26,10 +29,14 @@ function apply(v: View, events: Evt[]): View {
       if ((devices.get(d.deviceId)?.timestampMs ?? -1) >= d.timestampMs) continue
       devices = new Map(devices).set(d.deviceId, { lat: d.lat, lon: d.lon, timestampMs: d.timestampMs })
     } else if (e.type === 'AlertRaised') {
-      alerts = [{ ...e.data, receivedAt: Date.now() } as Alert, ...alerts].slice(0, 20)
+      alerts = [{ ...e.data, state: 'Active', receivedAt: Date.now() } as Alert, ...alerts].slice(0, 20)
+    } else if (e.type === 'AlertUpdated') {
+      const d = e.data as { alertId: string } & AlertUpdate
+      updates = new Map(updates).set(d.alertId, { state: d.state, endTimeMs: d.endTimeMs ?? null })
+      alerts = alerts.map(a => a.alertId === d.alertId ? { ...a, state: d.state } : a)
     }
   }
-  return { occupancy, devices, alerts }
+  return { occupancy, devices, alerts, updates }
 }
 
 // Live events of one site: connect, JoinSite, catch up from GET /events, then follow the hub (SS-49).

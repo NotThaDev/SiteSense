@@ -1,4 +1,4 @@
-import { LogOut, MapPin } from 'lucide-react'
+import { Bell, LogOut, MapPin } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -37,6 +37,7 @@ function UserMenu() {
 
 export function AppSidebar() {
   const { pathname } = useLocation()
+  const { can } = useSession()
   return (
     <Sidebar>
       <SidebarHeader>
@@ -50,6 +51,11 @@ export function AppSidebar() {
                 <Link to="/"><MapPin />Sites</Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            {can.seeIndividuals && <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname.startsWith('/alarms')}>
+                <Link to="/alarms"><Bell />Alarms</Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

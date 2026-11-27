@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { useSession } from '@/session'
 import SitesPage from '@/pages/SitesPage'
 import SitePage from '@/pages/SitePage'
+import AlarmsPage from '@/pages/AlarmsPage'
 
 function Gate({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
   return (
@@ -37,6 +38,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<SitesPage />} />
             <Route path="/sites/:siteId" element={<SitePage />} />
+            <Route path="/alarms" element={can.seeIndividuals ? <AlarmsPage /> : <p className="p-6">Not found.</p>} />
             <Route path="*" element={<p className="p-6">Not found.</p>} />
           </Routes>
         </main>

@@ -10,6 +10,7 @@ public sealed class EventAudienceTests
     [Theory]
     [InlineData(EventTypes.PositionUpdated, SiteSensePolicies.CanSeeIndividuals)]
     [InlineData(EventTypes.AlertRaised, SiteSensePolicies.CanSeeIndividuals)]
+    [InlineData(EventTypes.AlertUpdated, SiteSensePolicies.CanSeeIndividuals)]
     [InlineData(EventTypes.OccupancyChanged, SiteSensePolicies.CanSeeAggregates)]
     public void PolicyFor_EachType_ReturnsItsPolicy(string type, string policy)
     {
@@ -21,6 +22,7 @@ public sealed class EventAudienceTests
     {
         Assert.True(EventAudience.CanSee(EventTypes.PositionUpdated, Both));
         Assert.True(EventAudience.CanSee(EventTypes.AlertRaised, Both));
+        Assert.True(EventAudience.CanSee(EventTypes.AlertUpdated, Both));
         Assert.True(EventAudience.CanSee(EventTypes.OccupancyChanged, Both));
     }
 
@@ -31,12 +33,14 @@ public sealed class EventAudienceTests
 
         Assert.False(EventAudience.CanSee(EventTypes.PositionUpdated, passed));
         Assert.False(EventAudience.CanSee(EventTypes.AlertRaised, passed));
+        Assert.False(EventAudience.CanSee(EventTypes.AlertUpdated, passed));
         Assert.True(EventAudience.CanSee(EventTypes.OccupancyChanged, passed));
     }
 
     [Theory]
     [InlineData(EventTypes.PositionUpdated)]
     [InlineData(EventTypes.AlertRaised)]
+    [InlineData(EventTypes.AlertUpdated)]
     [InlineData(EventTypes.OccupancyChanged)]
     public void CanSee_NoPolicies_NobodySees(string type)
     {

@@ -1,5 +1,6 @@
 using Hangfire;
 using Scalar.AspNetCore;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Auth;
 using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Helpers;
@@ -31,6 +32,8 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IEventSender, SignalRSender>();
 builder.Services.AddSingleton<EventPublisher>();
 builder.Services.AddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<EventPublisher>());
+// Every alarm, from a job or from processing, goes through this one manager (SS-28).
+builder.Services.AddSingleton<AlarmManager>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
