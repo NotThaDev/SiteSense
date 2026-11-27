@@ -43,6 +43,20 @@ Known limits and what to do with more time.
 - A failed run leaves the device marked; it is retried only by its next batch or a restart, and drain answers `500` until then.
 - Ingest writes the marker doc twice per batch (two extra fsyncs); not measured against the ingest target yet.
 
+## SS-46 — Admin UI and browser login
+- The Keycloak realm is imported only when the realm does not exist yet: after pulling this change, run `docker compose up -d --force-recreate keycloak` once, or the `sitesense-ui` client is missing and login fails.
+- Data Protection keys are kept in memory: an API restart invalidates the login cookies, so users log in again.
+- Logout is a `GET` (browser navigation): another page could log the user out. It cannot change data.
+- The cookie keeps the roles of the login; a role change in Keycloak applies at the next login (cookie life: 1 hour, sliding).
+- The API builds the OIDC redirect URI from the `Host` header that nginx forwards; a different UI port needs a matching redirect URI in the realm.
+- No silent token renewal; the API does not call Keycloak with the user's tokens after login.
+- The map view uses the public OpenStreetMap tile server: fine for development and light interactive use only. A production deployment needs its own tile server or a tile provider.
+
+## SS-49 — Live map
+- The login cookie lives 1 hour and an open socket does not slide it: when it expires the hub closes and the user logs in again.
+- Nothing moves until the producers exist: positions (SS-50), then the occupancy and alert stories. Until then the map shows the structure and the status chip.
+- The map still uses the public OpenStreetMap tile server (see SS-46).
+
 ## SS-50 — Position events
 - A crash after the processing save and before the publish loses those `PositionUpdated` events (at most once, Q115). The track is correct; catch-up cannot return events never logged.
 - `areaId` is `null` until SS-25 assigns areas.

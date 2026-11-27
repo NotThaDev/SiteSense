@@ -43,6 +43,21 @@ public sealed class AuthTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Me_ReturnsUsernameFromPreferredUsername()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"], username: "admin-a"));
+
+        // Act
+        var response = await client.GetAsync("/api/v1/me");
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("admin-a", doc.RootElement.GetProperty("username").GetString());
+    }
+
+    [Fact]
     public async Task Me_TokenWithoutRoles_ReturnsEmptyRoles()
     {
         // Arrange (gateway-like token: no roles claim)

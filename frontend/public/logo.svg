@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="t">
+  <title id="t">SiteSense</title>
+  <rect width="128" height="128" rx="28" fill="#2d4bd6"/>
+  <!-- site perimeter -->
+  <path d="M22 88 L40 34 L92 26 L108 70 L74 104 Z" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="4" stroke-linejoin="round" stroke-dasharray="7 6"/>
+  <!-- walking path -->
+  <path d="M30 80 Q52 62 64 66 T100 54" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width="4" stroke-linecap="round"/>
+  <!-- location pin -->
+  <path d="M64 30 C50 30 40 40 40 53 C40 70 64 92 64 92 C64 92 88 70 88 53 C88 40 78 30 64 30 Z" fill="#ffffff"/>
+  <circle cx="64" cy="53" r="9" fill="#2d4bd6"/>
+</svg>

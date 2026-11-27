@@ -19,6 +19,9 @@ services:
       Auth__Audience: sitesense-api
       Auth__MetadataAddress: http://keycloak:8081/realms/sitesense/.well-known/openid-configuration
       Auth__RequireHttpsMetadata: "false"
+      # Browser origins allowed to open the hub WebSocket with the cookie (Q117).
+      Auth__UiOrigins__0: http://localhost:3000
+      Auth__UiOrigins__1: http://localhost:5173
       SITESENSE_TEST_MODE: ${SITESENSE_TEST_MODE:-false}
     volumes:
       - store-data:/var/lib/sitesense/store
@@ -34,6 +37,16 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # Admin UI; proxies API calls so the browser sees one origin (Q112).
+  ui:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
 
   # Plain HTTP on purpose (Q74): the backend reaches Keycloak the same way from a container
   # (http://keycloak:8081) or from the host with dotnet run (http://localhost:8081),

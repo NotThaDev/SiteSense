@@ -297,6 +297,141 @@ public sealed class MapEndpointTests : IClassFixture<ApiFactory>
         Assert.Equal(versions.Max(), await SiteMapStored("tenant-a", "site-parallel"));
     }
 
+    // Features by id, so the comparison ignores order; geometry and properties compared as JSON text.
+    private static Dictionary<string, (string Geometry, string Properties)> FeaturesById(string geoJson)
+    {
+        using var doc = JsonDocument.Parse(geoJson);
+        return doc.RootElement.GetProperty("features").EnumerateArray().ToDictionary(
+            f => f.GetProperty("properties").GetProperty("id").GetString()!,
+            f => (Canonical(f.GetProperty("geometry")), Canonical(f.GetProperty("properties"))));
+    }
+
+    private static string Canonical(JsonElement e) => e.ValueKind switch
+    {
+        JsonValueKind.Object => "{" + string.Join(",", e.EnumerateObject().OrderBy(p => p.Name, StringComparer.Ordinal).Select(p => $"\"{p.Name}\":{Canonical(p.Value)}")) + "}",
+        JsonValueKind.Array => "[" + string.Join(",", e.EnumerateArray().Select(Canonical)) + "]",
+        JsonValueKind.Number => e.GetDouble().ToString(System.Globalization.CultureInfo.InvariantCulture),
+        _ => e.GetRawText(),
+    };
+
+    private async Task<HttpClient> ClientWithMapAsync(string siteId, string map, string role = "Admin")
+    {
+        var admin = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", siteId);
+        Assert.Equal(HttpStatusCode.OK, (await admin.SendAsync(PutMap(siteId, null, map))).StatusCode);
+        return role == "Admin" ? admin : _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", [role]));
+    }
+
+    [Fact]
+    public async Task Get_AfterPut_ReturnsSameElements()
+    {
+        // Arrange
+        var client = await ClientWithMapAsync("site-get", MapFixtures.BaseMap);
+
+        // Act
+        var response = await client.GetAsync(MapUrl("site-get"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(GeoJson, response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(FeaturesById(MapFixtures.BaseMap), FeaturesById(await response.Content.ReadAsStringAsync()));
+    }
+
+    [Fact]
+    public async Task Get_RealMap_RoundTrip()
+    {
+        // Arrange
+        var client = await ClientWithMapAsync("site-get-real", MapFixtures.RealMap);
+
+        // Act
+        var response = await client.GetAsync(MapUrl("site-get-real"));
+
+        // Assert: holes kept, areas without capacity stay without it.
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(FeaturesById(MapFixtures.RealMap), FeaturesById(await response.Content.ReadAsStringAsync()));
+    }
+
+    [Fact]
+    public async Task Get_ReturnsEtagWithMapVersion()
+    {
+        // Arrange
+        var client = await ClientWithMapAsync("site-get-etag", MapFixtures.BaseMap);
+        await client.SendAsync(PutMap("site-get-etag", null));
+
+        // Act
+        var response = await client.GetAsync(MapUrl("site-get-etag"));
+
+        // Assert
+        Assert.Equal("\"2\"", response.Headers.ETag?.Tag);
+    }
+
+    [Fact]
+    public async Task Get_NoMap_Returns404()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-a", "site-get-nomap");
+
+        // Act
+        var response = await client.GetAsync(MapUrl("site-get-nomap"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_UnknownSite_Returns404()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+
+        // Act
+        var response = await client.GetAsync(MapUrl("site-unknown"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_OtherTenantSite_Returns404()
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        await SeedSiteAsync("tenant-b", "site-get-iso");
+        await SiteMap.ImportAsync("tenant-b", "site-get-iso", MapFixtures.BaseMap, null, 0.5, CancellationToken.None);
+
+        // Act
+        var response = await client.GetAsync(MapUrl("site-get-iso"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Safety")]
+    [InlineData("Viewer")]
+    public async Task Get_AsSafetyOrViewer_Returns200(string role)
+    {
+        // Arrange
+        var client = await ClientWithMapAsync($"site-get-{role}", MapFixtures.BaseMap, role);
+
+        // Act
+        var response = await client.GetAsync(MapUrl($"site-get-{role}"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_WithoutToken_Returns401()
+    {
+        // Act
+        var response = await _factory.CreateClient().GetAsync(MapUrl("site-get-401"));
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private static async Task<long> SiteMapStored(string tenantId, string siteId) =>
         (await SiteMap.GetAsync(tenantId, siteId, CancellationToken.None))!.Version;
 }

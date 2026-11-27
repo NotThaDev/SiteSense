@@ -94,7 +94,7 @@ Tenant safety:
 | `tests/SiteSense.Tests` | xUnit test project | Domain, Api, StoreCrashWriter, Simulator |
 | `tests/SiteSense.StoreCrashWriter` | Console child process killed by the store crash test | Api |
 
-- The demo client gets its own project in its own story, under `frontend/`.
+- `frontend/` holds the admin UI (SS-46); the demo client joins it in its own story. It is a separate app in its own container (`ui`, nginx on `http://localhost:3000`) that serves the Vite build and reverse-proxies `/api`, `/signin-oidc` and `/signout-callback-oidc` to the API, so the browser sees one origin. The API serves no static files (Q112).
 - Solution file: `SiteSense.slnx` in the repository root.
 
 ## 3. Placement table
@@ -124,7 +124,7 @@ Tenant safety:
 |---|---|
 | `backend/` | Backend projects: `SiteSense.Domain`, `SiteSense.Api` (see Projects) |
 | `simulator/` | Device simulator, a separate app: `SiteSense.Simulator`. Only the simulator, never the demo client. |
-| `frontend/` | The demo client (its own story). Talks to the API over HTTP and SignalR only. Reserved: not created until that story. |
+| `frontend/` | The admin UI (SS-46, React + Vite + shadcn/ui) and later the demo client. Talks to the API over HTTP and SignalR only, never to Keycloak. Runs as its own container (`ui`, nginx on `http://localhost:3000`) that serves the Vite build and reverse-proxies `/api`, `/signin-oidc`, `/signout-callback-oidc` to the API, so the browser sees one origin; the API serves no static files (Q112). |
 | `tests/` | One xUnit test project, `tests/SiteSense.Tests`, plus its crash-test helper `tests/SiteSense.StoreCrashWriter` |
 | `.github/workflows/` | CI: restore, build and test on every PR |
 | `data/` | Input only, versioned: site JSON, map GeoJSON, download and convert scripts. The API never writes here. |

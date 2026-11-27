@@ -115,3 +115,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan with the owner's decisions on Q06, Q39, Q100–Q103; Sonnet review of the plan; Haiku and Sonnet subagents for models, processor, wiring, tests and records.
 - AI produced: plan file, `DeviceProcessing`, `TrackPoint`, `PositionProcessor`, ingest marks, drain endpoint, unit and API tests, these records.
 - Corrected or discarded: the plan review found a lost-batch race (a run could clear a marker before its positions were written): fixed with a second mark after the append. It also replaced "a few workers" with one worker and a per-device state machine, and made drain answer 500 after a failed run.
+
+## 2026-11-26 — SS-46: Admin UI
+- Goal: a minimal React + shadcn/ui admin UI (sites, map upload, devices) that logs in through the API.
+- Prompt (summary): minimal React + shadcn admin UI, login through the API (BFF).
+- AI produced: plan, backend (sites list, BFF auth, CSRF, static files, tests), frontend.
+- Corrected or discarded: SPA PKCE was discarded for the BFF at user review. The Sonnet plan validation found the missing Keycloak scopeMappings/webOrigins, the SPA fallback masking API 404s and the missing `.dockerignore`. The review found the CSRF check skipped on any non-Bearer `Authorization` header; fixed with a test.

@@ -54,6 +54,26 @@ app.Use(async (ctx, next) =>
     await next();
 });
 app.UseAuthentication();
+// Cookie calls need a custom header a foreign site cannot add: CSRF defence next to SameSite=Lax. Browser navigation under /api/v1/auth is exempt.
+// So is the hub WebSocket upgrade (a browser cannot send the header) when its Origin is a UI origin (Q117); negotiate stays a POST and needs it.
+var uiOrigins = app.Services.GetRequiredService<AuthOptions>().UiOrigins;
+app.Use(async (ctx, next) =>
+{
+    if (ctx.User.Identity?.IsAuthenticated == true
+        // Same test as the Smart scheme selector.
+        && !AuthSetup.UsesJwt(ctx.Request)
+        && ctx.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
+        && !(HttpMethods.IsGet(ctx.Request.Method) && ctx.Request.Path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
+        && !(HttpMethods.IsGet(ctx.Request.Method) && ctx.Request.Path.Equals(SiteHub.RealtimePath, StringComparison.OrdinalIgnoreCase)
+             && uiOrigins.Contains(ctx.Request.Headers.Origin.ToString(), StringComparer.OrdinalIgnoreCase))
+        && ctx.Request.Headers["X-CSRF"] != "1")
+    {
+        await Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "Missing CSRF header",
+            detail: "Calls authenticated by cookie need the header 'X-CSRF: 1'.").ExecuteAsync(ctx);
+        return;
+    }
+    await next();
+});
 // A valid token for a tenant not in configuration is forbidden on every endpoint, whatever its policy (Q14).
 app.Use(async (ctx, next) =>
 {

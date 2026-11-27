@@ -50,6 +50,17 @@ public sealed class SitesController : ControllerBase
         return Ok(new SiteIdResponse(saved.Id));
     }
 
+    // All roles (Q109, changed in SS-49): site names are not personal data. Sorted by siteId (ordinal). Full scan, no paging (SS-11, postponed).
+    [HttpGet]
+    [Authorize(Policy = SiteSensePolicies.CanSeeAggregates)]
+    [ProducesResponseType<SiteListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> List(CancellationToken ct)
+    {
+        var sites = await Site.ListAsync(User.TenantId(), ct);
+        return Ok(new SiteListResponse(sites.OrderBy(s => s.Id, StringComparer.Ordinal).Select(SiteResponse.From).ToList()));
+    }
+
     [HttpGet("{siteId}")]
     [Authorize(Policy = SiteSensePolicies.CanSeeAggregates)]
     [ProducesResponseType<SiteResponse>(StatusCodes.Status200OK)]

@@ -27,6 +27,7 @@ description: >-
 | `Safety` | See individual positions, tracks, alerts. Routing and occupancy. | Manage sites and maps. |
 | `Viewer` | See aggregates only: occupancy. Routing. | See positions, tracks or device IDs. |
 | Gateway client | Post position batches (`positions:write`). | Anything else. |
+| UI client `sitesense-ui` | Public Keycloak client used only by the API for the browser login (Auth Code + PKCE). Tokens stay in the API; the browser gets an `HttpOnly` cookie. | Be called by the browser directly. |
 
 **Decided (Q61):** each user has exactly one role. No user combines roles and there is no super user. The policies do not depend on this, so allowing several roles later needs only a realm change and an `ASSUMPTIONS.md` update.
 
@@ -49,6 +50,8 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | Method + path | Policy |
 |---|---|
 | `POST /api/v1/sites` | `CanManage` |
+| `GET /api/v1/sites` | `CanSeeAggregates` (Q109, changed in SS-49) |
+| `GET /api/v1/sites/{siteId}/map` | `CanSeeAggregates` (Q114) |
 | `PUT /api/v1/sites/{siteId}/map` | `CanManage` |
 | `POST /api/v1/sites/{siteId}/devices` | `CanManage` |
 | `GET /api/v1/sites/{siteId}/devices` | `CanManage` (Q85) |
@@ -64,8 +67,9 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | `PUT /api/v1/test/clock` | `TestMode` |
 | `POST /api/v1/test/jobs/{jobName}/run` | `TestMode` |
 | `POST /api/v1/test/drain` | `TestMode` |
-| `GET /api/v1/me` | Authenticated (fallback policy, Q78) |
-| SignalR hub | Authenticated; groups and audiences in the SignalR section |
+| `GET /api/v1/me` | Authenticated (fallback policy, Q78); returns `capabilities` per policy (Q118) |
+| `GET /api/v1/auth/login`, `GET /api/v1/auth/logout` | Anonymous (browser login, Q110) |
+| SignalR hub | Authenticated; groups and audiences in the SignalR section. The browser WebSocket upgrade (cookie `GET` on `/api/v1/realtime`, no `X-CSRF`) passes only with an `Origin` in `Auth:UiOrigins`; negotiate still needs `X-CSRF` (Q117) |
 
 ## Fixed rules
 
@@ -77,6 +81,7 @@ Request and response shapes: `../sitesense-context/SKILL.md`.
 | Valid token whose `tenant_id` is not in the `Tenants` configuration | `403` ProblemDetails, on every endpoint | Q14, decided |
 | Authorization in code | Named policies only (`RequireAuthorization("…")`). Never `IsInRole` or role strings in handlers. | IDN-03 |
 | Tenant filter | In the store or query layer, applied to every read and write. Not ad hoc in handlers. | IDN-02 |
+| Browser (admin UI) call | Cookie from the BFF login; a call without `Authorization: Bearer` must send `X-CSRF: 1`, else `403` ProblemDetails | Q111, decided |
 
 Test-mode behaviour: see `../sitesense-context/SKILL.md`.
 

@@ -394,6 +394,43 @@ public sealed class SitesTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task List_ReturnsOnlyOwnTenantSites_SortedById()
+    {
+        // Arrange: shared store (a new ApiFactory here would re-point the static store for the rest of the class), so ids get a unique prefix.
+        var p = NewId();
+        var a = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", ["Admin"]));
+        var b = _factory.CreateClient().WithToken(TestTokens.Create("tenant-b", ["Admin"]));
+        await a.PostAsync("/api/v1/sites", Json(ValidSite($"{p}-b")));
+        await a.PostAsync("/api/v1/sites", Json(ValidSite($"{p}-a")));
+        await b.PostAsync("/api/v1/sites", Json(ValidSite($"{p}-other")));
+
+        // Act
+        var response = await a.GetAsync("/api/v1/sites");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var ids = body.RootElement.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("siteId").GetString()!).ToList();
+        Assert.Equal([$"{p}-a", $"{p}-b"], ids.Where(id => id.StartsWith(p, StringComparison.Ordinal)));
+        Assert.Equal(ids.Order(StringComparer.Ordinal), ids);
+    }
+
+    [Theory]
+    [InlineData("Viewer")]
+    [InlineData("Safety")]
+    public async Task List_AsViewerOrSafety_Returns200(string role)
+    {
+        // Arrange
+        var client = _factory.CreateClient().WithToken(TestTokens.Create("tenant-a", [role]));
+
+        // Act
+        var response = await client.GetAsync("/api/v1/sites");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Create_WithoutMapFile_Returns201()
     {
         // Arrange
