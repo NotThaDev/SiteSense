@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import MapView from './MapView'
 import { ApiError, api, toastError, type Device, type Site } from '@/api'
 import { SiteForm } from './SiteForm'
 
@@ -39,6 +40,7 @@ function MapCard({ siteId }: { siteId: string }) {
   const [file, setFile] = useState<File | null>(null)
   const [version, setVersion] = useState<number | null>(null)
   const [errors, setErrors] = useState<{ elementId: string | null; reason: string }[]>([])
+  const [reloadKey, setReloadKey] = useState(0)
   const upload = async (e: FormEvent) => {
     e.preventDefault()
     if (!file) return
@@ -46,6 +48,7 @@ function MapCard({ siteId }: { siteId: string }) {
     try {
       const r = await api<{ mapVersion: number }>('PUT', `/sites/${siteId}/map`, { rawBody: await file.text() })
       setVersion(r.data.mapVersion)
+      setReloadKey(k => k + 1)
       toast.success('Map saved')
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) setErrors(err.problem.errors ?? [])
@@ -56,6 +59,7 @@ function MapCard({ siteId }: { siteId: string }) {
     <Card>
       <CardHeader><CardTitle>Map</CardTitle></CardHeader>
       <CardContent className="grid gap-3">
+        <MapView siteId={siteId} reloadKey={reloadKey} />
         <form onSubmit={upload} className="flex flex-wrap items-end gap-2">
           <div className="grid gap-1.5">
             <Label htmlFor="mapFile">GeoJSON file</Label>
