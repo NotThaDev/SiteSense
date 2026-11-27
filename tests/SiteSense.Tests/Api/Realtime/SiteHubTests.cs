@@ -116,7 +116,7 @@ public sealed class SiteHubTests : IClassFixture<ApiFactory>
         }
 
         Assert.All(messages, m => Assert.Contains("Site not found", m));
-        Assert.Equal(1, messages.Distinct().Count());
+        Assert.Single(messages.Distinct());
     }
 
     [Fact]
