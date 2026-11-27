@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using SiteSense.Api.Realtime;
 using SiteSense.Api.Store;
 
 namespace SiteSense.Api.Auth;
@@ -41,6 +42,15 @@ public static class AuthSetup
                         var tenants = ctx.Principal?.FindAll(SiteSenseClaims.TenantIdClaim).ToList() ?? [];
                         if (tenants.Count != 1 || !FileDocumentStore.IsValidName(tenants[0].Value))
                             ctx.Fail("The token must carry exactly one valid tenant_id claim.");
+                        return Task.CompletedTask;
+                    },
+                    // Browsers cannot send headers on WebSockets; the query token is read for the hub path only.
+                    OnMessageReceived = ctx =>
+                    {
+                        if (ctx.Request.Path.StartsWithSegments(SiteHub.RealtimePath, StringComparison.OrdinalIgnoreCase)
+                            && string.IsNullOrEmpty(ctx.Request.Headers.Authorization)
+                            && ctx.Request.Query.TryGetValue("access_token", out var token))
+                            ctx.Token = token;
                         return Task.CompletedTask;
                     },
                 };

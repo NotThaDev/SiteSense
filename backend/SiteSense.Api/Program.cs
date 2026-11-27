@@ -1,6 +1,10 @@
+using Hangfire;
 using Scalar.AspNetCore;
 using SiteSense.Api.Auth;
+using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Helpers;
+using SiteSense.Api.Realtime;
+using SiteSense.Api.Services;
 using SiteSense.Api.Store;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,12 +14,23 @@ SiteSenseContext.Init(builder);
 var testMode = builder.Configuration.GetValue<bool>(SiteSensePolicies.TestModeSetting);
 builder.AddSiteSenseAuth(testMode);
 builder.Services.AddHealthChecks();
+builder.AddSiteSenseJobs();
+// Ordered processing (TRK-02): one singleton, also a hosted service so its startup scan runs before the server starts.
+builder.Services.AddSingleton<PositionProcessor>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
+// Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
+builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
     .AddJsonOptions(o => o.JsonSerializerOptions.RespectRequiredConstructorParameters = true);
 // Same rule for the OpenAPI generator, so the schema marks the same fields required.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.RespectRequiredConstructorParameters = true);
 builder.Services.AddProblemDetails();
+// Realtime: the publisher is the only producer of events; the sender pushes them to the hub groups.
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IEventSender, SignalRSender>();
+builder.Services.AddSingleton<EventPublisher>();
+builder.Services.AddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<EventPublisher>());
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -56,5 +71,11 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.MapOpenApi().AllowAnonymous();
 app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
+app.MapHub<SiteHub>(SiteHub.RealtimePath, o => o.CloseOnAuthenticationExpiration = true);
+// Recurring site jobs, one line each, every minute (JOB-01), e.g.:
+// SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), "silent-devices");
+// Retention runs hourly per tenant (Q96). Not on the InMemory test host: a wall-clock run must not delete test data mid-test.
+if (builder.Configuration["Hangfire:Storage"] != "InMemory")
+    SiteJobRunner.ScheduleTenantJob(app.Services.GetRequiredService<IRecurringJobManager>(), RetentionJob.Name, Cron.Hourly());
 
 app.Run();

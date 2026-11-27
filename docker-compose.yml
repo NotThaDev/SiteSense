@@ -7,6 +7,8 @@ services:
       - "8080:8080"
     environment:
       Store__RootPath: /var/lib/sitesense/store
+      # Hangfire storage (Q08); abortConnect=false so a slow Redis start does not crash the API.
+      ConnectionStrings__Redis: redis:6379,abortConnect=false
       # Tenant ids must match tenant_id in docker/keycloak/sitesense-realm.json (Q14).
       Tenants__tenant-a__RetentionDays: 30
       Tenants__tenant-a__SilentAfterMinutes: 10
@@ -84,6 +86,9 @@ services:
 
   redis:
     image: redis:8.4.0-alpine
+    # Loopback only, for `dotnet run` on the host; containers use redis:6379.
+    ports:
+      - "127.0.0.1:6379:6379"
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
     volumes:
       - redis-data:/data
@@ -92,6 +97,25 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # Optional traffic generator (Q51): only with `docker compose --profile sim up simulator`.
+  simulator:
+    build:
+      context: .
+      dockerfile: simulator/SiteSense.Simulator/Dockerfile
+    profiles: ["sim"]
+    restart: "no"
+    environment:
+      SIM_API: http://api:8080
+      # Internal token URL; the issuer stays http://localhost:8081 (KC_HOSTNAME), as the API expects (Q02).
+      SIM_TOKEN_URL: http://keycloak:8081/realms/sitesense/protocol/openid-connect/token
+      SIM_SITE: /data/site.json
+      SIM_MAP: /data/map.geojson
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   store-data:

@@ -38,7 +38,8 @@ public sealed class HealthTests : IDisposable
             .UseSetting("Auth:Issuer", Auth.TestTokens.Issuer)
             .UseSetting("Auth:Audience", Auth.TestTokens.Audience)
             // Plain-HTTP issuer and no static keys here, as in the local template.
-            .UseSetting("Auth:RequireHttpsMetadata", "false"));
+            .UseSetting("Auth:RequireHttpsMetadata", "false")
+            .UseSetting("Hangfire:Storage", "InMemory"));
 
     public void Dispose()
     {
