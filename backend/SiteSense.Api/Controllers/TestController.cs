@@ -26,7 +26,7 @@ public sealed class TestController : ControllerBase
         return NoContent();
     }
 
-    // Runs a site job now for every site of the caller's tenant and answers when all are done (C-7.2c).
+    // Runs a job now for the caller's tenant (a tenant job once, a site job for every site) and answers when all are done (C-7.2c).
     [HttpPost("jobs/{jobName}/run")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
