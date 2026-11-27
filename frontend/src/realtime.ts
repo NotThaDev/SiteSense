@@ -65,7 +65,8 @@ export function useSiteEvents(siteId: string): SiteEvents {
     const sync = async () => {
       ready = false
       await conn.invoke('JoinSite', siteId)
-      for (let more = true; more && !stopped;) {
+      // Catch up only after a reconnect: from seq 0 it would replay every retained event of the tenant.
+      for (let more = lastSeq > 0; more && !stopped;) {
         const r = await api<{ items: Evt[]; lastSeq: number; hasMore: boolean }>('GET', `/events?after=${lastSeq}`)
         take(r.data.items)
         lastSeq = Math.max(lastSeq, r.data.lastSeq)
