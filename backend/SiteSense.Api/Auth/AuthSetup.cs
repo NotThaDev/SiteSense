@@ -16,6 +16,12 @@ public static class AuthSetup
     public const string SmartScheme = "Smart";
     public const string CookieScheme = CookieAuthenticationDefaults.AuthenticationScheme;
 
+    // JWT callers: a Bearer header, or the hub's access_token query (SignalR WebSockets cannot send headers). Everything else is the UI cookie.
+    public static bool UsesJwt(HttpRequest request) =>
+        request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+        || (request.Path.StartsWithSegments(SiteHub.RealtimePath, StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrEmpty(request.Headers.Authorization) && request.Query.ContainsKey("access_token"));
+
     public static void AddSiteSenseAuth(this WebApplicationBuilder builder, bool testMode)
     {
         var options = builder.Configuration.GetSection(AuthOptions.Section).Get<AuthOptions>() ?? new AuthOptions();
@@ -28,9 +34,7 @@ public static class AuthSetup
         builder.Services.AddAuthentication(SmartScheme)
             // Bearer header: JWT (gateways, scripts, tests); otherwise the UI cookie.
             .AddPolicyScheme(SmartScheme, null, o => o.ForwardDefaultSelector = ctx =>
-                ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
-                    ? JwtBearerDefaults.AuthenticationScheme
-                    : CookieScheme)
+                UsesJwt(ctx.Request) ? JwtBearerDefaults.AuthenticationScheme : CookieScheme)
             .AddCookie(CookieScheme, o =>
             {
                 o.Cookie.HttpOnly = true;

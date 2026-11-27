@@ -58,8 +58,8 @@ app.UseAuthentication();
 app.Use(async (ctx, next) =>
 {
     if (ctx.User.Identity?.IsAuthenticated == true
-        // Same test as the Smart scheme selector: anything but Bearer is a cookie call.
-        && !ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+        // Same test as the Smart scheme selector.
+        && !AuthSetup.UsesJwt(ctx.Request)
         && ctx.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
         && !(HttpMethods.IsGet(ctx.Request.Method) && ctx.Request.Path.StartsWithSegments("/api/v1/auth", StringComparison.OrdinalIgnoreCase))
         && ctx.Request.Headers["X-CSRF"] != "1")
