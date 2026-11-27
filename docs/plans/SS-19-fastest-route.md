@@ -1,6 +1,6 @@
 # SS-19 — Fastest route
 
-- Status: Draft
+- Status: Approved
 - Issue: #149
 - Plan PR: #150   Implementation PRs: #<n> (backend), #<n> (UI)
 - Requirement IDs: NAV-01, NAV-02, NAV-03, API-03
