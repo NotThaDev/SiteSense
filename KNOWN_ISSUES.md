@@ -59,7 +59,8 @@ Known limits and what to do with more time.
 
 ## SS-50 — Position events
 - A crash after the processing save and before the publish loses those `PositionUpdated` events (at most once, Q115). The track is correct; catch-up cannot return events never logged.
-- `areaId` is `null` until SS-25 assigns areas.
+- A map change does not re-assign old track points: they keep the `areaId` of the old map until their range is replayed (SS-25).
+- Overlapping areas are not validated by the map import: the first in map order wins (Q119).
 - A late batch older than the retention cutoff finds no older track records and is published as new; retention deletes it at the next run.
 
 ## Delivery — not implemented
