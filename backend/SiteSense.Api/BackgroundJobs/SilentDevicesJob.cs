@@ -43,7 +43,7 @@ public sealed class SilentDevicesJob(AlarmManager alarms) : ISiteJob
                 continue;
             }
             if (entrances is not null && IsNearEntrance(last, entrances.Value)) continue;
-            await alarms.NotifyAlarmAsync(tenantId, siteId, AlertTypes.DeviceSilent, device.Id, last.AreaId, last.TimestampMs, late: false, ct);
+            await alarms.NotifyAlarmAsync(tenantId, siteId, AlertTypes.DeviceSilent, device.Id, last.AreaId, last.TimestampMs, replay: false, ct);
         }
     }
 

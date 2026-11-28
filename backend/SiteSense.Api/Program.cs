@@ -21,6 +21,8 @@ builder.AddSiteSenseJobs();
 // Plausibility filter settings (SS-24, Q26): checked at startup, like Store.
 builder.Services.AddOptions<TrackingOptions>().BindConfiguration(TrackingOptions.Section).ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<TrackingOptions>, TrackingOptionsValidator>();
+builder.Services.AddOptions<AlarmOptions>().BindConfiguration(AlarmOptions.Section).ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<AlarmOptions>, AlarmOptionsValidator>();
 builder.Services.AddSingleton<PositionProcessor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
 // Site jobs: one keyed registration per job name (SS-30, SS-33).
