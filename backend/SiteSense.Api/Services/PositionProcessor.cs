@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Options;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Models.Map;
 using SiteSense.Api.Realtime;
 using SiteSense.Api.Store;
 
@@ -128,11 +129,16 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
             var raw = await Position.ReadAsync(tenantId, deviceId, from, long.MaxValue, ct);
             var fresh = await NewPositionsAsync(tenantId, deviceId, doc, late, from, raw, ct);
             var decided = new List<TrackPoint>();
+            Device? device = null;
             if (raw.Count > 0)
             {
+                // Device and map are read once per run; no device or map means no area (SS-25).
+                device = await Device.GetAsync(tenantId, deviceId, ct);
+                var map = device is null ? null : await SiteMap.GetAsync(tenantId, device.SiteId, ct);
+                var areas = map is null ? null : SiteAreas.From(map);
                 // Seed: the last kept point before this run, so the filter continues the track (SS-24, Q26).
                 var seed = (await TrackPoint.ReadAsync(tenantId, deviceId, 0, from, ct)).LastOrDefault();
-                decided = TrackFilter.Apply(seed, raw, revision, tracking.Value).ToList();
+                decided = AreaAssigner.Assign(seed?.AreaId, TrackFilter.Apply(seed, raw, revision, tracking.Value), areas, tracking.Value).ToList();
                 await TrackPoint.AppendAsync(tenantId, deviceId, decided, ct);
                 doc.CursorMs = Math.Max(doc.CursorMs ?? long.MinValue, raw[^1].TimestampMs);
             }
@@ -143,7 +149,7 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
                 await DeviceProcessing.SaveAsync(tenantId, doc, ct);
                 // Only kept points of positions not published before; a dropped one is never published (SS-24).
                 var freshMs = fresh.Select(p => p.TimestampMs).ToHashSet();
-                await PublishAsync(tenantId, deviceId, decided.Where(t => !t.Dropped && freshMs.Contains(t.TimestampMs)).ToList(), ct);
+                await PublishAsync(tenantId, deviceId, device, decided.Where(t => !t.Dropped && freshMs.Contains(t.TimestampMs)).ToList(), ct);
                 return;
             }
             catch (ConcurrencyException)
@@ -169,17 +175,15 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
     }
 
     // At most once: a crash before this loses the events (KNOWN_ISSUES). A failure is logged and skipped, never fails the run.
-    private async Task PublishAsync(string tenantId, string deviceId, IReadOnlyList<TrackPoint> kept, CancellationToken ct)
+    private async Task PublishAsync(string tenantId, string deviceId, Device? device, IReadOnlyList<TrackPoint> kept, CancellationToken ct)
     {
-        if (kept.Count == 0) return;
-        var device = await Device.GetAsync(tenantId, deviceId, ct);
-        if (device is null) return;
+        if (kept.Count == 0 || device is null) return;
         foreach (var p in kept)
         {
             try
             {
                 await publisher.PublishAsync(tenantId, device.SiteId, EventTypes.PositionUpdated,
-                    new PositionUpdatedData(deviceId, p.TimestampMs, p.Lat, p.Lon, null), ct);
+                    new PositionUpdatedData(deviceId, p.TimestampMs, p.Lat, p.Lon, p.AreaId), ct);
             }
             catch (OperationCanceledException)
             {
