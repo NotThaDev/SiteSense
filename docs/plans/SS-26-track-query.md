@@ -83,8 +83,8 @@ Example response:
 ## Open questions
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
-| Q-B | `fromMs`/`toMs` missing? | Both required, 400 if missing (no full scans) / Optional: `fromMs` 0 and `toMs` max | |
-| Q-C | `limit` default and max? | Default 1000, max 5000 (the ingest batch size) / Default 500, max 1000 | |
+| Q-B | `fromMs`/`toMs` missing? | Both required, 400 if missing (no full scans) / Optional: `fromMs` 0 and `toMs` max | Required, see Q120 |
+| Q-C | `limit` default and max? | Default 1000, max 5000 (the ingest batch size) / Default 500, max 1000 | Default 1000, max 5000, see Q121 |
 
 ## Changelog
 | Date | Change | Why |

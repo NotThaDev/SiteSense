@@ -139,3 +139,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement the SS-25 plan (`SiteAreas`, `AreaAssigner`, options, processor wiring, tests, records) without commit or push.
 - AI produced: `SiteAreas`, `AreaAssigner`, the two options and their validation, processor wiring, unit and API tests, and the Q27, Q28, Q119 records (Haiku subagent).
 - Corrected or discarded: none in the code. The plan's "inside by m" uses the boundary tolerance of `PlanarGeometry.Locate`, so it means inside and more than m from every edge.
+
+## 2026-11-28 — SS-26: Track query
+- Goal: let a Safety user read the filtered track of one device in a time range, with paging (C-7.3h, Q37, Q120, Q121).
+- Prompt (summary): implement the SS-26 plan (`TrackController`, query and response DTOs, integration tests, `.http` request) without push.
+- AI produced: the controller and DTOs, `TrackTests`, the OpenAPI path check, the `.http` request (Sonnet).
+- Corrected or discarded: none. The cursor-outside-range and `fromMs >= toMs` checks sit in the controller because `[Range]` cannot compare two fields.

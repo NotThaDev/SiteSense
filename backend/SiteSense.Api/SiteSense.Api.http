@@ -2,6 +2,7 @@
 # Local dev (dotnet watch): @host = http://localhost:5073
 @token = paste-an-admin-access-token
 @gatewayToken = paste-a-gateway-access-token
+@safetyToken = paste-a-safety-access-token
 
 ### Create a site (Admin)
 POST {{host}}/api/v1/sites
@@ -71,3 +72,7 @@ Authorization: Bearer {{gatewayToken}}
 Content-Type: application/json
 
 {"deviceId":"dev-001","positions":[{"timestampMs":1793268000000,"lat":37.5250,"lon":15.0710,"accuracyM":4.5}]}
+
+### Read the track of a device (Safety), one page; pass the nextCursor of the response as cursor for the next page
+GET {{host}}/api/v1/devices/dev-001/track?fromMs=1793268000000&toMs=1793271600000&limit=1000
+Authorization: Bearer {{safetyToken}}
