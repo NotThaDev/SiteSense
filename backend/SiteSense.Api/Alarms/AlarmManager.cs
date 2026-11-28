@@ -12,7 +12,8 @@ public sealed class AlarmManager(IRealtimePublisher publisher, ILogger<AlarmMana
     public async Task<bool> NotifyAlarmAsync(string tenantId, string siteId, string type, string? deviceId, string? areaId, long eventTimeMs, bool replay, CancellationToken ct)
     {
         // The one place that decides late (Q33): a replay, or detected more than LateAfterMs after the event. The id ignores it.
-        var late = replay || SiteSenseContext.Time.GetUtcNow().ToUnixTimeMilliseconds() - eventTimeMs > options.Value.LateAfterMs;
+        // DeviceSilent is exempt from the age rule: it is detected SilentAfterMinutes after its event time (last seen) by design.
+        var late = replay || (type != AlertTypes.DeviceSilent && SiteSenseContext.Time.GetUtcNow().ToUnixTimeMilliseconds() - eventTimeMs > options.Value.LateAfterMs);
         var id = Alert.IdFor(type, siteId, deviceId, areaId, eventTimeMs);
         var saved = await Alert.CreateAsync(tenantId, new Alert
         {

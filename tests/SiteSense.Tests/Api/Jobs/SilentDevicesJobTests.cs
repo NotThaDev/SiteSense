@@ -36,7 +36,7 @@ public sealed class SilentDevicesJobTests : IClassFixture<TestModeApiFactory>, I
         // Build the host first: its startup sets the static clock and the tenants.
         _ = _factory.Services;
         SetNow(NowMs);
-        _job = new SilentDevicesJob(new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance));
+        _job = new SilentDevicesJob(new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance, Microsoft.Extensions.Options.Options.Create(new AlarmOptions())));
     }
 
     public void Dispose() => SiteSenseContext.Time = _originalTime;
