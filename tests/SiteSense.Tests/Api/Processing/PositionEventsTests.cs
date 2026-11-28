@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SiteSense.Api.Auth;
 using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
@@ -31,7 +32,7 @@ public sealed class PositionEventsTests : IAsyncLifetime
         _store = new HookStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(_publisher, new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance);
+        _p = new PositionProcessor(_publisher, new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
     }
 
     public async Task InitializeAsync()
@@ -170,6 +171,21 @@ public sealed class PositionEventsTests : IAsyncLifetime
 
         Assert.Equal(2, (await TrackPoint.ReadAsync(Tenant, Dev, 0, long.MaxValue, CancellationToken.None)).Count);
         Assert.Null((await DeviceProcessing.GetAsync(Tenant, Dev, CancellationToken.None))!.DirtyFromMs);
+    }
+
+    [Fact]
+    public async Task Jump_IsNotInTheTrackAndNotPublished()
+    {
+        await Position.AppendNewAsync(Tenant, Dev,
+            [new Position(Dev, T0 + 1000, 45.5, 9.2, 4.5), new Position(Dev, T0 + 2000, 45.6, 9.2, 4.5), new Position(Dev, T0 + 3000, 45.5, 9.2, 4.5)],
+            CancellationToken.None);
+        await DeviceProcessing.MarkDirtyAsync(Tenant, Dev, T0 + 1000, CancellationToken.None);
+        _p.Enqueue(Tenant, Dev);
+
+        Assert.True(await DrainAsync());
+
+        Assert.Equal([T0 + 1000, T0 + 3000], await TimestampsAsync());
+        Assert.Equal([T0 + 1000, T0 + 3000], (await TrackPoint.ReadAsync(Tenant, Dev, 0, long.MaxValue, CancellationToken.None)).Select(t => t.TimestampMs));
     }
 
     private sealed class TestPublisher(EventPublisher events) : IRealtimePublisher

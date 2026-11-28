@@ -3,8 +3,8 @@ using SiteSense.Api.Store;
 
 namespace SiteSense.Api.Models;
 
-// Processed track (Q16, Q101): pass-through of raw positions until the filter (SS-24).
-public sealed record TrackPoint(string DeviceId, long TimestampMs, double Lat, double Lon, double AccuracyM, long Revision) : ILogRecord
+// Processed track (Q16, Q101, SS-24): the filtered raw positions. A Dropped row is a tombstone: it is never read as track.
+public sealed record TrackPoint(string DeviceId, long TimestampMs, double Lat, double Lon, double AccuracyM, long Revision, bool Dropped = false) : ILogRecord
 {
     public static async Task AppendAsync(string tenantId, string deviceId, IReadOnlyList<TrackPoint> points, CancellationToken ct)
     {
@@ -13,8 +13,12 @@ public sealed record TrackPoint(string DeviceId, long TimestampMs, double Lat, d
         await SiteSenseContext.Log.AppendAsync(tenantId, deviceId, points, ct);
     }
 
-    // Empty for an id the store would reject.
-    public static async Task<IReadOnlyList<TrackPoint>> ReadAsync(string tenantId, string deviceId, long fromMs, long toMs, CancellationToken ct)
+    // The track: tombstones left out. Empty for an id the store would reject.
+    public static async Task<IReadOnlyList<TrackPoint>> ReadAsync(string tenantId, string deviceId, long fromMs, long toMs, CancellationToken ct) =>
+        (await ReadWithDroppedAsync(tenantId, deviceId, fromMs, toMs, ct)).Where(p => !p.Dropped).ToList();
+
+    // Same fold with the tombstones, so a caller can tell a decided timestamp from a new one.
+    public static async Task<IReadOnlyList<TrackPoint>> ReadWithDroppedAsync(string tenantId, string deviceId, long fromMs, long toMs, CancellationToken ct)
     {
         if (!FileDocumentStore.IsValidName(deviceId)) return [];
         var raw = await SiteSenseContext.Log.ReadRangeAsync<TrackPoint>(tenantId, deviceId, fromMs, toMs, ct);

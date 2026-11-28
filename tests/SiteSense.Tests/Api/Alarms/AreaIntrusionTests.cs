@@ -1,5 +1,6 @@
 using SiteSense.Api.Helpers;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SiteSense.Api.Alarms;
 using SiteSense.Api.Models;
 using SiteSense.Api.Models.Map;
@@ -19,7 +20,8 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     private const string Dev = "dev-1";
     private static readonly TimeSpan Limit = TimeSpan.FromSeconds(10);
     // Restricted square: lon 9.2000-9.2010, lat 45.5000-45.5010. Perimeter is larger.
-    private const double InLon = 9.2005, InLat = 45.5005, OutLon = 9.195, OutLat = 45.5005;
+    // 8 m inside / 8 m outside the west edge: close enough to pass the plausibility filter (VMaxMps, SS-24) at 5 s steps.
+    private const double InLon = 9.20010, InLat = 45.5005, OutLon = 9.19990, OutLat = 45.5005;
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
     private readonly IDocumentStore _prevStore = SiteSenseContext.Store;
@@ -32,7 +34,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
         _store = new FailAlertStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(new NoopPublisher(), new AlarmManager(new NoopPublisher(), NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance);
+        _p = new PositionProcessor(new NoopPublisher(), new AlarmManager(new NoopPublisher(), NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
     }
 
     public async Task InitializeAsync()
@@ -120,12 +122,13 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Exit_After40SecondsOutside_DeactivatesAtTheFirstOutsidePoint()
+    public async Task Exit_After40SecondsOutside_DeactivatesAtTheFirstOutsideKeptPoint()
     {
         await SaveMapAsync();
         var alert = Assert.Single(await SendAndDrainAsync([.. Run(0, 40, true), .. Run(50, 90, false)]));
         Assert.Equal(AlertStates.NotActive, alert.State);
-        Assert.Equal(T0 + 50_000, alert.EndTimeMs);
+        // The track filter averages each kept point with the previous one (SS-24): the first outside sample lands on the edge, still inside; the next is outside.
+        Assert.Equal(T0 + 60_000, alert.EndTimeMs);
     }
 
     [Fact]
@@ -146,7 +149,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
         Assert.Equal(2, alerts.Count);
         Assert.Equal(T0, alerts[0].EventTimeMs);
         Assert.Equal(AlertStates.NotActive, alerts[0].State);
-        Assert.Equal(T0 + 50_000, alerts[0].EndTimeMs);
+        Assert.Equal(T0 + 60_000, alerts[0].EndTimeMs); // first outside sample is smoothed onto the edge (SS-24)
         Assert.Equal(T0 + 100_000, alerts[1].EventTimeMs);
         Assert.Equal(AlertStates.Active, alerts[1].State);
     }

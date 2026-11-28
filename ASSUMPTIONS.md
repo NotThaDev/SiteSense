@@ -648,6 +648,14 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: IDN-03
 - Status: Accepted
 
+## Q26 — Which plausibility and noise filter does the track use?
+- Assumption: a speed gate plus an accuracy-weighted average. A position is dropped when `distance − (accuracy1 + accuracy2) > vMax · Δt` against the last kept point (`vMax` = 7 m/s, configurable). Kept points are averaged with the previous kept point, weights `1 / accuracyM²`. After `K` = 3 consecutive drops that agree with each other, the last one is kept and the filter restarts from it (recovery from a false drop).
+- Why: simple, deterministic (a replay gives the same track) and easy to test; accuracy is used twice, as the gate tolerance and as the weight.
+- Alternatives rejected:
+  - Kalman 2D: more code and parameters to tune for the same visible result.
+  - Gate only: drops jumps but leaves the GPS noise in the track.
+- Requirement IDs: TRK-03
+
 ## Q119 — What states does an alarm have, and what does a state change publish?
 - Assumption: `Active` then `NotActive`, nothing else. `DeactivateAlarmAsync` saves `NotActive` with `EndTimeMs`, then publishes `AlertUpdated { alertId, state, endTimeMs }` (same audience as `AlertRaised`). Deactivating an unknown or already `NotActive` alarm does nothing.
 - Why: the Alarms page needs to show when a stay ended; acknowledged or closed-by-user states are out of scope.

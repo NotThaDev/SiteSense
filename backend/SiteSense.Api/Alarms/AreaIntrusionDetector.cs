@@ -14,7 +14,7 @@ public static class AreaIntrusionDetector
 
     // Throws on failure so the processor keeps the dirty marker and retries (alarm ids are stable).
     // Runs after the run's track append: the lookback read stops before the first fresh point, so it never sees this run's points.
-    public static async Task RunAsync(AlarmManager alarms, string tenantId, string deviceId, IReadOnlyList<Position> fresh, bool late, CancellationToken ct)
+    public static async Task RunAsync(AlarmManager alarms, string tenantId, string deviceId, IReadOnlyList<TrackPoint> fresh, bool late, CancellationToken ct)
     {
         if (fresh.Count == 0) return;
         var device = await Device.GetAsync(tenantId, deviceId, ct);

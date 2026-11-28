@@ -63,6 +63,7 @@ Known limits and what to do with more time.
 - A late batch older than the retention cutoff finds no older track records and is published as new; retention deletes it at the next run.
 
 ## SS-28 — AreaIntrusion alarms
+- The detector reads the filtered track (SS-24): dropped jumps never count, and each kept point is averaged with the previous one, so an exit or entry can show one sample later than the raw GPS.
 - A late point that splits a stay inside an area can make a second alarm for the later entry (a new entry time is a new id).
 - A replay under a changed map can add an alarm for an area that did not exist when the points were first processed.
 - Alerts are read for the whole site and filtered in memory (`Alert.ListAsync`); slow with many alarms. With more time: one document per site and day.
