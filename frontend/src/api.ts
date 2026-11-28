@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 
-export type Problem = { title?: string; detail?: string; errors?: { elementId: string | null; reason: string }[] }
+export type Problem = { title?: string; detail?: string; reason?: string; errors?: { elementId: string | null; reason: string }[] }
 
 export class ApiError extends Error {
   status: number
@@ -42,6 +42,8 @@ export function toastError(e: unknown) {
   }
   toast.error('Request failed', { description: String(e) })
 }
+
+export type RouteResponse = { geometry: { type: 'LineString'; coordinates: [number, number][] }; distanceM: number; durationS: number }
 
 export type Navigation = {
   walkingSpeedMps: number; unpavedSpeedFactor: number; stepsSpeedFactor: number
