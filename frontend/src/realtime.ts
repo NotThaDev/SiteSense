@@ -6,7 +6,7 @@ export type Status = 'live' | 'reconnecting' | 'offline'
 export type Device = { lat: number; lon: number; timestampMs: number }
 // receivedAt is client time: it drives the short pulse on the map.
 export type AlertState = 'Active' | 'NotActive'
-export type Alert = { alertId: string; type: string; eventTimeMs: number; deviceId: string; areaId: string | null; late: boolean; state: AlertState; receivedAt: number }
+export type Alert = { alertId: string; siteId: string; type: string; eventTimeMs: number; deviceId: string; areaId: string | null; late: boolean; state: AlertState; receivedAt: number }
 // Last AlertUpdated per alertId, kept for the Alarms page (its rows may come from the API, not from `alerts`).
 export type AlertUpdate = { state: AlertState; endTimeMs: number | null }
 export type SiteEvents = { status: Status; occupancy: Map<string, number>; devices: Map<string, Device>; alerts: Alert[]; updates: Map<string, AlertUpdate> }
@@ -29,7 +29,7 @@ function apply(v: View, events: Evt[]): View {
       if ((devices.get(d.deviceId)?.timestampMs ?? -1) >= d.timestampMs) continue
       devices = new Map(devices).set(d.deviceId, { lat: d.lat, lon: d.lon, timestampMs: d.timestampMs })
     } else if (e.type === 'AlertRaised') {
-      alerts = [{ ...e.data, state: 'Active', receivedAt: Date.now() } as Alert, ...alerts].slice(0, 20)
+      alerts = [{ ...e.data, siteId: e.siteId, state: 'Active', receivedAt: Date.now() } as Alert, ...alerts].slice(0, 20)
     } else if (e.type === 'AlertUpdated') {
       const d = e.data as { alertId: string } & AlertUpdate
       updates = new Map(updates).set(d.alertId, { state: d.state, endTimeMs: d.endTimeMs ?? null })
@@ -40,7 +40,13 @@ function apply(v: View, events: Evt[]): View {
 }
 
 // Live events of one site: connect, JoinSite, catch up from GET /events, then follow the hub (SS-49).
-export function useSiteEvents(siteId: string): SiteEvents {
+export const useSiteEvents = (siteId: string): SiteEvents => useEvents(siteId)
+
+// Alarms of every site of the tenant (JoinTenant); each alert keeps its siteId.
+export const useTenantAlerts = (): SiteEvents => useEvents(null)
+
+// siteId null = tenant mode: no site filter, only alert events.
+function useEvents(siteId: string | null): SiteEvents {
   const [status, setStatus] = useState<Status>('reconnecting')
   const [view, setView] = useState<View>(EMPTY)
 
@@ -62,7 +68,7 @@ export function useSiteEvents(siteId: string): SiteEvents {
       .build()
 
     const take = (events: Evt[]) => {
-      const fresh = events.filter(e => e.siteId === siteId && e.seq > lastSeq)
+      const fresh = events.filter(e => (siteId === null ? e.type.startsWith('Alert') : e.siteId === siteId) && e.seq > lastSeq)
       if (fresh.length === 0) return
       lastSeq = Math.max(lastSeq, ...fresh.map(e => e.seq))
       setView(v => apply(v, fresh))
@@ -71,7 +77,7 @@ export function useSiteEvents(siteId: string): SiteEvents {
 
     const sync = async () => {
       ready = false
-      await conn.invoke('JoinSite', siteId)
+      await (siteId === null ? conn.invoke('JoinTenant') : conn.invoke('JoinSite', siteId))
       // Catch up only after a reconnect: from seq 0 it would replay every retained event of the tenant.
       for (let more = lastSeq > 0; more && !stopped;) {
         const r = await api<{ items: Evt[]; lastSeq: number; hasMore: boolean }>('GET', `/events?after=${lastSeq}`)
@@ -109,7 +115,7 @@ export function useSiteEvents(siteId: string): SiteEvents {
 
     return () => {
       stopped = true
-      const leave = conn.state === 'Connected' ? conn.invoke('LeaveSite', siteId).catch(() => {}) : Promise.resolve()
+      const leave = conn.state === 'Connected' ? (siteId === null ? conn.invoke('LeaveTenant') : conn.invoke('LeaveSite', siteId)).catch(() => {}) : Promise.resolve()
       leave.finally(() => conn.stop())
     }
   }, [siteId])
