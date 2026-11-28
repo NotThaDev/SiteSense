@@ -3,8 +3,9 @@ using SiteSense.Api.Store;
 
 namespace SiteSense.Api.Models;
 
-// Processed track (Q16, Q101, SS-24): the filtered raw positions. A Dropped row is a tombstone: it is never read as track.
-public sealed record TrackPoint(string DeviceId, long TimestampMs, double Lat, double Lon, double AccuracyM, long Revision, bool Dropped = false) : ILogRecord
+// Processed track (Q16, Q101, SS-24, SS-25): the filtered raw positions with their area. A Dropped row is a tombstone: it is never read as track.
+// AreaId is null for tombstones, for rows written before SS-25, and when the site has no map.
+public sealed record TrackPoint(string DeviceId, long TimestampMs, double Lat, double Lon, double AccuracyM, long Revision, bool Dropped = false, string? AreaId = null) : ILogRecord
 {
     public static async Task AppendAsync(string tenantId, string deviceId, IReadOnlyList<TrackPoint> points, CancellationToken ct)
     {

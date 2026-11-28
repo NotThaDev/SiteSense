@@ -11,7 +11,7 @@ public static class EventTypes
     public const string AlertRaised = "AlertRaised";
 }
 
-// Payload of PositionUpdated (Q115): a track point plus the device. AreaId is null until SS-25.
+// Payload of PositionUpdated (Q115): a track point plus the device. AreaId is the point's area (SS-25); null when the site has no map.
 public sealed record PositionUpdatedData(string DeviceId, long TimestampMs, double Lat, double Lon, string? AreaId);
 
 // shortcut: TimestampMs carries the seq (x100), so FileAppendLog's hour files hold 36,000 seqs each, not dates (Q105).
