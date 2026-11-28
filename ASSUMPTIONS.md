@@ -683,3 +683,28 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Smallest area wins: needs area sizes and a tie rule.
 - Requirement IDs: TRK-04
 - Status: Accepted
+
+## Q37 — Where does the track paging cursor go?
+- Assumption: the response carries an extra `nextCursor` (the `timestampMs` of the last point, as a string, omitted on the last page). The request takes `cursor` and `limit`. Clients treat the cursor as opaque.
+- Why: extra fields are allowed by the contract; timestamps are unique per device, so "after the cursor" never skips or repeats a point. SS-11 can change the encoding later.
+- Alternatives rejected:
+  - Offset paging: unstable when late points arrive.
+  - Wait for the opaque shared cursor (SS-11): not needed for one sorted list.
+- Requirement IDs: C-7.3h, API-04
+- Status: Accepted
+
+## Q120 — Are `fromMs` and `toMs` required on the track query?
+- Assumption: both are required. A missing, negative or `fromMs >= toMs` value is a 400. The range is `[fromMs, toMs)`.
+- Why: the track log is read per hour file; an open range would scan every file of the device on each page.
+- Alternatives rejected:
+  - Optional with `fromMs` 0 and `toMs` max: a full scan per call.
+- Requirement IDs: C-7.3h
+- Status: Accepted
+
+## Q121 — Track page size
+- Assumption: `limit` defaults to 1000 and must be 1..5000 (the ingest batch size). Outside that range is a 400.
+- Why: one page stays small for the client; the cap matches the largest batch the API already handles.
+- Alternatives rejected:
+  - Default 500, max 1000: more round trips for an hour at 1 point/s.
+- Requirement IDs: C-7.3h
+- Status: Accepted
