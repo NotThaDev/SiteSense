@@ -163,13 +163,13 @@ function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route
       <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
-        <GeoJSON key={`${etag}-${filterKey}-${route.mode}`} ref={geo} data={data}
+        <GeoJSON key={`geo-${etag}-${filterKey}-${route.mode}`} ref={geo} data={data}
           filter={f => { const id = layerOf((f.properties ?? {}) as Props); return !id || !hidden.has(id) }}
           style={f => style(f as Feature<Geometry, Props>)}
           pointToLayer={(f, latlng) => L.circleMarker(latlng, style(f as Feature<Geometry, Props>))}
           // Top-left padding keeps an opened popup clear of the zoom control.
           onEachFeature={(f, layer) => !route.mode && layer.bindPopup(() => popup(f as Feature<Geometry, Props>, occ.current.get(String((f.properties as Props).id))), { autoPanPaddingTopLeft: L.point(60, 60) })} />
-        <LiveLayers key={`${etag}-${filterKey}-${route.mode}`} geo={geo} live={live} individuals={individuals} now={now} />
+        <LiveLayers key={`live-${etag}-${filterKey}-${route.mode}`} geo={geo} live={live} individuals={individuals} now={now} />
         <RouteClicks active={route.mode} onPoint={onRoutePoint} />
         {/* White casing under a fuchsia line: no layer, area or device dot uses this colour. */}
         {route.result && [{ color: '#ffffff', weight: 9 }, { color: '#d946ef', weight: 5 }].map(o => (
