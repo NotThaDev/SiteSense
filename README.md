@@ -16,7 +16,7 @@ SiteSense is the backend that turns those positions into safety information:
 
 - **Site maps.** Imports a site map (areas, walking paths, assembly points, entrances) as GeoJSON, validates it and builds the walking-path graph.
 - **Position tracking.** Receives position batches from device gateways. It drops duplicates and positions outside the site, reorders late data, filters out implausible jumps and GPS noise, and assigns each device to an area.
-- **Pedestrian routing.** `POST /api/v1/sites/{siteId}/routes` with `{ from, to }` returns the fastest walking route as a GeoJSON `LineString` with `distanceM` and `durationS`, avoiding restricted and hazardous areas (A* on the path graph, cached per map version). No route gives `422` with `reason` `START_TOO_FAR` or `UNREACHABLE`. In an evacuation it routes to the assembly point that is nearest in walking time.
+- **Pedestrian routing.** `POST /api/v1/sites/{siteId}/routes` with `{ from, to }` returns the fastest walking route as a GeoJSON `LineString` with `distanceM` and `durationS`, avoiding restricted and hazardous areas (A* on the path graph, cached per map version). No route gives `422` with `reason` `START_TOO_FAR` or `UNREACHABLE`. In an evacuation it routes to the assembly point that is nearest in walking time. How the graph and A* work: [`docs/routing.md`](docs/routing.md).
 - **Anomaly detection.** Uses ML.NET time-series models to spot unusual crowding in an area.
 - **Events and alerts.** Tracks area occupancy, raises alerts (e.g. entering a hazardous area) and pushes them in real time.
 - **Isolation and privacy.** Tenants are fully isolated. Devices are pseudonymous, and viewers see only aggregated data.
