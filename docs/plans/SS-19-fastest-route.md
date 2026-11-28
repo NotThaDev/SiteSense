@@ -40,7 +40,7 @@ Out of scope: evacuation (SS-21), slope and width in the cost (Q21), checking th
    `snap → to` count in `distanceM` and in `durationS` at plain `walkingSpeedMps`.
 4. **Cache** (Q86). The graph is built once per (tenant, site, map version, site version) and kept in memory.
    The site version is in the key because a site PUT can change the speeds.
-5. **UI**. A "Show route" button turns on route mode: first click = start, second click = destination, then the UI
+5. **UI**. A "Plan a walking route" button in the Map card header (and the enlarged map) turns on route mode: first click = start, second click = destination, then the UI
    calls the endpoint and draws the line with distance and time; a 422 shows its reason in a toast; "Clear" removes it.
    A filter panel has one checkbox per legend item (Work, Rest, Parking, Restricted, Hazard, Path, Assembly point, Entrance),
    all on at load and not remembered. The perimeter and the live device dots are always shown. A hidden area also hides
@@ -90,7 +90,7 @@ POST /api/v1/sites/s1/routes
 | 9 | Docs: ASSUMPTIONS Q22, Q23, Q24, Q124, Q125; KNOWN_ISSUES (cache done, router done, off-path legs not checked, O(E) snap); README routing line names the endpoint and the 422 reasons, Admin UI section names the route tool and filters; AI_LOG entry. No `docs/` page covers the API or the UI, so none to update | `ASSUMPTIONS.md`, `KNOWN_ISSUES.md`, `README.md`, `AI_LOG.md` | entries present | backend (UI lines in the UI PR) |
 | 10 | UI types: `reason?: string` on `Problem`, `RouteResponse` type; the existing `toastError` shows title and detail | `frontend/src/api.ts` | `npm run build` green | UI |
 | 11 | UI layer filters: checkbox panel (keyboard accessible), features filtered by kind/areaType; `GeoJSON` and `LiveLayers` keyed on `${etag}-${filterKey}` so occupancy labels re-apply; perimeter always on | `frontend/src/pages/MapView.tsx` | browser: unchecking Entrance hides entrances, dots and perimeter stay | UI |
-| 12 | UI route tool: "Show route" / "Clear" buttons; clicks via `useMapEvents`; feature popups off while in route mode; route drawn as a `Polyline` in its own layer (survives filter changes) with a distance/time label; cleared when the map changes | `frontend/src/pages/MapView.tsx` | browser: route drawn on the real map as admin and viewer; START_TOO_FAR toast outside the site | UI |
+| 12 | UI route tool: "Plan a walking route" / "Cancel" / "Clear route" buttons in the Map card header and the dialog top; clicks via `useMapEvents`; feature popups off while in route mode; route drawn as a `Polyline` in its own layer (survives filter changes) with a distance/time label; cleared when the map changes | `frontend/src/pages/MapView.tsx` | browser: route drawn on the real map as admin and viewer; START_TOO_FAR toast outside the site | UI |
 
 ## Risks
 
@@ -133,3 +133,4 @@ POST /api/v1/sites/s1/routes
 |---|---|---|
 | 2026-11-28 | First draft | — |
 | 2026-11-28 | Route context from one projection, cache with versions and `Lazy`, 422 via `ProblemDetailsFactory`, OpenAPI and `.http` steps, more tests (cache, 401, 403, 404 no map, same point, edge end), UI keys and popups | Plan validation (Sonnet) |
+| 2026-11-28 | Route button renamed "Plan a walking route" and moved to the Map card header (and the dialog top) | Owner feedback: "Show route" read as "show the paths" |

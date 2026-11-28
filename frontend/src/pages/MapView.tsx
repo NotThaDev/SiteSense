@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import L from 'leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
 import { CircleMarker, GeoJSON, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
@@ -146,17 +147,17 @@ function ResizeAfterOpen() {
 
 // The map itself, used in the card and in the large dialog.
 // isolate: Leaflet's z-indexes (400–1000) stay inside the map, so popovers and dialogs draw above it.
-function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route, onRoutePoint, onRouteMode, onRouteClear }: {
+function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route, onRoutePoint }: {
   data: FeatureCollection; etag: string; live: SiteEvents; individuals: boolean; now: number
   hidden: Set<string>; onToggle: (id: string) => void
-  route: RouteState; onRoutePoint: (p: Pt) => void; onRouteMode: () => void; onRouteClear: () => void
+  route: RouteState; onRoutePoint: (p: Pt) => void
 }) {
   const geo = useRef<L.GeoJSON>(null)
   const occ = useRef(live.occupancy)
   occ.current = live.occupancy
   const [label, chip] = CHIP[live.status]
   const filterKey = [...hidden].sort().join(',')
-  const hint = route.mode ? (route.start ? 'Click the destination' : 'Click the start') : undefined
+  const hint = route.mode ? (route.start ? 'Click the destination on the map' : 'Click the start on the map') : undefined
   const latlng = (p: Pt): [number, number] => [p.lat, p.lon]
   return (
     <div className="relative isolate h-full overflow-hidden rounded-xl border">
@@ -185,10 +186,6 @@ function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route
       </MapContainer>
       <span className={`absolute top-2 left-14 rounded-full px-2 py-0.5 text-xs font-medium shadow ${chip}`} style={{ zIndex: 1000 }} role="status">{label}</span>
       <div className="absolute top-12 left-14 flex flex-col items-start gap-1" style={{ zIndex: 1000 }}>
-        <div className="flex gap-1">
-          <Button type="button" size="sm" variant={route.mode ? 'default' : 'outline'} onClick={onRouteMode} className="shadow">Show route</Button>
-          {(route.mode || route.result) && <Button type="button" size="sm" variant="outline" onClick={onRouteClear} className="shadow">Clear</Button>}
-        </div>
         {hint && <span className="rounded bg-background/90 px-2 py-0.5 text-xs shadow" role="status">{hint}</span>}
         {route.result && <span className="rounded bg-background/90 px-2 py-0.5 text-xs font-medium shadow" role="status">{fmtRoute(route.result)}</span>}
       </div>
@@ -211,7 +208,7 @@ function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route
   )
 }
 
-export default function MapView({ siteId, reloadKey }: { siteId: string; reloadKey: number }) {
+export default function MapView({ siteId, reloadKey, actionsEl }: { siteId: string; reloadKey: number; actionsEl?: HTMLElement | null }) {
   const [data, setData] = useState<FeatureCollection | null>(null)
   const [etag, setEtag] = useState('')
   const [empty, setEmpty] = useState(false)
@@ -251,9 +248,19 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
   if (empty) return <p className="text-sm text-muted-foreground">{can.manage ? 'Upload a map to see it here' : 'No map for this site yet.'}</p>
   if (!data) return null
   const canvas = <MapCanvas data={data} etag={etag} live={live} individuals={can.seeIndividuals} now={now} hidden={hidden} onToggle={toggle}
-    route={route} onRoutePoint={onPoint} onRouteMode={() => setRoute(r => r.mode ? { mode: false } : { mode: true })} onRouteClear={() => setRoute({ mode: false })} />
+    route={route} onRoutePoint={onPoint} />
+  // The same buttons sit in the card header (portal) and at the top of the enlarged dialog.
+  const buttons = (
+    <div className="flex justify-end gap-2">
+      <Button type="button" size="sm" variant={route.mode ? 'secondary' : 'outline'} onClick={() => setRoute(r => r.mode ? { mode: false } : { mode: true })}>
+        {route.mode ? 'Cancel' : 'Plan a walking route'}
+      </Button>
+      {!route.mode && route.result && <Button type="button" size="sm" variant="outline" onClick={() => setRoute({ mode: false })}>Clear route</Button>}
+    </div>
+  )
   return (
     <div className="grid gap-3">
+      {actionsEl && createPortal(buttons, actionsEl)}
       <div className="relative" style={{ height: 420 }}>
         {canvas}
         <Button type="button" variant="outline" size="icon" onClick={() => setLarge(true)} className="absolute top-2 right-2 shadow"
@@ -263,6 +270,7 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
         <Dialog open={large} onOpenChange={setLarge}>
           <DialogContent className="flex h-[90vh] w-[95vw] max-w-[95vw] flex-col p-2 sm:max-w-[95vw]">
             <DialogTitle className="sr-only">Site map</DialogTitle>
+            {buttons}
             <div className="min-h-0 flex-1">{large && canvas}</div>
           </DialogContent>
         </Dialog>

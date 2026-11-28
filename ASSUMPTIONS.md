@@ -731,7 +731,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q125 — What does the map page offer for routes and layers?
-- Assumption: a "Show route" tool (click start, click destination; the route is drawn with distance and time, a `422` shows its reason) and one show/hide checkbox per legend item, all on at load and not remembered. The perimeter and the live device dots are always shown.
+- Assumption: a "Plan a walking route" button in the Map card header and the enlarged map (click start, click destination; the route is drawn with distance and time, a `422` shows its reason) and one show/hide checkbox per legend item, all on at load and not remembered. The perimeter and the live device dots are always shown.
 - Why: the user asked for it; fewer layers make a route easier to read.
 - Requirement IDs: API-06, NAV-01
 - Status: Accepted
