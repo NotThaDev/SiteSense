@@ -706,3 +706,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Smallest area wins: needs area sizes and a tie rule.
 - Requirement IDs: TRK-04
 - Status: Accepted
+
+## Q29 — When is a device "silent", and what about a device that left the site?
+- Assumption: a device is silent when its last valid position (last track point) is older than the tenant's `SilentAfterMinutes`. Silence is not evaluated when that last position is within 15 m of a map entrance (`SilentDevicesJob.EntranceRadiusM`): out-of-perimeter positions are discarded, so an exit is never seen and the device would look silent. The alarm time is the last-seen time and its area is the last known area, so the alert id is the same on every run: one alarm per silence episode. When the device transmits again, the Active alert is ended. A device that goes silent again has a new last-seen time, hence a new alarm. The job passes `late = false` (the late rule is SS-29).
+- Why: without the entrance rule every worker who leaves the site raises a false alarm; a stable id gives idempotent retries (JOB-02) with no extra state.
+- Alternatives rejected:
+  - Alarm for every silent device: false alarms for every exit.
+  - Keep the last-alarm time in a state document: new store type, and the alert id already gives the same guarantee.
+- Requirement IDs: TRK-06, JOB-02
+- Status: Accepted
