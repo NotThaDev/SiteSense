@@ -1,14 +1,18 @@
+using Microsoft.Extensions.Options;
+using SiteSense.Api.Helpers;
 using SiteSense.Api.Realtime;
 using SiteSense.Api.Store;
 
 namespace SiteSense.Api.Alarms;
 
 // The one entry point for alarms: a producer decides, this class saves once, then publishes once.
-public sealed class AlarmManager(IRealtimePublisher publisher, ILogger<AlarmManager> logger)
+public sealed class AlarmManager(IRealtimePublisher publisher, ILogger<AlarmManager> logger, IOptions<AlarmOptions> options)
 {
     // False when the same alarm already exists: nothing is saved or published again (JOB-02, EVT-03).
-    public async Task<bool> NotifyAlarmAsync(string tenantId, string siteId, string type, string? deviceId, string? areaId, long eventTimeMs, bool late, CancellationToken ct)
+    public async Task<bool> NotifyAlarmAsync(string tenantId, string siteId, string type, string? deviceId, string? areaId, long eventTimeMs, bool replay, CancellationToken ct)
     {
+        // The one place that decides late (Q33): a replay, or detected more than LateAfterMs after the event. The id ignores it.
+        var late = replay || SiteSenseContext.Time.GetUtcNow().ToUnixTimeMilliseconds() - eventTimeMs > options.Value.LateAfterMs;
         var id = Alert.IdFor(type, siteId, deviceId, areaId, eventTimeMs);
         var saved = await Alert.CreateAsync(tenantId, new Alert
         {

@@ -706,3 +706,12 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Smallest area wins: needs area sizes and a tie rule.
 - Requirement IDs: TRK-04
 - Status: Accepted
+
+## Q33 — When is an alarm late?
+- Assumption: an alarm is `late` when its run is a replay, or when it is detected more than `Alarms:LateAfterMs` (default 60 000 ms, must be above 0) after its `eventTimeMs`, read from the app clock (`TimeProvider`). `AlarmManager` decides it in one place, so every alarm type gets it. `eventTimeMs` stays the real instant. `late` is not part of the alarm id, so a later duplicate still creates nothing, and a stored `late` never changes.
+- Why: Safety needs to know that an alarm arrived late and when it really happened (EVT-03); a replay is not the only way to be late (offline device, retried run).
+- Alternatives rejected:
+  - Replay flag only: misses a late batch from a device that was offline.
+  - `late` in the id: a duplicate arriving later would raise a second alarm.
+- Requirement IDs: EVT-03
+- Status: Accepted
