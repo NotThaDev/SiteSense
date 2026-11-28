@@ -1,7 +1,7 @@
 # SS-25 — Current area with hysteresis
 
 - Status: Draft
-- Issue: not opened yet
+- Issue: #164
 - Depends on: SS-24 (plausibility filter). Decisions: Q27, Q28, Q119 in `ASSUMPTIONS.md`.
 
 ## Problem
