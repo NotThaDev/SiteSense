@@ -76,4 +76,12 @@ public sealed class Alert : IDocument
         (await ListAsync(tenantId, siteId, ct))
             .Where(a => a.State == AlertStates.Active && a.DeviceId == deviceId && a.AreaId == areaId)
             .ToList();
+
+    // NotActive AreaIntrusion alarms of the device in the area that ended 0..cooldownMs before timeMs; the latest end wins.
+    // shortcut: filtered in memory like ListActiveAsync; same upgrade path.
+    public static async Task<Alert?> FindReactivatableAsync(string tenantId, string siteId, string deviceId, string areaId, long timeMs, long cooldownMs, CancellationToken ct) =>
+        (await ListAsync(tenantId, siteId, ct))
+            .Where(a => a.Type == AlertTypes.AreaIntrusion && a.State == AlertStates.NotActive && a.DeviceId == deviceId && a.AreaId == areaId
+                && a.EndTimeMs is { } end && timeMs - end >= 0 && timeMs - end <= cooldownMs)
+            .MaxBy(a => a.EndTimeMs);
 }

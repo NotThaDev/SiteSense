@@ -51,6 +51,28 @@ public sealed class AlarmManager(IRealtimePublisher publisher, ILogger<AlarmMana
         return true;
     }
 
+    // Flapping (Q122): false for an unknown or already Active alert; else back to Active with the end cleared.
+    public async Task<bool> ReactivateAlarmAsync(string tenantId, string alertId, CancellationToken ct)
+    {
+        Alert? alert;
+        for (var attempt = 1; ; attempt++)
+        {
+            alert = await Alert.GetAsync(tenantId, alertId, ct);
+            if (alert is null || alert.State == AlertStates.Active) return false;
+            alert.State = AlertStates.Active;
+            alert.EndTimeMs = null;
+            try
+            {
+                await Alert.UpdateAsync(tenantId, alert, ct);
+                break;
+            }
+            catch (ConcurrencyException) when (attempt == 1) { }
+        }
+
+        await PublishAsync(tenantId, alert.SiteId, alertId, EventTypes.AlertUpdated, new AlertUpdatedData(alertId, AlertStates.Active, null), ct);
+        return true;
+    }
+
     // The alert is already saved when this runs: a failed publish is logged, never thrown (at most once, as Q115). No coordinates in the log (PRV).
     private async Task PublishAsync<TData>(string tenantId, string siteId, string alertId, string type, TData data, CancellationToken ct)
     {

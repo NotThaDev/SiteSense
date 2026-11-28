@@ -79,7 +79,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     public async Task WalkInOutIn_TwoAlarms_FirstNotActiveAfterExit()
     {
         await SaveMapAsync();
-        await SendAsync((1, false), (2, true), (3, true), (4, false), (5, true));
+        await SendAsync((1, false), (2, true), (3, true), (4, false), (6, true));
         Assert.True(await DrainAsync());
 
         var alerts = await AlertsAsync();
@@ -87,10 +87,46 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
         Assert.Equal(T0 + 2 * Minute, alerts[0].EventTimeMs);
         Assert.Equal(AlertStates.NotActive, alerts[0].State);
         Assert.Equal(T0 + 4 * Minute, alerts[0].EndTimeMs);
-        Assert.Equal(T0 + 5 * Minute, alerts[1].EventTimeMs);
+        Assert.Equal(T0 + 6 * Minute, alerts[1].EventTimeMs);
         Assert.Equal(AlertStates.Active, alerts[1].State);
         Assert.All(alerts, a => Assert.False(a.Late));
         Assert.All(alerts, a => Assert.Equal("area-1", a.AreaId));
+    }
+
+    // seconds offset, in or out of the area
+    private async Task SendSecAsync(params (int Sec, bool In)[] pts)
+    {
+        await Position.AppendNewAsync(Tenant, Dev,
+            pts.Select(x => new Position(Dev, T0 + x.Sec * 1000L, x.In ? InLat : OutLat, x.In ? InLon : OutLon, 4.5)).ToList(), CancellationToken.None);
+        await DeviceProcessing.MarkDirtyAsync(Tenant, Dev, T0 + pts.Min(x => x.Sec) * 1000L, CancellationToken.None);
+        _p.Enqueue(Tenant, Dev);
+    }
+
+    [Fact]
+    public async Task ReentryWithinCooldown_ReactivatesTheSameAlarm_AndReplayAddsNothing()
+    {
+        await SaveMapAsync();
+        await SendSecAsync((0, false), (10, true), (20, false), (30, true));
+        Assert.True(await DrainAsync());
+        await SendSecAsync((0, false), (10, true), (20, false), (30, true));
+        Assert.True(await DrainAsync());
+
+        var alert = Assert.Single(await AlertsAsync());
+        Assert.Equal(AlertStates.Active, alert.State);
+        Assert.Null(alert.EndTimeMs);
+    }
+
+    [Fact]
+    public async Task ReentryAfterCooldown_RaisesANewAlarm()
+    {
+        await SaveMapAsync();
+        await SendSecAsync((0, false), (10, true), (20, false), (80, true));
+        Assert.True(await DrainAsync());
+
+        var alerts = await AlertsAsync();
+        Assert.Equal(2, alerts.Count);
+        Assert.Equal(AlertStates.NotActive, alerts[0].State);
+        Assert.Equal(AlertStates.Active, alerts[1].State);
     }
 
     [Fact]

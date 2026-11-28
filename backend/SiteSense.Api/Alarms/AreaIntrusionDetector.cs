@@ -9,6 +9,7 @@ public static class AreaIntrusionDetector
 {
     private const double BoundaryToleranceM = 0.5;
     private const long LookbackMs = 10 * 60_000;
+    private const long ReentryCooldownMs = 30_000;
 
     // Throws on failure so the processor keeps the dirty marker and retries (alarm ids are stable).
     // Runs after the run's track append: the lookback read stops before the first fresh point, so it never sees this run's points.
@@ -35,7 +36,12 @@ public static class AreaIntrusionDetector
                 var wasIn = previous is { } q && IsIn(q, area);
                 var isIn = IsIn(here, area);
                 if (isIn && !wasIn)
-                    await alarms.NotifyAlarmAsync(tenantId, device.SiteId, AlertTypes.AreaIntrusion, deviceId, area.Id, p.TimestampMs, late, ct);
+                {
+                    // Re-entry within the cooldown reopens the previous alarm instead of raising a new one (flapping).
+                    var previousAlert = await Alert.FindReactivatableAsync(tenantId, device.SiteId, deviceId, area.Id, p.TimestampMs, ReentryCooldownMs, ct);
+                    if (previousAlert is not null) await alarms.ReactivateAlarmAsync(tenantId, previousAlert.Id, ct);
+                    else await alarms.NotifyAlarmAsync(tenantId, device.SiteId, AlertTypes.AreaIntrusion, deviceId, area.Id, p.TimestampMs, late, ct);
+                }
                 else if (wasIn && !isIn)
                     foreach (var alert in await Alert.ListActiveAsync(tenantId, device.SiteId, deviceId, area.Id, ct))
                         await alarms.DeactivateAlarmAsync(tenantId, alert.Id, p.TimestampMs, ct);

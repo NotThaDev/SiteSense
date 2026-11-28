@@ -665,3 +665,9 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: dedupe without a lookup; the detector runs before the save and may run twice (JOB-02, EVT-03).
 - Requirement IDs: EVT-03, JOB-02
 - Status: Accepted
+
+## Q122 — What happens when a device re-enters an area right after leaving it?
+- Assumption: if the device re-enters the same area within 30 s after its `AreaIntrusion` alarm ended, that alarm is reactivated (`Active`, `EndTimeMs` cleared, `AlertUpdated` with `Active`) instead of raising a new one. After 30 s it is a new alarm.
+- Why: a GPS device jittering on an area edge would otherwise flood the table with alarms (flapping).
+- Requirement IDs: EVT-02
+- Status: Accepted

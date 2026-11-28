@@ -67,6 +67,7 @@ Known limits and what to do with more time.
 - A replay under a changed map can add an alarm for an area that did not exist when the points were first processed.
 - The previous point is read from a 10 minute lookback: after a longer gap inside an area, the next point counts as a new entry.
 - Alerts are read for the whole site and filtered in memory (`Alert.ListAsync`); slow with many alarms. With more time: one document per site and day.
+- A replay can publish a duplicate `AlertUpdated` (the save is idempotent, the live event is at most once but not deduplicated).
 
 ## Delivery — not implemented
 These requirements are not in the delivered version. The API answers `404` for their endpoints.
