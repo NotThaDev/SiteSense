@@ -2,7 +2,7 @@
 
 - Status: Approved
 - Issue: #149
-- Plan PR: #150   Implementation PRs: #<n> (backend), #<n> (UI)
+- Plan PR: #150   Implementation PRs: #158 (backend), #162 (UI)
 - Requirement IDs: NAV-01, NAV-02, NAV-03, API-03
 
 ## Problem
