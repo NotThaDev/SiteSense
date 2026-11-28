@@ -55,7 +55,7 @@ flowchart LR
 
 **Alarm id.** Built only from the alarm's inputs: `SHA-256(type|siteId|deviceId|areaId|eventTimeMs)` as **lowercase** hex (the store escapes uppercase letters with `!`, which it then rejects; device ids may not pass the name check either). A retry, a replay of a late batch, or a second job run builds the same id, the create is rejected, and nothing is published (JOB-02, EVT-03).
 
-**State machine.** Each alarm has a `State`: `Active` or `NotActive`. It is created `Active`. The only transition is `Active → NotActive`, done by the **producer** when the cause ends (never by a user, for now). There is no way back: a new cause is a new alarm with a new id.
+**State machine.** Each alarm has a `State`: `Active` or `NotActive`. It is created `Active`. The only transition is `Active → NotActive`, done by the **producer** when the cause ends (never by a user, for now). There is one way back, for flapping: `AreaIntrusion` reactivates the same alarm (`NotActive → Active`, `EndTimeMs` cleared, `AlertUpdated` with `Active`) when the device enters the same area again within the cooldown (30 s) after leaving it. Otherwise a new cause is a new alarm with a new id.
 
 ```mermaid
 stateDiagram-v2
@@ -78,6 +78,8 @@ stateDiagram-v2
 4. An entry is a point in A whose previous track point is not in A. The previous point comes from the revision-folded `TrackPoint.ReadAsync` over a bounded lookback before the run's first point (constant, 10 minutes). No previous point in the window counts as "outside", so a first point inside is an entry.
 5. One entry = one alarm: `eventTimeMs` = the entry point's timestamp, `late` = the run is a replay (`from <= cursor`).
 6. An exit is a point not in A whose previous point is in A. The detector finds the device's `Active` `AreaIntrusion` alarms for A (`Alert.ListActiveAsync`, filtered in memory) and calls `DeactivateAlarmAsync` with the exit point's timestamp. Ends of an alarm found in a replay are handled the same way and are idempotent.
+
+7. **Cooldown (flapping).** On an entry, if the device has a `NotActive` `AreaIntrusion` alarm for A that ended at most 30 s before the entry, the detector calls `AlarmManager.ReactivateAlarmAsync` on it instead of creating a new alarm. A GPS device jittering on an area edge therefore keeps one alarm. The 30 s is a constant in the detector.
 
 No new per-device state. A late point that splits a stay inside an area can create a second alarm for the later entry (new entry time = new id). This is accepted and goes to `KNOWN_ISSUES.md`.
 
@@ -138,3 +140,4 @@ Stacked PRs: plan PR, then PR 1 (core + endpoint + UI) on the plan branch, then 
 | 2026-11-28 | Added `SiteId`/nullable fields, lowercase hex id, `AlertRaisedData`, detector before save over `fresh` only, map/projection helper, lookback window, boundary rule, cursor and order, test folder, OpenAPI and docs steps | Sonnet validation findings |
 | 2026-11-28 | Decisions on open questions 1-4; alarm state machine (`Active`/`NotActive`, producer-driven, `AlertUpdated` event), live Alarms page | User |
 | 2026-11-28 | Tenant-wide alarms (`GET /alerts`, `JoinTenant`), Active/History tabs, severity badge, site filter in the UI | User |
+| 2026-11-28 | Cooldown: re-entry within 30 s reactivates the alarm (`ReactivateAlarmAsync`) | Many 1-2 s alarms seen in History (flapping) |
