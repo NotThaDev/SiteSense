@@ -193,6 +193,48 @@ public sealed class SiteHubTests : IClassFixture<ApiFactory>
         Assert.Equal(0, occupancy.Count);
     }
 
+    [Fact]
+    public async Task JoinTenant_Safety_ReceivesAlertsOfAnySiteOfItsTenantOnly()
+    {
+        var siteOne = await CreateSiteAsync("tenant-a");
+        var siteTwo = await CreateSiteAsync("tenant-a");
+        var otherSite = await CreateSiteAsync("tenant-b");
+        var publisher = _factory.Services.GetRequiredService<IRealtimePublisher>();
+        await using var connection = HubClient.Create(_factory, TestTokens.Create("tenant-a", ["Safety"]));
+        var raised = new Inbox(connection, EventTypes.AlertRaised);
+        var updated = new Inbox(connection, EventTypes.AlertUpdated);
+        await connection.StartAsync();
+        await connection.InvokeAsync("JoinTenant");
+
+        await publisher.PublishAsync("tenant-b", otherSite, EventTypes.AlertRaised, new { alertId = "other" }, CancellationToken.None);
+        await publisher.PublishAsync("tenant-a", siteOne, EventTypes.AlertRaised, new { alertId = "one" }, CancellationToken.None);
+        await publisher.PublishAsync("tenant-a", siteTwo, EventTypes.AlertRaised, new { alertId = "two" }, CancellationToken.None);
+        await publisher.PublishAsync("tenant-a", siteTwo, EventTypes.AlertUpdated, new { alertId = "two" }, CancellationToken.None);
+
+        Assert.Equal(siteOne, (await raised.NextAsync()).GetProperty("siteId").GetString());
+        Assert.Equal(siteTwo, (await raised.NextAsync()).GetProperty("siteId").GetString());
+        Assert.Equal(siteTwo, (await updated.NextAsync()).GetProperty("siteId").GetString());
+        Assert.Equal(0, raised.Count);
+    }
+
+    [Fact]
+    public async Task JoinTenant_Viewer_ReceivesNoAlerts()
+    {
+        var siteId = await CreateSiteAsync("tenant-a");
+        var publisher = _factory.Services.GetRequiredService<IRealtimePublisher>();
+        await using var connection = HubClient.Create(_factory, TestTokens.Create("tenant-a", ["Viewer"]));
+        var alerts = new Inbox(connection, EventTypes.AlertRaised);
+        var occupancy = new Inbox(connection, EventTypes.OccupancyChanged);
+        await connection.StartAsync();
+        await connection.InvokeAsync("JoinTenant");
+        await connection.InvokeAsync("JoinSite", siteId); // only to get an ordered marker
+
+        await publisher.PublishAsync("tenant-a", siteId, EventTypes.AlertRaised, new { alertId = "x" }, CancellationToken.None);
+        await MarkerAsync(publisher, "tenant-a", siteId, occupancy);
+
+        Assert.Equal(0, alerts.Count);
+    }
+
     private async Task<string> CreateSiteAsync(string tenant)
     {
         var admin = _factory.CreateClient().WithToken(TestTokens.Create(tenant, ["Admin"]));

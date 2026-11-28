@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
 using SiteSense.Api.Models.Map;
@@ -10,7 +11,7 @@ namespace SiteSense.Api.Services;
 
 // Ordered processing (TRK-02, Q06, Q100): one worker, so each device runs alone and in timestamp order. Drain is per tenant (Q102).
 // Reads SiteSenseContext on every call, never in a field (Q38): test hosts replace it.
-public sealed class PositionProcessor(IRealtimePublisher publisher, OccupancyService occupancy, ILogger<PositionProcessor> logger, IOptions<TrackingOptions> tracking) : BackgroundService
+public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager alarms, OccupancyService occupancy, ILogger<PositionProcessor> logger, IOptions<TrackingOptions> tracking) : BackgroundService
 {
     // A device missing from _devices is idle.
     private enum RunState { Queued, Running, RunningDirty }
@@ -142,14 +143,17 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, OccupancySer
                 await TrackPoint.AppendAsync(tenantId, deviceId, decided, ct);
                 doc.CursorMs = Math.Max(doc.CursorMs ?? long.MinValue, raw[^1].TimestampMs);
             }
+            // Only kept points of positions not handled before; a dropped (implausible) one never counts, nor is it published (SS-24).
+            var freshMs = fresh.Select(p => p.TimestampMs).ToHashSet();
+            var keptFresh = decided.Where(t => !t.Dropped && freshMs.Contains(t.TimestampMs)).ToList();
+            // Before the save: a throw keeps the dirty marker and the run retries; the alarm id is stable (SS-28).
+            await AreaIntrusionDetector.RunAsync(alarms, tenantId, deviceId, keptFresh, late, ct);
             doc.Revision = revision;
             doc.DirtyFromMs = null;
             try
             {
                 await DeviceProcessing.SaveAsync(tenantId, doc, ct);
-                // Only kept points of positions not published before; a dropped one is never published (SS-24).
-                var freshMs = fresh.Select(p => p.TimestampMs).ToHashSet();
-                await PublishAsync(tenantId, deviceId, device, decided.Where(t => !t.Dropped && freshMs.Contains(t.TimestampMs)).ToList(), ct);
+                await PublishAsync(tenantId, deviceId, device, keptFresh, ct);
                 if (raw.Count > 0 && device is not null) await PublishOccupancyAsync(tenantId, device.SiteId, ct);
                 return;
             }

@@ -3,7 +3,7 @@
 - Status: Draft
 - Issue: not created yet
 - Plan PR: #<n>   Implementation PRs: #<n>
-- Depends on: SS-25 (area on every track point, merged), SS-2 (test clock, merged), SS-35 (hub and event log, merged). Decisions: Q28, Q46 (this plan), Q120–Q122 (open questions below).
+- Depends on: SS-25 (area on every track point, merged), SS-2 (test clock, merged), SS-35 (hub and event log, merged). Decisions: Q28, Q46 (this plan), Q124–Q126 (open questions below).
 
 ## Problem
 
@@ -76,7 +76,7 @@ Example response (ids are the map's own; the perimeter has its map id, not the w
 | 3 | `PublishIfChangedAsync` + call from `PositionProcessor` (ctor takes the service); `AddSingleton<OccupancyService>()` before the processor in `Program.cs`; update the one `new PositionProcessor(...)` in tests | `Services/OccupancyService.cs`, `Services/PositionProcessor.cs`, `Program.cs`, `tests/.../Processing/PositionEventsTests.cs` | one event per change, none when unchanged | impl |
 | 4 | `OccupancySiteJob`, key, schedule (see Solution 4) | `BackgroundJobs/OccupancySiteJob.cs`, `Program.cs` | job run drops a stale device and publishes once | impl |
 | 5 | Map: seed occupancy from `GET /occupancy` on every sync | `frontend/src/realtime.ts` | opening the map shows counts without waiting for an event | impl |
-| 6 | Docs | `ASSUMPTIONS.md` (Q46, Q120–Q122), `SiteSense.Api.http` (new request), `OpenApiTests` (assert the new path) | decisions recorded, request added | impl |
+| 6 | Docs | `ASSUMPTIONS.md` (Q46, Q124–Q126), `SiteSense.Api.http` (new request), `OpenApiTests` (assert the new path) | decisions recorded, request added | impl |
 
 ## Risks
 
@@ -103,9 +103,9 @@ Example response (ids are the map's own; the perimeter has its map id, not the w
 | # | Question | Options (recommended first) | Decision |
 |---|---|---|---|
 | Q46 | Does the response list areas with count 0 and the perimeter? The contract is silent. | 1. All areas, 0 included, perimeter included (artifact default; the map label needs the 0 to clear). 2. Only areas with count > 0. | Open |
-| Q120 | What does a device with no map or a point whose area is gone do? | 1. Not counted (recommended). 2. Count under the perimeter. | Open |
-| Q121 | `OccupancyChanged` payload: full snapshot or only the changed areas? | 1. Full snapshot of the site, same as `GET /occupancy` (recommended: simple client, safe after a missed event). 2. Delta. | Open |
-| Q122 | Is the per-minute job in scope here? | 1. Yes, so stale devices leave the count and the push agrees with the endpoint (recommended, SS-35 plan). 2. No: counts drop only when the next position arrives. | Open |
+| Q124 | What does a device with no map or a point whose area is gone do? | 1. Not counted (recommended). 2. Count under the perimeter. | Open |
+| Q125 | `OccupancyChanged` payload: full snapshot or only the changed areas? | 1. Full snapshot of the site, same as `GET /occupancy` (recommended: simple client, safe after a missed event). 2. Delta. | Open |
+| Q126 | Is the per-minute job in scope here? | 1. Yes, so stale devices leave the count and the push agrees with the endpoint (recommended, SS-35 plan). 2. No: counts drop only when the next position arrives. | Open |
 
 ## Changelog
 

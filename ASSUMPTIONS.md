@@ -655,6 +655,29 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Kalman 2D: more code and parameters to tune for the same visible result.
   - Gate only: drops jumps but leaves the GPS noise in the track.
 - Requirement IDs: TRK-03
+
+## Q120 — What states does an alarm have, and what does a state change publish?
+- Assumption: `Active` then `NotActive`, nothing else. `DeactivateAlarmAsync` saves `NotActive` with `EndTimeMs`, then publishes `AlertUpdated { alertId, state, endTimeMs }` (same audience as `AlertRaised`). Deactivating an unknown or already `NotActive` alarm does nothing.
+- Why: the Alarms page needs to show when a stay ended; acknowledged or closed-by-user states are out of scope.
+- Requirement IDs: EVT-01, EVT-03, RTM-03
+- Status: Accepted
+
+## Q121 — When does `AreaIntrusion` raise and end an alarm?
+- Assumption: a point is in a restricted or hazard area when it is inside or within 0.5 m of its edge. A stable entry raises one alarm at the entry time; a stable exit ends the device's active alarms for that area at the exit time (stability: see Q122). The previous point is read from the track within 10 minutes before the run's first new point; none means outside. A replay marks `late`.
+- Why: touching a hazard edge counts as an entry; no new per-device state, so the rule is the same on a replay.
+- Requirement IDs: EVT-02, TRK-02
+- Status: Accepted
+
+## Q122 — How is an alarm id built, and what is the status of the first version?
+- Assumption: id = SHA-256 of type, site, device, area and event time, as lowercase hex. The same entry always gives the same id, so a retried run or a replay creates nothing twice.
+- Why: dedupe without a lookup; the detector runs before the save and may run twice (JOB-02, EVT-03).
+- Requirement IDs: EVT-03, JOB-02
+- Status: Accepted
+
+## Q123 — How does `AreaIntrusion` ignore GPS jitter at an area edge?
+- Assumption: a dwell of 30 s. The device counts as inside an area only after 30 s of samples inside, and as outside only after 30 s of samples outside; a sample that agrees with the current state cancels a pending change. The alarm's `eventTimeMs` is the first sample of the stay (the entry instant), its end time is the first outside sample of the exit. A closed alarm is never reopened: a new stay is a new alarm.
+- Why: edge jitter must not flood the table, and the ids stay stable for retries and replays (EVT-03, JOB-02).
+- Requirement IDs: EVT-02, EVT-03
 - Status: Accepted
 
 ## Q27 — Which hysteresis keeps the current area?
@@ -692,7 +715,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: EVT-01
 - Status: Accepted
 
-## Q120 — Which devices does the occupancy count skip?
+## Q124 — Which devices does the occupancy count skip?
 - Assumption: a device with no map, or whose last point has an `AreaId` not in the current map, is not counted.
 - Why: a count must name an area of the map the client sees; Q28 already gives every point of a mapped site an area.
 - Alternatives rejected:
@@ -700,7 +723,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: EVT-01
 - Status: Accepted
 
-## Q121 — What does `OccupancyChanged` carry?
+## Q125 — What does `OccupancyChanged` carry?
 - Assumption: the full snapshot of the site, `{ areas: [{ areaId, count }] }`, the same as `GET /occupancy`; sent only when it differs from the last one published for the site.
 - Why: a client that missed an event is corrected by the next one, and the payload is the same on the hub and on the endpoint.
 - Alternatives rejected:
@@ -708,7 +731,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: EVT-01, RTM-02
 - Status: Accepted
 
-## Q122 — Who drops a silent device from the count?
+## Q126 — Who drops a silent device from the count?
 - Assumption: a per-minute site job (`occupancy`) recomputes and publishes when the snapshot changed, so a device older than 5 minutes leaves the count without a new position.
 - Why: the push and `GET /occupancy` agree within a minute (SS-35 plan).
 - Alternatives rejected:

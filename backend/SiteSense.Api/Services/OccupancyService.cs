@@ -9,7 +9,7 @@ namespace SiteSense.Api.Services;
 public sealed record AreaCount(string AreaId, int Count);
 
 // People per area (SS-27, spec §7.3): a device counts where its last valid track point is, if that point is less than 5 minutes old.
-// Computed from the track log on demand, never stored (Q46, Q120, Q121).
+// Computed from the track log on demand, never stored (Q46, Q124, Q125).
 public sealed class OccupancyService(IRealtimePublisher publisher, ILogger<OccupancyService> logger)
 {
     private const long WindowMs = 5 * 60_000;
@@ -28,7 +28,7 @@ public sealed class OccupancyService(IRealtimePublisher publisher, ILogger<Occup
         {
             // From inclusive, to exclusive: ages 0 to 299999 ms. A point after nowMs is left out.
             var last = (await TrackPoint.ReadAsync(tenantId, device.Id, nowMs - WindowMs + 1, nowMs + 1, ct)).LastOrDefault();
-            // An area missing from the map (replaced since) is not counted (Q120).
+            // An area missing from the map (replaced since) is not counted (Q124).
             if (last?.AreaId is { } areaId && counts.ContainsKey(areaId)) counts[areaId]++;
         }
         return map.Areas.Select(a => new AreaCount(a.Id, counts[a.Id])).ToList();

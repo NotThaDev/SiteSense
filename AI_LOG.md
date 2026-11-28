@@ -139,3 +139,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): implement the SS-25 plan (`SiteAreas`, `AreaAssigner`, options, processor wiring, tests, records) without commit or push.
 - AI produced: `SiteAreas`, `AreaAssigner`, the two options and their validation, processor wiring, unit and API tests, and the Q27, Q28, Q119 records (Haiku subagent).
 - Corrected or discarded: none in the code. The plan's "inside by m" uses the boundary tolerance of `PlanarGeometry.Locate`, so it means inside and more than m from every edge.
+
+## 2026-11-28 — SS-28: Alarm core and AreaIntrusion
+- Goal: one entry point for alarms (`AlarmManager`), an alerts endpoint and page, and the `AreaIntrusion` alarm raised from position processing.
+- Prompt (summary): plan SS-28 with the plan / validate / approve / implement / verify workflow, two stacked PRs (core, then the detector).
+- AI produced: plan, `Alert`, `AlarmManager`, alerts endpoint, Alarms page, shared area projection, `AreaIntrusionDetector`, tests, these records.
+- Corrected or discarded: the detector runs before the device state is saved (an exception keeps the dirty marker) instead of after, so a crash cannot lose an alarm for good.
