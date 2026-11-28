@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import L from 'leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
-import { CircleMarker, GeoJSON, MapContainer, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { CircleMarker, GeoJSON, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -171,12 +171,15 @@ function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route
           onEachFeature={(f, layer) => !route.mode && layer.bindPopup(() => popup(f as Feature<Geometry, Props>, occ.current.get(String((f.properties as Props).id))), { autoPanPaddingTopLeft: L.point(60, 60) })} />
         <LiveLayers key={`live-${etag}-${filterKey}-${route.mode}`} geo={geo} live={live} individuals={individuals} now={now} />
         <RouteClicks active={route.mode} onPoint={onRoutePoint} />
-        {/* White casing under a fuchsia line: no layer, area or device dot uses this colour. */}
-        {route.result && [{ color: '#ffffff', weight: 9 }, { color: '#d946ef', weight: 5 }].map(o => (
-          <Polyline key={o.color} positions={route.result!.geometry.coordinates.map(([lon, lat]) => [lat, lon] as [number, number])} pathOptions={o} />
-        ))}
-        {route.start && <CircleMarker center={latlng(route.start)} radius={6} pathOptions={{ color: '#fff', weight: 2, fillColor: '#d946ef', fillOpacity: 1 }} />}
-        {route.end && <CircleMarker center={latlng(route.end)} radius={6} pathOptions={{ color: '#fff', weight: 2, fillColor: '#86198f', fillOpacity: 1 }} />}
+        {/* Own pane above the overlay pane (400): a re-created GeoJSON layer must not cover the route. */}
+        <Pane name="route" style={{ zIndex: 450 }}>
+          {/* White casing under a fuchsia line: no layer, area or device dot uses this colour. */}
+          {route.result && [{ color: '#ffffff', weight: 9 }, { color: '#d946ef', weight: 5 }].map(o => (
+            <Polyline key={o.color} positions={route.result!.geometry.coordinates.map(([lon, lat]) => [lat, lon] as [number, number])} pathOptions={o} />
+          ))}
+          {route.start && <CircleMarker center={latlng(route.start)} radius={6} pathOptions={{ color: '#fff', weight: 2, fillColor: '#d946ef', fillOpacity: 1 }} />}
+          {route.end && <CircleMarker center={latlng(route.end)} radius={6} pathOptions={{ color: '#fff', weight: 2, fillColor: '#86198f', fillOpacity: 1 }} />}
+        </Pane>
         <FitBounds data={data} />
         <ResizeAfterOpen />
       </MapContainer>
