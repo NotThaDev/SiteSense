@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import L from 'leaflet'
 import type { Feature, FeatureCollection, Geometry } from 'geojson'
-import { GeoJSON, MapContainer, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, GeoJSON, MapContainer, Pane, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { ApiError, api, toastError } from '@/api'
+import { ApiError, api, toastError, type RouteResponse } from '@/api'
 import { useSession } from '@/session'
 import { useSiteEvents, type SiteEvents, type Status } from '@/realtime'
 
@@ -16,6 +17,13 @@ const LEGEND: [string, string][] = [
   ['Perimeter', '#1f2937'], ['Work', '#3b82f6'], ['Rest', '#22c55e'], ['Parking', '#9ca3af'],
   ['Restricted', '#f97316'], ['Hazard', '#ef4444'], ['Path', '#374151'], ['Assembly point', '#16a34a'], ['Entrance', '#2563eb'],
 ]
+// Legend label -> the layer id a feature belongs to (the perimeter has none: always shown).
+const layerOf = (p: Props) => p.kind === 'area' ? (p.areaType === 'perimeter' ? undefined : String(p.areaType)) : p.kind === 'path' ? 'path' : p.kind === 'assemblyPoint' ? 'assembly' : p.kind === 'entrance' ? 'entrance' : undefined
+const LAYER_ID: Record<string, string> = { Work: 'work', Rest: 'rest', Parking: 'parking', Restricted: 'restricted', Hazard: 'hazard', Path: 'path', 'Assembly point': 'assembly', Entrance: 'entrance' }
+
+type Pt = { lat: number; lon: number }
+type RouteState = { mode: boolean; start?: Pt; end?: Pt; result?: RouteResponse }
+const fmtRoute = (r: RouteResponse) => { const s = Math.round(r.durationS); return `${Math.round(r.distanceM)} m · ${Math.floor(s / 60)} min ${s % 60} s` }
 
 function style(f?: Feature<Geometry, Props>): L.PathOptions {
   const p = f?.properties ?? {}
@@ -114,6 +122,12 @@ const CHIP: Record<Status, [string, string]> = {
   live: ['Live', 'bg-green-600 text-white'], reconnecting: ['Reconnecting…', 'bg-amber-500 text-black'], offline: ['Offline', 'bg-gray-500 text-white'],
 }
 
+// Captures the two clicks of the route tool; inactive outside route mode.
+function RouteClicks({ active, onPoint }: { active: boolean; onPoint: (p: Pt) => void }) {
+  useMapEvents({ click: e => { if (active) onPoint({ lat: e.latlng.lat, lon: e.latlng.lng }) } })
+  return null
+}
+
 function FitBounds({ data }: { data: FeatureCollection }) {
   const map = useMap()
   useEffect(() => {
@@ -133,42 +147,74 @@ function ResizeAfterOpen() {
 
 // The map itself, used in the card and in the large dialog.
 // isolate: Leaflet's z-indexes (400–1000) stay inside the map, so popovers and dialogs draw above it.
-function MapCanvas({ data, etag, live, individuals, now }: { data: FeatureCollection; etag: string; live: SiteEvents; individuals: boolean; now: number }) {
+function MapCanvas({ data, etag, live, individuals, now, hidden, onToggle, route, onRoutePoint }: {
+  data: FeatureCollection; etag: string; live: SiteEvents; individuals: boolean; now: number
+  hidden: Set<string>; onToggle: (id: string) => void
+  route: RouteState; onRoutePoint: (p: Pt) => void
+}) {
   const geo = useRef<L.GeoJSON>(null)
   const occ = useRef(live.occupancy)
   occ.current = live.occupancy
   const [label, chip] = CHIP[live.status]
+  const filterKey = [...hidden].sort().join(',')
+  const hint = route.mode ? (route.start ? 'Click the destination on the map' : 'Click the start on the map') : undefined
+  const latlng = (p: Pt): [number, number] => [p.lat, p.lon]
   return (
     <div className="relative isolate h-full overflow-hidden rounded-xl border">
       <MapContainer center={[0, 0]} zoom={2} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
-        <GeoJSON key={etag} ref={geo} data={data}
+        <GeoJSON key={`geo-${etag}-${filterKey}-${route.mode}`} ref={geo} data={data}
+          filter={f => { const id = layerOf((f.properties ?? {}) as Props); return !id || !hidden.has(id) }}
           style={f => style(f as Feature<Geometry, Props>)}
           pointToLayer={(f, latlng) => L.circleMarker(latlng, style(f as Feature<Geometry, Props>))}
           // Top-left padding keeps an opened popup clear of the zoom control.
-          onEachFeature={(f, layer) => layer.bindPopup(() => popup(f as Feature<Geometry, Props>, occ.current.get(String((f.properties as Props).id))), { autoPanPaddingTopLeft: L.point(60, 60) })} />
-        <LiveLayers key={etag} geo={geo} live={live} individuals={individuals} now={now} />
+          onEachFeature={(f, layer) => !route.mode && layer.bindPopup(() => popup(f as Feature<Geometry, Props>, occ.current.get(String((f.properties as Props).id))), { autoPanPaddingTopLeft: L.point(60, 60) })} />
+        <LiveLayers key={`live-${etag}-${filterKey}-${route.mode}`} geo={geo} live={live} individuals={individuals} now={now} />
+        <RouteClicks active={route.mode} onPoint={onRoutePoint} />
+        {/* Own pane above the overlay pane (400): a re-created GeoJSON layer must not cover the route. */}
+        <Pane name="route" style={{ zIndex: 450 }}>
+          {/* White casing under a fuchsia line: no layer, area or device dot uses this colour. */}
+          {route.result && [{ color: '#ffffff', weight: 9 }, { color: '#d946ef', weight: 5 }].map(o => (
+            <Polyline key={o.color} positions={route.result!.geometry.coordinates.map(([lon, lat]) => [lat, lon] as [number, number])} pathOptions={o} />
+          ))}
+          {route.start && <CircleMarker center={latlng(route.start)} radius={6} pathOptions={{ color: '#fff', weight: 2, fillColor: '#d946ef', fillOpacity: 1 }} />}
+          {route.end && <CircleMarker center={latlng(route.end)} radius={6} pathOptions={{ color: '#fff', weight: 2, fillColor: '#86198f', fillOpacity: 1 }} />}
+        </Pane>
         <FitBounds data={data} />
         <ResizeAfterOpen />
       </MapContainer>
       <span className={`absolute top-2 left-14 rounded-full px-2 py-0.5 text-xs font-medium shadow ${chip}`} style={{ zIndex: 1000 }} role="status">{label}</span>
+      <div className="absolute top-12 left-14 flex flex-col items-start gap-1" style={{ zIndex: 1000 }}>
+        {hint && <span className="rounded bg-background/90 px-2 py-0.5 text-xs shadow" role="status">{hint}</span>}
+        {route.result && <span className="rounded bg-background/90 px-2 py-0.5 text-xs font-medium shadow" role="status">{fmtRoute(route.result)}</span>}
+      </div>
       <ul className="absolute bottom-2 left-2 rounded-md border bg-background/90 p-2 text-xs shadow" style={{ zIndex: 1000 }}>
-        {LEGEND.map(([label, color]) => (
-          <li key={label} className="flex items-center gap-1.5">
-            <span className="inline-block size-2.5 rounded-sm" style={{ background: color }} />{label}
-          </li>
-        ))}
+        {LEGEND.map(([label, color]) => {
+          const id = LAYER_ID[label]
+          const swatch = <span className="inline-block size-2.5 rounded-sm" style={{ background: color }} />
+          return (
+            <li key={label}>
+              {id ? (
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input type="checkbox" checked={!hidden.has(id)} onChange={() => onToggle(id)} />{swatch}{label}
+                </label>
+              ) : <span className="flex items-center gap-1.5 pl-[1.3rem]">{swatch}{label}</span>}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
 }
 
-export default function MapView({ siteId, reloadKey }: { siteId: string; reloadKey: number }) {
+export default function MapView({ siteId, reloadKey, actionsEl }: { siteId: string; reloadKey: number; actionsEl?: HTMLElement | null }) {
   const [data, setData] = useState<FeatureCollection | null>(null)
   const [etag, setEtag] = useState('')
   const [empty, setEmpty] = useState(false)
   const [large, setLarge] = useState(false)
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
+  const [route, setRoute] = useState<RouteState>({ mode: false })
   const { can } = useSession()
   const live = useSiteEvents(siteId)
   // Re-evaluates the fade and the pulses without waiting for an event.
@@ -182,11 +228,39 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
       })
   }, [siteId, reloadKey])
 
+  // A new map drops the old route.
+  useEffect(() => { setRoute({ mode: false }) }, [etag])
+  useEffect(() => {
+    if (!route.mode) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setRoute({ mode: false }) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [route.mode])
+  const toggle = (id: string) => setHidden(h => { const n = new Set(h); if (!n.delete(id)) n.add(id); return n })
+  const onPoint = (p: Pt) => {
+    if (!route.start) { setRoute({ mode: true, start: p }); return }
+    setRoute({ mode: false, start: route.start, end: p })
+    api<RouteResponse>('POST', `/sites/${siteId}/routes`, { body: { from: route.start, to: p } })
+      .then(r => setRoute(s => ({ ...s, result: r.data })))
+      .catch(err => { toastError(err); setRoute({ mode: false }) })
+  }
+
   if (empty) return <p className="text-sm text-muted-foreground">{can.manage ? 'Upload a map to see it here' : 'No map for this site yet.'}</p>
   if (!data) return null
-  const canvas = <MapCanvas data={data} etag={etag} live={live} individuals={can.seeIndividuals} now={now} />
+  const canvas = <MapCanvas data={data} etag={etag} live={live} individuals={can.seeIndividuals} now={now} hidden={hidden} onToggle={toggle}
+    route={route} onRoutePoint={onPoint} />
+  // The same buttons sit in the card header (portal) and at the top of the enlarged dialog.
+  const buttons = (
+    <div className="flex justify-end gap-2">
+      <Button type="button" size="sm" variant={route.mode ? 'secondary' : 'outline'} onClick={() => setRoute(r => r.mode ? { mode: false } : { mode: true })}>
+        {route.mode ? 'Cancel' : 'Plan a walking route'}
+      </Button>
+      {!route.mode && route.result && <Button type="button" size="sm" variant="outline" onClick={() => setRoute({ mode: false })}>Clear route</Button>}
+    </div>
+  )
   return (
     <div className="grid gap-3">
+      {actionsEl && createPortal(buttons, actionsEl)}
       <div className="relative" style={{ height: 420 }}>
         {canvas}
         <Button type="button" variant="outline" size="icon" onClick={() => setLarge(true)} className="absolute top-2 right-2 shadow"
@@ -196,6 +270,8 @@ export default function MapView({ siteId, reloadKey }: { siteId: string; reloadK
         <Dialog open={large} onOpenChange={setLarge}>
           <DialogContent className="flex h-[90vh] w-[95vw] max-w-[95vw] flex-col p-2 sm:max-w-[95vw]">
             <DialogTitle className="sr-only">Site map</DialogTitle>
+            {/* Right padding keeps the buttons clear of the dialog's close X. */}
+            <div className="pr-10">{buttons}</div>
             <div className="min-h-0 flex-1">{large && canvas}</div>
           </DialogContent>
         </Dialog>

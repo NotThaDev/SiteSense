@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
@@ -49,6 +49,7 @@ function MapCard({ siteId, manage }: { siteId: string; manage: boolean }) {
   const [version, setVersion] = useState<number | null>(null)
   const [errors, setErrors] = useState<{ elementId: string | null; reason: string }[]>([])
   const [reloadKey, setReloadKey] = useState(0)
+  const [actions, setActions] = useState<HTMLDivElement | null>(null)
   const upload = async (e: FormEvent) => {
     e.preventDefault()
     if (!file) return
@@ -65,9 +66,9 @@ function MapCard({ siteId, manage }: { siteId: string; manage: boolean }) {
   }
   return (
     <Card>
-      <CardHeader><CardTitle>Map</CardTitle></CardHeader>
+      <CardHeader><CardTitle>Map</CardTitle><CardAction ref={setActions} /></CardHeader>
       <CardContent className="grid gap-3">
-        <MapView siteId={siteId} reloadKey={reloadKey} />
+        <MapView siteId={siteId} reloadKey={reloadKey} actionsEl={actions} />
         {manage && <form onSubmit={upload} className="flex flex-wrap items-end gap-2">
           <div className="grid gap-1.5">
             <Label htmlFor="mapFile">GeoJSON file</Label>

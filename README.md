@@ -104,7 +104,7 @@ Setup runs by default: it creates the site, uploads the map and registers the de
 
 ## Admin UI
 
-A small React UI (sites, map upload and Leaflet map view on OpenStreetMap tiles, devices), a separate `ui` container (nginx) that serves the build and proxies the API, so the browser sees one origin. Log in goes through Keycloak.
+A small React UI (sites, map upload and Leaflet map view on OpenStreetMap tiles, devices), a separate `ui` container (nginx) that serves the build and proxies the API, so the browser sees one origin. Log in goes through Keycloak. The map card has a "Plan a walking route" button (click start and destination; it draws the fastest walking route with distance and time) and a show/hide checkbox per layer; the perimeter and live devices always stay on.
 
 Every role can open the UI; what it shows follows the capabilities from `GET /api/v1/me`, not role names. Admin manages sites, maps and devices; Safety and Viewer get read-only pages. The site map is live over the SignalR hub: area occupancy for all roles, plus device dots and a live alerts list for Safety, with a Live / Reconnecting / Offline chip. Browser origins allowed to open the hub are set in `Auth:UiOrigins`.
 
