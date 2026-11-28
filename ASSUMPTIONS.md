@@ -707,6 +707,38 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: TRK-04
 - Status: Accepted
 
+## Q46 — Does the occupancy response list empty areas and the perimeter?
+- Assumption: every area of the current map is listed, the perimeter included, with count 0 when empty.
+- Why: the contract is silent; a fixed list lets a client clear a label and reconcile with `OccupancyChanged`.
+- Alternatives rejected:
+  - Only areas with count > 0: a client cannot tell "0" from "unknown".
+- Requirement IDs: EVT-01
+- Status: Accepted
+
+## Q124 — Which devices does the occupancy count skip?
+- Assumption: a device with no map, or whose last point has an `AreaId` not in the current map, is not counted.
+- Why: a count must name an area of the map the client sees; Q28 already gives every point of a mapped site an area.
+- Alternatives rejected:
+  - Count it under the perimeter: it would hide a map replaced after the point was written.
+- Requirement IDs: EVT-01
+- Status: Accepted
+
+## Q125 — What does `OccupancyChanged` carry?
+- Assumption: the full snapshot of the site, `{ areas: [{ areaId, count }] }`, the same as `GET /occupancy`; sent only when it differs from the last one published for the site.
+- Why: a client that missed an event is corrected by the next one, and the payload is the same on the hub and on the endpoint.
+- Alternatives rejected:
+  - Only changed areas: a missed event leaves a wrong count until a full refresh.
+- Requirement IDs: EVT-01, RTM-02
+- Status: Accepted
+
+## Q126 — Who drops a silent device from the count?
+- Assumption: a per-minute site job (`occupancy`) recomputes and publishes when the snapshot changed, so a device older than 5 minutes leaves the count without a new position.
+- Why: the push and `GET /occupancy` agree within a minute (SS-35 plan).
+- Alternatives rejected:
+  - Only on the next position: a site where everyone went silent would show stale counts.
+- Requirement IDs: EVT-01
+- Status: Accepted
+
 ## Q29 — When is a device "silent", and what about a device that left the site?
 - Assumption: a device is silent when its last valid position (last track point) is older than the tenant's `SilentAfterMinutes`. Silence is not evaluated when that last position is within 15 m of a map entrance (`SilentDevicesJob.EntranceRadiusM`): out-of-perimeter positions are discarded, so an exit is never seen and the device would look silent. The alarm time is the last-seen time and its area is the last known area, so the alert id is the same on every run: one alarm per silence episode. When the device transmits again, the Active alert is ended. A device that goes silent again has a new last-seen time, hence a new alarm. The job passes `late = false` (the late rule is SS-29).
 - Why: without the entrance rule every worker who leaves the site raises a false alarm; a stable id gives idempotent retries (JOB-02) with no extra state.

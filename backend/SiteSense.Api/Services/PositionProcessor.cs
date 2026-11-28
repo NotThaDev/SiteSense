@@ -11,7 +11,7 @@ namespace SiteSense.Api.Services;
 
 // Ordered processing (TRK-02, Q06, Q100): one worker, so each device runs alone and in timestamp order. Drain is per tenant (Q102).
 // Reads SiteSenseContext on every call, never in a field (Q38): test hosts replace it.
-public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager alarms, ILogger<PositionProcessor> logger, IOptions<TrackingOptions> tracking) : BackgroundService
+public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager alarms, OccupancyService occupancy, ILogger<PositionProcessor> logger, IOptions<TrackingOptions> tracking) : BackgroundService
 {
     // A device missing from _devices is idle.
     private enum RunState { Queued, Running, RunningDirty }
@@ -154,6 +154,7 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager
             {
                 await DeviceProcessing.SaveAsync(tenantId, doc, ct);
                 await PublishAsync(tenantId, deviceId, device, keptFresh, ct);
+                if (raw.Count > 0 && device is not null) await PublishOccupancyAsync(tenantId, device.SiteId, ct);
                 return;
             }
             catch (ConcurrencyException)
@@ -198,6 +199,23 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager
                 // No coordinates in the log (PRV).
                 logger.LogWarning(ex, "PositionUpdated not published for device {DeviceId} at {TimestampMs}", deviceId, p.TimestampMs);
             }
+        }
+    }
+
+    // Once per run, not per point: a device back after a silence changes the count without changing area. Never fails the run.
+    private async Task PublishOccupancyAsync(string tenantId, string siteId, CancellationToken ct)
+    {
+        try
+        {
+            await occupancy.PublishIfChangedAsync(tenantId, siteId, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Occupancy not published for site {SiteId} in tenant {TenantId}", siteId, tenantId);
         }
     }
 }

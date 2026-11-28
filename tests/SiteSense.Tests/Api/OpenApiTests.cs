@@ -67,6 +67,7 @@ public sealed class OpenApiTests : IClassFixture<ApiFactory>
         Assert.True(paths.TryGetProperty("/api/v1/sites", out _));
         Assert.True(paths.TryGetProperty("/api/v1/sites/{siteId}", out _));
         Assert.True(paths.GetProperty("/api/v1/sites/{siteId}/devices").TryGetProperty("get", out _));
+        Assert.True(paths.GetProperty("/api/v1/sites/{siteId}/occupancy").TryGetProperty("get", out _));
     }
 
     [Fact]
