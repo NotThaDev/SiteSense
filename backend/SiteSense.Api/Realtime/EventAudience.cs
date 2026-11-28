@@ -11,6 +11,7 @@ public static class EventAudience
     {
         [EventTypes.PositionUpdated] = SiteSensePolicies.CanSeeIndividuals,
         [EventTypes.AlertRaised] = SiteSensePolicies.CanSeeIndividuals, // Q36
+        [EventTypes.AlertUpdated] = SiteSensePolicies.CanSeeIndividuals, // same audience as AlertRaised
         [EventTypes.OccupancyChanged] = SiteSensePolicies.CanSeeAggregates,
     };
 

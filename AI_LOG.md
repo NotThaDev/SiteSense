@@ -127,3 +127,21 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): "what is missing for SS-41 and SS-42", then "prepare everything for delivery".
 - AI produced: the gap list (missing endpoints, missing NF-02 tests, ADR number clash), ADR 0004 (anomaly detector parameters, Proposed), the KNOWN_ISSUES "Delivery" section, and the rename of the position-storage ADR to 0003.
 - Corrected or discarded: the memory index still said "ZIP via `git archive`", which drops `.git` (the delivery ZIP must include it). It was corrected to a fresh `git clone`. In ADR 0004 the AI claimed that "trial series" had been used to choose the SR-CNN threshold. No trials were run, so the claim was removed and the threshold is marked as not tuned. The ADR stays Proposed because the detector is not implemented.
+
+## 2026-11-28 — SS-24: Plausibility and noise filter
+- Goal: keep GPS jumps out of the track and smooth the noise, with a replay-safe filter (TRK-03, Q26).
+- Prompt (summary): implement the SS-24 plan (`TrackingOptions`, `TrackFilter`, tombstones, processor wiring, tests) without commit or push.
+- AI produced: `TrackingOptions` and validator, `TrackFilter`, `Dropped` tombstones in `TrackPoint`, processor wiring, unit and API tests (Haiku).
+- Corrected or discarded: `NewPositionsAsync` keeps the raw-log revision check instead of folding all revisions, because a fold would republish a point kept under an older revision; only kept points are published.
+
+## 2026-11-28 — SS-25: Area with hysteresis
+- Goal: give every kept track point an area with hysteresis, so GPS noise on a border does not flip the area (TRK-04, Q27, Q28, Q119).
+- Prompt (summary): implement the SS-25 plan (`SiteAreas`, `AreaAssigner`, options, processor wiring, tests, records) without commit or push.
+- AI produced: `SiteAreas`, `AreaAssigner`, the two options and their validation, processor wiring, unit and API tests, and the Q27, Q28, Q119 records (Haiku subagent).
+- Corrected or discarded: none in the code. The plan's "inside by m" uses the boundary tolerance of `PlanarGeometry.Locate`, so it means inside and more than m from every edge.
+
+## 2026-11-28 — SS-28: Alarm core and AreaIntrusion
+- Goal: one entry point for alarms (`AlarmManager`), an alerts endpoint and page, and the `AreaIntrusion` alarm raised from position processing.
+- Prompt (summary): plan SS-28 with the plan / validate / approve / implement / verify workflow, two stacked PRs (core, then the detector).
+- AI produced: plan, `Alert`, `AlarmManager`, alerts endpoint, Alarms page, shared area projection, `AreaIntrusionDetector`, tests, these records.
+- Corrected or discarded: the detector runs before the device state is saved (an exception keeps the dirty marker) instead of after, so a crash cannot lose an alarm for good.
