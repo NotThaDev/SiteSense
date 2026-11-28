@@ -4,12 +4,13 @@ using SiteSense.Domain.Geometry;
 
 namespace SiteSense.Api.Alarms;
 
-// One alarm per entry of a device into a restricted or hazard area (EVT-02, SS-28). Stateless: the previous point comes from the track.
+// One alarm per stay of a device in a restricted or hazard area (EVT-02, SS-28). Stateless: the earlier points come from the track.
 public static class AreaIntrusionDetector
 {
     private const double BoundaryToleranceM = 0.5;
     private const long LookbackMs = 10 * 60_000;
-    private const long ReentryCooldownMs = 30_000;
+    // A change of side counts only after 30 s of samples on the new side (GPS jitter at an edge).
+    private const long DwellMs = 30_000;
 
     // Throws on failure so the processor keeps the dirty marker and retries (alarm ids are stable).
     // Runs after the run's track append: the lookback read stops before the first fresh point, so it never sees this run's points.
@@ -26,27 +27,36 @@ public static class AreaIntrusionDetector
         var points = fresh.OrderBy(p => p.TimestampMs).ToList();
         var first = points[0].TimestampMs;
         var before = await TrackPoint.ReadAsync(tenantId, deviceId, first - LookbackMs, first, ct);
-        (double X, double Y)? previous = before.Count > 0 ? projection.ToLocal(before[^1].Lon, before[^1].Lat) : null;
+        // Lookback points only rebuild the state; a flip they cause was already handled when they were fresh.
+        var walk = before.Select(t => (t.TimestampMs, t.Lon, t.Lat, IsFresh: false))
+            .Concat(points.Select(p => (p.TimestampMs, p.Lon, p.Lat, IsFresh: true)));
 
-        foreach (var p in points)
+        var states = areas.ToDictionary(a => a.Id, _ => (Inside: false, Since: (long?)null));
+        foreach (var (ts, lon, lat, isFresh) in walk)
         {
-            var here = projection.ToLocal(p.Lon, p.Lat);
+            var here = projection.ToLocal(lon, lat);
             foreach (var area in areas)
             {
-                var wasIn = previous is { } q && IsIn(q, area);
-                var isIn = IsIn(here, area);
-                if (isIn && !wasIn)
+                var (inside, since) = states[area.Id];
+                if (IsIn(here, area) == inside)
                 {
-                    // Re-entry within the cooldown reopens the previous alarm instead of raising a new one (flapping).
-                    var previousAlert = await Alert.FindReactivatableAsync(tenantId, device.SiteId, deviceId, area.Id, p.TimestampMs, ReentryCooldownMs, ct);
-                    if (previousAlert is not null) await alarms.ReactivateAlarmAsync(tenantId, previousAlert.Id, ct);
-                    else await alarms.NotifyAlarmAsync(tenantId, device.SiteId, AlertTypes.AreaIntrusion, deviceId, area.Id, p.TimestampMs, late, ct);
+                    states[area.Id] = (inside, null);
+                    continue;
                 }
-                else if (wasIn && !isIn)
+                since ??= ts;
+                if (ts - since < DwellMs)
+                {
+                    states[area.Id] = (inside, since);
+                    continue;
+                }
+                states[area.Id] = (!inside, null);
+                if (!isFresh) continue;
+                if (!inside)
+                    await alarms.NotifyAlarmAsync(tenantId, device.SiteId, AlertTypes.AreaIntrusion, deviceId, area.Id, since.Value, late, ct);
+                else
                     foreach (var alert in await Alert.ListActiveAsync(tenantId, device.SiteId, deviceId, area.Id, ct))
-                        await alarms.DeactivateAlarmAsync(tenantId, alert.Id, p.TimestampMs, ct);
+                        await alarms.DeactivateAlarmAsync(tenantId, alert.Id, since.Value, ct);
             }
-            previous = here;
         }
     }
 

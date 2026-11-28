@@ -65,8 +65,10 @@ Known limits and what to do with more time.
 ## SS-28 — AreaIntrusion alarms
 - A late point that splits a stay inside an area can make a second alarm for the later entry (a new entry time is a new id).
 - A replay under a changed map can add an alarm for an area that did not exist when the points were first processed.
-- The previous point is read from a 10 minute lookback: after a longer gap inside an area, the next point counts as a new entry.
 - Alerts are read for the whole site and filtered in memory (`Alert.ListAsync`); slow with many alarms. With more time: one document per site and day.
+- An alarm appears 30 s after the entry (dwell, Q122); `eventTimeMs` is still the entry instant.
+- A stay already inside at the start of the 10 minute lookback is treated as starting at the first walked point; a duplicate alarm is possible only with positions sparser than the lookback.
+- An alarm of a device that goes silent stays `Active` (no exit is seen).
 - A replay can publish a duplicate `AlertUpdated` (the save is idempotent, the live event is at most once but not deduplicated).
 
 ## Delivery — not implemented

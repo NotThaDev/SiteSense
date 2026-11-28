@@ -81,7 +81,7 @@ flowchart LR
 ## Alarms
 
 A producer decides, `AlarmManager` saves and publishes: `NotifyAlarmAsync` saves an `Alert` (id = SHA-256 of type, site, device, area, event time, so a retry never duplicates) and publishes `AlertRaised`; `DeactivateAlarmAsync` sets `NotActive` and publishes `AlertUpdated`. Save first, then publish.
-`AreaIntrusionDetector` runs inside `PositionProcessor.RunAsync`, before the device state is saved, over the new points only. It projects the map's restricted and hazard areas (`SiteMap.ProjectBlockedAreas`, shared with the route graph) and compares each point with the previous one: entry raises, exit deactivates. A throw keeps the dirty marker, so the run retries.
+`AreaIntrusionDetector` runs inside `PositionProcessor.RunAsync`, before the device state is saved, over the new points only. It projects the map's restricted and hazard areas (`SiteMap.ProjectBlockedAreas`, shared with the route graph) and walks the device's points (10 minute lookback, then the new ones) with a 30 s dwell per area: a stable entry raises, a stable exit deactivates; a closed alarm is never reopened. A throw keeps the dirty marker, so the run retries.
 `GET /sites/{siteId}/alerts` reads the stored alerts for the Alarms page, which also follows both events live.
 
 ## Build settings

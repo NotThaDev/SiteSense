@@ -74,25 +74,6 @@ public sealed class AlarmManagerTests : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Reactivate_NotActiveAlert_SetsActiveClearsEndAndPublishesOnce()
-    {
-        var site = NewSiteId();
-        await _manager.NotifyAlarmAsync(Tenant, site, AlertTypes.AreaIntrusion, "dev-5", "area-1", 5000, false, CancellationToken.None);
-        var id = Alert.IdFor(AlertTypes.AreaIntrusion, site, "dev-5", "area-1", 5000);
-        await _manager.DeactivateAlarmAsync(Tenant, id, 5500, CancellationToken.None);
-
-        var first = await _manager.ReactivateAlarmAsync(Tenant, id, CancellationToken.None);
-        var second = await _manager.ReactivateAlarmAsync(Tenant, id, CancellationToken.None);
-
-        Assert.True(first);
-        Assert.False(second);
-        var stored = await Alert.GetAsync(Tenant, id, CancellationToken.None);
-        Assert.Equal(AlertStates.Active, stored!.State);
-        Assert.Null(stored.EndTimeMs);
-        Assert.Equal(new[] { EventTypes.AlertRaised, EventTypes.AlertUpdated, EventTypes.AlertUpdated }, _publisher.Types);
-    }
-
-    [Fact]
     public async Task Deactivate_UnknownAlert_ReturnsFalseAndPublishesNothing()
     {
         var ended = await _manager.DeactivateAlarmAsync(Tenant, "unknown-alert", 1, CancellationToken.None);

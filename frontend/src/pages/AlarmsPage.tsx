@@ -33,8 +33,8 @@ function AlarmsTable({ siteId, state, siteNames }: { siteId: string; state: Aler
       .then(r => { if (!stale) { setRows(r.data.items); setNextCursor(r.data.nextCursor) } })
       .catch(e => { if (!stale) { setRows([]); toastError(e) } })
     return () => { stale = true }
-    // Both tabs reload when a live update (end or reactivation) concerns an alarm not loaded on this page.
-  }, [state, live.updates.size])
+    // History also reloads when a live update ends an alarm that was not loaded on this page.
+  }, [state, state === 'NotActive' ? live.updates.size : 0])
 
   const loadMore = async () => {
     if (!nextCursor) return

@@ -655,7 +655,7 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Status: Accepted
 
 ## Q120 — When does `AreaIntrusion` raise and end an alarm?
-- Assumption: a point is in a restricted or hazard area when it is inside or within 0.5 m of its edge. An entry (in, previous point not in) raises one alarm at the entry time; an exit (not in, previous point in) ends the device's active alarms for that area at the exit time. The previous point is read from the track within 10 minutes before the run's first new point; none means outside. A replay marks `late`.
+- Assumption: a point is in a restricted or hazard area when it is inside or within 0.5 m of its edge. A stable entry raises one alarm at the entry time; a stable exit ends the device's active alarms for that area at the exit time (stability: see Q122). The previous point is read from the track within 10 minutes before the run's first new point; none means outside. A replay marks `late`.
 - Why: touching a hazard edge counts as an entry; no new per-device state, so the rule is the same on a replay.
 - Requirement IDs: EVT-02, TRK-02
 - Status: Accepted
@@ -666,8 +666,8 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: EVT-03, JOB-02
 - Status: Accepted
 
-## Q122 — What happens when a device re-enters an area right after leaving it?
-- Assumption: if the device re-enters the same area within 30 s after its `AreaIntrusion` alarm ended, that alarm is reactivated (`Active`, `EndTimeMs` cleared, `AlertUpdated` with `Active`) instead of raising a new one. After 30 s it is a new alarm.
-- Why: a GPS device jittering on an area edge would otherwise flood the table with alarms (flapping).
-- Requirement IDs: EVT-02
+## Q122 — How does `AreaIntrusion` ignore GPS jitter at an area edge?
+- Assumption: a dwell of 30 s. The device counts as inside an area only after 30 s of samples inside, and as outside only after 30 s of samples outside; a sample that agrees with the current state cancels a pending change. The alarm's `eventTimeMs` is the first sample of the stay (the entry instant), its end time is the first outside sample of the exit. A closed alarm is never reopened: a new stay is a new alarm.
+- Why: edge jitter must not flood the table, and the ids stay stable for retries and replays (EVT-03, JOB-02).
+- Requirement IDs: EVT-02, EVT-03
 - Status: Accepted

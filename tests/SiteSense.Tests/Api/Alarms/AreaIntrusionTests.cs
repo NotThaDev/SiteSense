@@ -14,8 +14,7 @@ namespace SiteSense.Tests.Api.Alarms;
 public sealed class AreaIntrusionTests : IAsyncLifetime
 {
     private const long T0 = 1793268000000;
-    private const long Minute = 60_000;
-    private const string Tenant = "tenant-a";
+        private const string Tenant = "tenant-a";
     private const string Site = "site-01";
     private const string Dev = "dev-1";
     private static readonly TimeSpan Limit = TimeSpan.FromSeconds(10);
@@ -61,12 +60,16 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
         ],
     }, CancellationToken.None);
 
-    // minute offset, in or out of the area
-    private async Task SendAsync(params (int Min, bool In)[] pts)
+    // Samples every 10 s from..to (seconds), all inside or all outside the area.
+    private static (int Sec, bool In)[] Run(int from, int to, bool inside) =>
+        Enumerable.Range(0, (to - from) / 10 + 1).Select(i => (from + i * 10, inside)).ToArray();
+
+    // seconds offset, in or out of the area
+    private async Task SendAsync(params (int Sec, bool In)[] pts)
     {
         await Position.AppendNewAsync(Tenant, Dev,
-            pts.Select(x => new Position(Dev, T0 + x.Min * Minute, x.In ? InLat : OutLat, x.In ? InLon : OutLon, 4.5)).ToList(), CancellationToken.None);
-        await DeviceProcessing.MarkDirtyAsync(Tenant, Dev, T0 + pts.Min(x => x.Min) * Minute, CancellationToken.None);
+            pts.Select(x => new Position(Dev, T0 + x.Sec * 1000L, x.In ? InLat : OutLat, x.In ? InLon : OutLon, 4.5)).ToList(), CancellationToken.None);
+        await DeviceProcessing.MarkDirtyAsync(Tenant, Dev, T0 + pts.Min(x => x.Sec) * 1000L, CancellationToken.None);
         _p.Enqueue(Tenant, Dev);
     }
 
@@ -75,102 +78,120 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     private async Task<List<Alert>> AlertsAsync() =>
         (await Alert.ListAsync(Tenant, Site, CancellationToken.None)).OrderBy(a => a.EventTimeMs).ToList();
 
-    [Fact]
-    public async Task WalkInOutIn_TwoAlarms_FirstNotActiveAfterExit()
+    private async Task<List<Alert>> SendAndDrainAsync(params (int Sec, bool In)[] pts)
     {
-        await SaveMapAsync();
-        await SendAsync((1, false), (2, true), (3, true), (4, false), (6, true));
+        await SendAsync(pts);
         Assert.True(await DrainAsync());
-
-        var alerts = await AlertsAsync();
-        Assert.Equal(2, alerts.Count);
-        Assert.Equal(T0 + 2 * Minute, alerts[0].EventTimeMs);
-        Assert.Equal(AlertStates.NotActive, alerts[0].State);
-        Assert.Equal(T0 + 4 * Minute, alerts[0].EndTimeMs);
-        Assert.Equal(T0 + 6 * Minute, alerts[1].EventTimeMs);
-        Assert.Equal(AlertStates.Active, alerts[1].State);
-        Assert.All(alerts, a => Assert.False(a.Late));
-        Assert.All(alerts, a => Assert.Equal("area-1", a.AreaId));
-    }
-
-    // seconds offset, in or out of the area
-    private async Task SendSecAsync(params (int Sec, bool In)[] pts)
-    {
-        await Position.AppendNewAsync(Tenant, Dev,
-            pts.Select(x => new Position(Dev, T0 + x.Sec * 1000L, x.In ? InLat : OutLat, x.In ? InLon : OutLon, 4.5)).ToList(), CancellationToken.None);
-        await DeviceProcessing.MarkDirtyAsync(Tenant, Dev, T0 + pts.Min(x => x.Sec) * 1000L, CancellationToken.None);
-        _p.Enqueue(Tenant, Dev);
+        return await AlertsAsync();
     }
 
     [Fact]
-    public async Task ReentryWithinCooldown_ReactivatesTheSameAlarm_AndReplayAddsNothing()
+    public async Task StayOf40Seconds_RaisesOneActiveAlarmAtTheFirstInsidePoint()
     {
         await SaveMapAsync();
-        await SendSecAsync((0, false), (10, true), (20, false), (30, true));
-        Assert.True(await DrainAsync());
-        await SendSecAsync((0, false), (10, true), (20, false), (30, true));
-        Assert.True(await DrainAsync());
+        var alert = Assert.Single(await SendAndDrainAsync([(0, false), .. Run(10, 50, true)]));
+        Assert.Equal(T0 + 10_000, alert.EventTimeMs);
+        Assert.Equal(AlertStates.Active, alert.State);
+        Assert.False(alert.Late);
+        Assert.Equal("area-1", alert.AreaId);
+    }
 
-        var alert = Assert.Single(await AlertsAsync());
+    [Fact]
+    public async Task StayOf20Seconds_ThenOut_NoAlarm()
+    {
+        await SaveMapAsync();
+        Assert.Empty(await SendAndDrainAsync([(0, false), .. Run(10, 30, true), .. Run(40, 100, false)]));
+    }
+
+    [Fact]
+    public async Task BoundaryJitterWithin30Seconds_NoAlarm()
+    {
+        await SaveMapAsync();
+        Assert.Empty(await SendAndDrainAsync((0, false), (5, true), (10, false), (15, true), (20, false), (25, true), (30, false)));
+    }
+
+    [Fact]
+    public async Task ShortOutsideBlipInsideAStay_KeepsTheSameActiveAlarm()
+    {
+        await SaveMapAsync();
+        var alert = Assert.Single(await SendAndDrainAsync([.. Run(0, 40, true), (50, false), .. Run(60, 100, true)]));
+        Assert.Equal(AlertStates.Active, alert.State);
+        Assert.Equal(T0, alert.EventTimeMs);
+    }
+
+    [Fact]
+    public async Task Exit_After40SecondsOutside_DeactivatesAtTheFirstOutsidePoint()
+    {
+        await SaveMapAsync();
+        var alert = Assert.Single(await SendAndDrainAsync([.. Run(0, 40, true), .. Run(50, 90, false)]));
+        Assert.Equal(AlertStates.NotActive, alert.State);
+        Assert.Equal(T0 + 50_000, alert.EndTimeMs);
+    }
+
+    [Fact]
+    public async Task OutsideOnly20Seconds_ThenBackIn_AlarmStaysActive()
+    {
+        await SaveMapAsync();
+        var alert = Assert.Single(await SendAndDrainAsync([.. Run(0, 40, true), .. Run(50, 70, false), .. Run(80, 120, true)]));
         Assert.Equal(AlertStates.Active, alert.State);
         Assert.Null(alert.EndTimeMs);
     }
 
     [Fact]
-    public async Task ReentryAfterCooldown_RaisesANewAlarm()
+    public async Task InOutIn_TwoAlarms_FirstNotActiveSecondActive_NeverReopened()
     {
         await SaveMapAsync();
-        await SendSecAsync((0, false), (10, true), (20, false), (80, true));
-        Assert.True(await DrainAsync());
+        var alerts = await SendAndDrainAsync([.. Run(0, 40, true), .. Run(50, 90, false), .. Run(100, 140, true)]);
 
-        var alerts = await AlertsAsync();
         Assert.Equal(2, alerts.Count);
+        Assert.Equal(T0, alerts[0].EventTimeMs);
         Assert.Equal(AlertStates.NotActive, alerts[0].State);
+        Assert.Equal(T0 + 50_000, alerts[0].EndTimeMs);
+        Assert.Equal(T0 + 100_000, alerts[1].EventTimeMs);
         Assert.Equal(AlertStates.Active, alerts[1].State);
     }
 
     [Fact]
-    public async Task FirstPointInside_IsAnEntry_AndNextBatchContinuesTheStay()
+    public async Task ReplayOfTheSameBatch_AddsNothingAndChangesNothing()
     {
         await SaveMapAsync();
-        await SendAsync((1, true));
-        Assert.True(await DrainAsync());
-        await SendAsync((2, true), (3, true));
-        Assert.True(await DrainAsync());
+        (int, bool)[] batch = [.. Run(0, 40, true), .. Run(50, 90, false), .. Run(100, 140, true)];
+        var before = await SendAndDrainAsync(batch);
+        var after = await SendAndDrainAsync(batch);
 
-        Assert.Single(await AlertsAsync());
+        Assert.Equal(2, after.Count);
+        Assert.Equal(before.Select(a => (a.Id, a.State, a.EndTimeMs)), after.Select(a => (a.Id, a.State, a.EndTimeMs)));
     }
 
     [Fact]
-    public async Task ReplayOfTheSameBatch_AddsNoAlarm()
+    public async Task ConfirmationSplitAcrossTwoBatches_RaisesOnceInBatch2WithTheEntryTimeOfBatch1()
     {
         await SaveMapAsync();
-        await SendAsync((1, false), (2, true), (3, false));
-        Assert.True(await DrainAsync());
-        await SendAsync((1, false), (2, true), (3, false));
-        Assert.True(await DrainAsync());
-
-        Assert.Single(await AlertsAsync());
+        Assert.Empty(await SendAndDrainAsync((0, false), (10, true), (20, true)));
+        var alert = Assert.Single(await SendAndDrainAsync((30, true), (40, true), (50, true)));
+        Assert.Equal(T0 + 10_000, alert.EventTimeMs);
+        Assert.Equal(AlertStates.Active, alert.State);
+        Assert.False(alert.Late);
     }
 
     [Fact]
     public async Task LateBatch_IsMarkedLate()
     {
         await SaveMapAsync();
-        await SendAsync((10, false));
+        await SendAsync((600, false));
         Assert.True(await DrainAsync());
-        await SendAsync((5, false), (6, true));
+        await SendAsync((300, false), (360, true), (400, true));
         Assert.True(await DrainAsync());
 
         var alert = Assert.Single(await AlertsAsync());
         Assert.True(alert.Late);
-        Assert.Equal(T0 + 6 * Minute, alert.EventTimeMs);
+        Assert.Equal(T0 + 360_000, alert.EventTimeMs);
     }
 
     [Fact]
     public async Task SiteWithoutMap_NoAlarm()
     {
-        await SendAsync((1, true), (2, true));
+        await SendAsync(Run(0, 40, true));
         Assert.True(await DrainAsync());
 
         Assert.Empty(await AlertsAsync());
@@ -182,7 +203,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     public async Task AreaType_OnlyRestrictedAndHazardRaise(string areaType, bool expectAlarm = false)
     {
         await SaveMapAsync(areaType);
-        await SendAsync((1, false), (2, true));
+        await SendAsync([(0, false), .. Run(10, 50, true)]);
         Assert.True(await DrainAsync());
 
         Assert.Equal(expectAlarm ? 1 : 0, (await AlertsAsync()).Count);
@@ -193,7 +214,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     {
         await SaveMapAsync();
         _store.FailAlertSave = true;
-        await SendAsync((1, false), (2, true));
+        await SendAsync([(0, false), .. Run(10, 50, true)]);
         Assert.False(await DrainAsync());
         Assert.NotNull((await DeviceProcessing.GetAsync(Tenant, Dev, CancellationToken.None))!.DirtyFromMs);
 
