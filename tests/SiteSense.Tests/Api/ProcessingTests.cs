@@ -73,7 +73,7 @@ internal static class ProcessingHelpers
     public static Task<IReadOnlyList<TrackPoint>> TrackAsync(string root, string tenant, string deviceId) =>
         new FileAppendLog(root).ReadRangeAsync<TrackPoint>(tenant, deviceId, 0, long.MaxValue, CancellationToken.None)
             .ContinueWith(t => (IReadOnlyList<TrackPoint>)t.Result.GroupBy(p => p.TimestampMs)
-                .Select(g => g.OrderByDescending(p => p.Revision).First()).OrderBy(p => p.TimestampMs).ToList());
+                .Select(g => g.OrderByDescending(p => p.Revision).First()).OrderBy(p => p.TimestampMs).Where(p => !p.Dropped).ToList());
 }
 
 [Collection("Api")]
@@ -85,6 +85,16 @@ public sealed class ProcessingTests : IClassFixture<TestModeApiFactory>, IDispos
     public ProcessingTests(TestModeApiFactory factory) => _factory = factory;
 
     public void Dispose() => SiteSenseContext.Time = _originalTime;
+
+    // About 1 km south of Inside and still in the perimeter: one minute away it is a jump (SS-24).
+    private static P Jump(long timestampMs) => new(timestampMs, 37.5105, 15.07, 1);
+
+    private async Task SendPointsAsync(string device, params P[] points)
+    {
+        var body = JsonSerializer.Serialize(new { deviceId = device, positions = points }, JsonSerializerOptions.Web);
+        var response = await ProcessingHelpers.Client(_factory, "tenant-a", scope: "positions:write").PostAsync("/api/v1/positions", ProcessingHelpers.Json(body));
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+    }
 
     [Fact]
     public async Task Drain_OutOfOrderBatch_TrackInTimestampOrder()
@@ -173,6 +183,39 @@ public sealed class ProcessingTests : IClassFixture<TestModeApiFactory>, IDispos
         // Assert
         var track = await ProcessingHelpers.TrackAsync(_factory.StoreRoot, "tenant-a", device);
         Assert.Equal([future], track.Select(p => p.TimestampMs));
+    }
+
+    [Fact]
+    public async Task Drain_Jump_IsNotInTheTrack()
+    {
+        // Arrange
+        var device = await ProcessingHelpers.SetupDeviceAsync(_factory, "tenant-a");
+        await SendPointsAsync(device, ProcessingHelpers.Inside(T(1)), Jump(T(2)), ProcessingHelpers.Inside(T(3)));
+
+        // Act
+        await ProcessingHelpers.DrainOkAsync(_factory, "tenant-a");
+
+        // Assert
+        var track = await ProcessingHelpers.TrackAsync(_factory.StoreRoot, "tenant-a", device);
+        Assert.Equal([T(1), T(3)], track.Select(p => p.TimestampMs));
+    }
+
+    [Fact]
+    public async Task Drain_LateReplay_DropsPointsKeptBefore()
+    {
+        // Arrange: T(0)..T(2) are kept; the late point T(-1) is a jump from them, so the replay drops T(0) and T(1).
+        var device = await ProcessingHelpers.SetupDeviceAsync(_factory, "tenant-a");
+        await SendPointsAsync(device, ProcessingHelpers.Inside(T(0)), ProcessingHelpers.Inside(T(1)), ProcessingHelpers.Inside(T(2)));
+        await ProcessingHelpers.DrainOkAsync(_factory, "tenant-a");
+
+        // Act
+        await SendPointsAsync(device, Jump(T(-1)));
+        await ProcessingHelpers.DrainOkAsync(_factory, "tenant-a");
+
+        // Assert
+        var track = await ProcessingHelpers.TrackAsync(_factory.StoreRoot, "tenant-a", device);
+        Assert.Equal([T(-1), T(2)], track.Select(p => p.TimestampMs));
+        Assert.Equal(1, track[1].Revision);
     }
 
     [Fact]
