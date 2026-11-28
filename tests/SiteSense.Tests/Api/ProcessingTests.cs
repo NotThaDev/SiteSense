@@ -231,6 +231,43 @@ public sealed class ProcessingTests : IClassFixture<TestModeApiFactory>, IDispos
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    // SS-25: work-1 (BaseMap) covers lat 37.5240..37.5245, lon 15.0700..15.0720; the perimeter is larger.
+    [Fact]
+    public async Task Drain_BorderNoise_KeepsOneArea()
+    {
+        // Arrange: two fixes deep inside work-1, then fixes about 1.1 m either side of its south edge.
+        var device = await ProcessingHelpers.SetupDeviceAsync(_factory, "tenant-a");
+        var lats = new[] { 37.5243, 37.5243, 37.52399, 37.52401, 37.52399, 37.52401, 37.52399, 37.52401, 37.52399, 37.52401 };
+        var points = lats.Select((lat, i) => new P(ProcessingHelpers.T0 + i * 10_000L, lat, 15.071, 5)).ToArray();
+        await SendPointsAsync(device, points);
+
+        // Act
+        await ProcessingHelpers.DrainOkAsync(_factory, "tenant-a");
+
+        // Assert
+        var track = await ProcessingHelpers.TrackAsync(_factory.StoreRoot, "tenant-a", device);
+        Assert.Equal(lats.Length, track.Count);
+        Assert.All(track, p => Assert.Equal("work-1", p.AreaId));
+    }
+
+    [Fact]
+    public async Task Drain_MoveDeepIntoArea_EndsWithItsId()
+    {
+        // Arrange: a slow walk from the perimeter into work-1, then stays deep inside it.
+        var device = await ProcessingHelpers.SetupDeviceAsync(_factory, "tenant-a");
+        var lats = new[] { 37.5220, 37.5225, 37.5230, 37.5235, 37.5240, 37.5243, 37.5243, 37.5243, 37.5243, 37.5243 };
+        var points = lats.Select((lat, i) => new P(ProcessingHelpers.T0 + i * 10_000L, lat, 15.071, 5)).ToArray();
+        await SendPointsAsync(device, points);
+
+        // Act
+        await ProcessingHelpers.DrainOkAsync(_factory, "tenant-a");
+
+        // Assert
+        var track = await ProcessingHelpers.TrackAsync(_factory.StoreRoot, "tenant-a", device);
+        Assert.Equal("perimeter", track[0].AreaId);
+        Assert.Equal("work-1", track[^1].AreaId);
+    }
+
     private static long T(int minutes) => ProcessingHelpers.T0 + minutes * 60_000L;
 }
 

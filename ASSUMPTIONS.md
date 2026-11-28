@@ -656,3 +656,30 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Gate only: drops jumps but leaves the GPS noise in the track.
 - Requirement IDs: TRK-03
 - Status: Accepted
+
+## Q27 — Which hysteresis keeps the current area?
+- Assumption: a point switches to its candidate area when it is inside that area by at least `m = max(AccuracyM, 2 m)`, or when `AreaConfirmPoints` = 3 consecutive points name the same candidate. A sub-area is left only when the point is outside it by more than `m`. Entering and leaving use the same rule (symmetric). Both values are configurable (`Tracking:AreaMarginM`, `Tracking:AreaConfirmPoints`).
+- Why: GPS noise on a border flips a naive locate every few seconds; a margin and a short confirmation keep the area stable and still switch within a few points on a real move.
+- Alternatives rejected:
+  - Naive locate: a fake entry and exit at every border crossing.
+  - Fixed time delay: depends on the reporting rate, which varies by device.
+- Requirement IDs: TRK-04
+- Status: Accepted
+
+## Q28 — Which area does a point get between sub-areas?
+- Assumption: a point inside the perimeter but outside every sub-area gets the perimeter id. A kept point outside the perimeter also gets the perimeter id.
+- Why: a device on site is always in one area, so occupancy and alarms never see a gap; the perimeter is the site itself.
+- Alternatives rejected:
+  - `null` for gaps: every consumer would need a second "no area" rule.
+  - A separate gap area: not in the map, so the map would need a new area type.
+- Requirement IDs: TRK-04
+- Status: Accepted
+
+## Q119 — What happens when areas overlap?
+- Assumption: for a new candidate, the first area in map order wins. A device already inside its current sub-area by more than the margin stays there (Q27).
+- Why: the import does not validate overlaps (not requested); this rule gives the same areas on every replay.
+- Alternatives rejected:
+  - Reject overlaps at import: a change to map validation that was not requested.
+  - Smallest area wins: needs area sizes and a tie rule.
+- Requirement IDs: TRK-04
+- Status: Accepted
