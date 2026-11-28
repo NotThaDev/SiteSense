@@ -36,6 +36,7 @@ Standard type-based ASP.NET Core layout (Q66). Each folder is created by the fir
 | `Dtos/`           | Request and response records on the wire (`<Name>Request`, `<Name>Response`)                                                                   |
 | `Services/`       | Only multi-entity flows and external engines: `PositionIngest` (filter, area, realtime), `AnomalyDetector` (ML.NET), navigation and evacuation |
 | `Store/`          | The single generic JSON document store implementation; takes the place of a `DbContext`                                                        |
+| `Alarms/`         | `Alert` document, `AlarmManager` (the one entry point: save once, publish once), one detector per alarm type (`AreaIntrusionDetector`)         |
 | `Realtime/`       | SignalR hub, `IRealtimePublisher`, `SignalRPublisher`; the only code that uses `IHubContext`                                                   |
 | `BackgroundJobs/` | Hangfire jobs, `<What>Job.cs`: trigger only, each calls a service or a model method                                                            |
 | `Auth/`           | Authentication and authorization setup and policies                                                                                            |
@@ -76,6 +77,12 @@ flowchart LR
 | ETag (JDB-10, Q45) | The API sends the version as `ETag: "3"` and copies `If-Match` into `doc.Version` (missing = 0; the map PUT without If-Match = latest, Q91). `ConcurrencyException` becomes 412 ProblemDetails (`StatusCodeSelector` in `Program.cs`). |
 | Names | `tenantId` and `id` accept only `[A-Za-z0-9_-]`, so no path can leave the tenant folder. Ids are case-sensitive: in file and folder names each uppercase letter becomes `!` + lowercase (`DEV-001` → `!d!e!v-001.json`), so case-insensitive disks (macOS, Windows) keep them apart (Q76). |
 | Append (JDB-02, JDB-06) | Each append writes its lines and fsyncs before it returns. A missing final newline is written first, so a torn line stays on its own line. Reads use newline-terminated lines only and skip lines that do not parse. One lock per device log. |
+
+## Alarms
+
+A producer decides, `AlarmManager` saves and publishes: `NotifyAlarmAsync` saves an `Alert` (id = SHA-256 of type, site, device, area, event time, so a retry never duplicates) and publishes `AlertRaised`; `DeactivateAlarmAsync` sets `NotActive` and publishes `AlertUpdated`. Save first, then publish.
+`AreaIntrusionDetector` runs inside `PositionProcessor.RunAsync`, before the device state is saved, over the new points only. It projects the map's restricted and hazard areas (`SiteMap.ProjectBlockedAreas`, shared with the route graph) and compares each point with the previous one: entry raises, exit deactivates. A throw keeps the dirty marker, so the run retries.
+`GET /sites/{siteId}/alerts` reads the stored alerts for the Alarms page, which also follows both events live.
 
 ## Build settings
 

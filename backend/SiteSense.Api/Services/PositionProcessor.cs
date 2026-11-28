@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
 using SiteSense.Api.Realtime;
@@ -8,7 +9,7 @@ namespace SiteSense.Api.Services;
 
 // Ordered processing (TRK-02, Q06, Q100): one worker, so each device runs alone and in timestamp order. Drain is per tenant (Q102).
 // Reads SiteSenseContext on every call, never in a field (Q38): test hosts replace it.
-public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<PositionProcessor> logger) : BackgroundService
+public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager alarms, ILogger<PositionProcessor> logger) : BackgroundService
 {
     // A device missing from _devices is idle.
     private enum RunState { Queued, Running, RunningDirty }
@@ -133,6 +134,9 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
                     raw.Select(p => new TrackPoint(p.DeviceId, p.TimestampMs, p.Lat, p.Lon, p.AccuracyM, revision)).ToList(), ct);
                 doc.CursorMs = Math.Max(doc.CursorMs ?? long.MinValue, raw[^1].TimestampMs);
             }
+            // Before the save: a throw keeps the dirty marker and the run retries; the alarm id is stable (SS-28).
+            // Runs after the append so previous points of this run are readable from the track.
+            await AreaIntrusionDetector.RunAsync(alarms, tenantId, deviceId, fresh, late, ct);
             doc.Revision = revision;
             doc.DirtyFromMs = null;
             try

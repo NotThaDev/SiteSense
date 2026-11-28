@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using SiteSense.Api.Auth;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
 using SiteSense.Api.Realtime;
@@ -30,7 +31,7 @@ public sealed class PositionEventsTests : IAsyncLifetime
         _store = new HookStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(_publisher, NullLogger<PositionProcessor>.Instance);
+        _p = new PositionProcessor(_publisher, new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance);
     }
 
     public async Task InitializeAsync()

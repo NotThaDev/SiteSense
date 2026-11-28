@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
 using SiteSense.Api.Realtime;
@@ -20,7 +21,7 @@ public sealed class PositionProcessorTests : IAsyncLifetime
     private readonly IDocumentStore _prevStore = SiteSenseContext.Store;
     private readonly IAppendLog _prevLog = SiteSenseContext.Log;
     private readonly FakeLog _log;
-    private readonly PositionProcessor _p = new(new NoopPublisher(), NullLogger<PositionProcessor>.Instance);
+    private readonly PositionProcessor _p = new(new NoopPublisher(), new AlarmManager(new NoopPublisher(), NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance);
 
     public PositionProcessorTests()
     {

@@ -647,3 +647,21 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Why: a policy change must not need a UI change (IDN-03).
 - Requirement IDs: IDN-03
 - Status: Accepted
+
+## Q119 — What states does an alarm have, and what does a state change publish?
+- Assumption: `Active` then `NotActive`, nothing else. `DeactivateAlarmAsync` saves `NotActive` with `EndTimeMs`, then publishes `AlertUpdated { alertId, state, endTimeMs }` (same audience as `AlertRaised`). Deactivating an unknown or already `NotActive` alarm does nothing.
+- Why: the Alarms page needs to show when a stay ended; acknowledged or closed-by-user states are out of scope.
+- Requirement IDs: EVT-01, EVT-03, RTM-03
+- Status: Accepted
+
+## Q120 — When does `AreaIntrusion` raise and end an alarm?
+- Assumption: a point is in a restricted or hazard area when it is inside or within 0.5 m of its edge. An entry (in, previous point not in) raises one alarm at the entry time; an exit (not in, previous point in) ends the device's active alarms for that area at the exit time. The previous point is read from the track within 10 minutes before the run's first new point; none means outside. A replay marks `late`.
+- Why: touching a hazard edge counts as an entry; no new per-device state, so the rule is the same on a replay.
+- Requirement IDs: EVT-02, TRK-02
+- Status: Accepted
+
+## Q121 — How is an alarm id built, and what is the status of the first version?
+- Assumption: id = SHA-256 of type, site, device, area and event time, as lowercase hex. The same entry always gives the same id, so a retried run or a replay creates nothing twice.
+- Why: dedupe without a lookup; the detector runs before the save and may run twice (JOB-02, EVT-03).
+- Requirement IDs: EVT-03, JOB-02
+- Status: Accepted
