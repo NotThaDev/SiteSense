@@ -33,7 +33,7 @@ public sealed class PositionEventsTests : IAsyncLifetime
         _store = new HookStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(_publisher, new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
+        _p = new PositionProcessor(_publisher, new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance, Options.Create(new AlarmOptions())), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
     }
 
     public async Task InitializeAsync()

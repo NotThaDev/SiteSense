@@ -26,6 +26,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
     private readonly string _root = Path.Combine(Path.GetTempPath(), "sitesense-tests", Guid.NewGuid().ToString("N"));
     private readonly IDocumentStore _prevStore = SiteSenseContext.Store;
     private readonly IAppendLog _prevLog = SiteSenseContext.Log;
+    private readonly TimeProvider _prevTime = SiteSenseContext.Time;
     private readonly FailAlertStore _store;
     private readonly PositionProcessor _p;
 
@@ -34,7 +35,9 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
         _store = new FailAlertStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(new NoopPublisher(), new AlarmManager(new NoopPublisher(), NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
+        // Live batches here are on time: the clock sits at the first sample so only a replay is late (Q33).
+        SiteSenseContext.Time = new FrozenTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(T0));
+        _p = new PositionProcessor(new NoopPublisher(), new AlarmManager(new NoopPublisher(), NullLogger<AlarmManager>.Instance, Options.Create(new AlarmOptions())), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
     }
 
     public async Task InitializeAsync()
@@ -48,6 +51,7 @@ public sealed class AreaIntrusionTests : IAsyncLifetime
         await _p.StopAsync(CancellationToken.None);
         SiteSenseContext.Store = _prevStore;
         SiteSenseContext.Log = _prevLog;
+        SiteSenseContext.Time = _prevTime;
         if (Directory.Exists(_root)) Directory.Delete(_root, true);
     }
 

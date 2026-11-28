@@ -1,11 +1,13 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SiteSense.Api.Alarms;
+using SiteSense.Api.Helpers;
 using SiteSense.Api.Realtime;
 
 namespace SiteSense.Tests.Api.Alarms;
 
 [Collection("Api")]
-public sealed class AlarmManagerTests : IClassFixture<ApiFactory>
+public sealed class AlarmManagerTests : IClassFixture<ApiFactory>, IDisposable
 {
     private const string Tenant = "tenant-a";
 
@@ -15,7 +17,7 @@ public sealed class AlarmManagerTests : IClassFixture<ApiFactory>
     public AlarmManagerTests(ApiFactory factory)
     {
         // Starting the host sets the store that Alert saves to.
-        _manager = new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance);
+        _manager = new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance, Options.Create(new AlarmOptions()));
         _ = factory.Services;
     }
 
@@ -31,6 +33,57 @@ public sealed class AlarmManagerTests : IClassFixture<ApiFactory>
         Assert.False(second);
         Assert.Equal(new[] { EventTypes.AlertRaised }, _publisher.Types);
         Assert.Single(await Alert.ListAsync(Tenant, site, CancellationToken.None));
+    }
+
+    private const long Event = 1_000_000;
+    private readonly TimeProvider _prevTime = SiteSenseContext.Time;
+
+    public void Dispose() => SiteSenseContext.Time = _prevTime;
+
+    private async Task<(bool Late, bool Created)> NotifyAtAsync(long nowMs, bool replay, string site)
+    {
+        SiteSenseContext.Time = new FrozenTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(nowMs));
+        var created = await _manager.NotifyAlarmAsync(Tenant, site, AlertTypes.AreaIntrusion, "dev-l", "area-1", Event, replay, CancellationToken.None);
+        var stored = await Alert.GetAsync(Tenant, Alert.IdFor(AlertTypes.AreaIntrusion, site, "dev-l", "area-1", Event), CancellationToken.None);
+        return (stored!.Late, created);
+    }
+
+    [Fact]
+    public async Task Notify_DetectedAfterThreshold_IsLate()
+    {
+        var (late, _) = await NotifyAtAsync(Event + 60_001, false, NewSiteId());
+        Assert.True(late);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(59_999)]
+    [InlineData(60_000)]
+    public async Task Notify_WithinOrAtThreshold_IsNotLate(long delayMs)
+    {
+        var (late, _) = await NotifyAtAsync(Event + delayMs, false, NewSiteId());
+        Assert.False(late);
+    }
+
+    [Fact]
+    public async Task Notify_Replay_IsLateEvenWhenFresh()
+    {
+        var (late, _) = await NotifyAtAsync(Event, true, NewSiteId());
+        Assert.True(late);
+    }
+
+    [Fact]
+    public async Task Notify_DuplicateAfterLate_CreatesAndPublishesNothing_KeepsEventTimeAndFlag()
+    {
+        var site = NewSiteId();
+        await NotifyAtAsync(Event, false, site);
+        var (late, created) = await NotifyAtAsync(Event + 600_000, false, site);
+
+        Assert.False(created);
+        Assert.False(late);
+        Assert.Equal(new[] { EventTypes.AlertRaised }, _publisher.Types);
+        var stored = Assert.Single(await Alert.ListAsync(Tenant, site, CancellationToken.None));
+        Assert.Equal(Event, stored.EventTimeMs);
     }
 
     [Fact]
