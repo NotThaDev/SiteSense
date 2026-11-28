@@ -25,7 +25,8 @@ builder.Services.AddOptions<AlarmOptions>().BindConfiguration(AlarmOptions.Secti
 builder.Services.AddSingleton<IValidateOptions<AlarmOptions>, AlarmOptionsValidator>();
 builder.Services.AddSingleton<PositionProcessor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
-// Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
+// Site jobs: one keyed registration per job name (SS-30, SS-33).
+builder.Services.AddKeyedTransient<ISiteJob, SilentDevicesJob>(SilentDevicesJob.Name);
 builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
@@ -101,10 +102,12 @@ app.MapOpenApi().AllowAnonymous();
 app.MapScalarApiReference().AllowAnonymous();
 app.MapControllers();
 app.MapHub<SiteHub>(SiteHub.RealtimePath, o => o.CloseOnAuthenticationExpiration = true);
-// Recurring site jobs, one line each, every minute (JOB-01), e.g.:
-// SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), "silent-devices");
-// Retention runs hourly per tenant (Q96). Not on the InMemory test host: a wall-clock run must not delete test data mid-test.
+// Recurring site jobs, one line each, every minute (JOB-01).
+// Retention runs hourly per tenant (Q96). Neither is scheduled on the InMemory test host: a wall-clock run must not delete data or raise alarms mid-test.
 if (builder.Configuration["Hangfire:Storage"] != "InMemory")
+{
+    SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), SilentDevicesJob.Name);
     SiteJobRunner.ScheduleTenantJob(app.Services.GetRequiredService<IRecurringJobManager>(), RetentionJob.Name, Cron.Hourly());
+}
 
 app.Run();

@@ -714,4 +714,13 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Replay flag only: misses a late batch from a device that was offline.
   - `late` in the id: a duplicate arriving later would raise a second alarm.
 - Requirement IDs: EVT-03
+=======
+## Q29 — When is a device "silent", and what about a device that left the site?
+- Assumption: a device is silent when its last valid position (last track point) is older than the tenant's `SilentAfterMinutes`. Silence is not evaluated when that last position is within 15 m of a map entrance (`SilentDevicesJob.EntranceRadiusM`): out-of-perimeter positions are discarded, so an exit is never seen and the device would look silent. The alarm time is the last-seen time and its area is the last known area, so the alert id is the same on every run: one alarm per silence episode. When the device transmits again, the Active alert is ended. A device that goes silent again has a new last-seen time, hence a new alarm. The job passes `late = false` (the late rule is SS-29).
+- Why: without the entrance rule every worker who leaves the site raises a false alarm; a stable id gives idempotent retries (JOB-02) with no extra state.
+- Alternatives rejected:
+  - Alarm for every silent device: false alarms for every exit.
+  - Keep the last-alarm time in a state document: new store type, and the alert id already gives the same guarantee.
+- Requirement IDs: TRK-06, JOB-02
+>>>>>>> 4e539fe52e73f2b6fdfceb9b9b781f536a40d7e3
 - Status: Accepted
