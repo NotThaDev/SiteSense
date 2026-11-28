@@ -63,11 +63,12 @@ public sealed class Alert : IDocument
     public static Task<Alert?> GetAsync(string tenantId, string id, CancellationToken ct) =>
         FileDocumentStore.IsValidName(id) ? SiteSenseContext.Store.GetAsync<Alert>(tenantId, id, ct) : Task.FromResult<Alert?>(null);
 
+    // siteId null = every site of the tenant.
     // shortcut: reads every alert of the tenant and filters the site in memory; per-site or per-day files when the list grows.
-    public static async Task<IReadOnlyList<Alert>> ListAsync(string tenantId, string siteId, CancellationToken ct)
+    public static async Task<IReadOnlyList<Alert>> ListAsync(string tenantId, string? siteId, CancellationToken ct)
     {
         var all = await SiteSenseContext.Store.ListAsync<Alert>(tenantId, ct);
-        return all.Where(a => a.SiteId == siteId).ToList();
+        return siteId is null ? all.ToList() : all.Where(a => a.SiteId == siteId).ToList();
     }
 
     // Exact match on deviceId and areaId: null matches only an alert with no device or no area.

@@ -40,6 +40,7 @@ public sealed class AlertsEndpointTests : IClassFixture<ApiFactory>
         var items = body.GetProperty("items").EnumerateArray().ToList();
         Assert.Equal(new long[] { 3000, 1000 }, items.Select(i => i.GetProperty("eventTimeMs").GetInt64()).ToArray());
         var first = items[0];
+        Assert.Equal(site, first.GetProperty("siteId").GetString());
         Assert.Equal(AlertTypes.DeviceSilent, first.GetProperty("type").GetString());
         Assert.Equal("dev-b", first.GetProperty("deviceId").GetString());
         Assert.Equal(JsonValueKind.Null, first.GetProperty("areaId").ValueKind);
@@ -149,6 +150,69 @@ public sealed class AlertsEndpointTests : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task ListTenant_TwoSitesOfTenantA_NoneOfTenantB()
+    {
+        var admin = Client("tenant-a", "Admin");
+        var siteOne = await CreateSiteAsync(admin);
+        var siteTwo = await CreateSiteAsync(admin);
+        var otherSite = await CreateSiteAsync(Client("tenant-b", "Admin"));
+        await NotifyAsync(siteOne, AlertTypes.AreaIntrusion, "dev-w1", "area-1", 1000, late: false);
+        await NotifyAsync(siteTwo, AlertTypes.DeviceSilent, "dev-w2", null, 2000, late: false);
+        await Alarms().NotifyAlarmAsync("tenant-b", otherSite, AlertTypes.AreaIntrusion, "dev-w3", "area-1", 3000, false, CancellationToken.None);
+
+        var body = await GetTenantListAsync(Client("tenant-a", "Safety"), "limit=500");
+
+        var items = body.GetProperty("items").EnumerateArray().ToList();
+        var sites = items.Select(i => i.GetProperty("siteId").GetString()).ToList();
+        Assert.Contains(siteOne, sites);
+        Assert.Contains(siteTwo, sites);
+        Assert.DoesNotContain(otherSite, sites);
+        var times = items.Select(i => i.GetProperty("eventTimeMs").GetInt64()).ToList();
+        Assert.Equal(times.OrderByDescending(t => t), times);
+    }
+
+    [Fact]
+    public async Task ListTenant_FiltersAndPaging()
+    {
+        var admin = Client("tenant-a", "Admin");
+        var siteOne = await CreateSiteAsync(admin);
+        var siteTwo = await CreateSiteAsync(admin);
+        // Far-future times keep these on top of whatever other tests left for tenant-a.
+        const long Base = 9_000_000_000_000;
+        await NotifyAsync(siteOne, AlertTypes.AreaIntrusion, "dev-q1", "area-1", Base + 1000, late: false);
+        await NotifyAsync(siteTwo, AlertTypes.DeviceSilent, "dev-q2", null, Base + 2000, late: false);
+        await NotifyAsync(siteOne, AlertTypes.AreaIntrusion, "dev-q3", "area-2", Base + 3000, late: false);
+        await Alarms().DeactivateAlarmAsync("tenant-a", Alert.IdFor(AlertTypes.AreaIntrusion, siteOne, "dev-q1", "area-1", Base + 1000), Base + 1500, CancellationToken.None);
+        var safety = Client("tenant-a", "Safety");
+
+        var range = await GetTenantListAsync(safety, $"fromMs={Base + 2000}&toMs={Base + 3000}");
+        var byType = await GetTenantListAsync(safety, $"fromMs={Base}&type=AreaIntrusion");
+        var byState = await GetTenantListAsync(safety, $"fromMs={Base}&state=NotActive");
+        var seen = new List<long>();
+        string? cursor = null;
+        for (var pages = 0; pages < 10; pages++)
+        {
+            var body = await GetTenantListAsync(safety, $"fromMs={Base}&limit=2{(cursor is null ? "" : "&cursor=" + cursor)}");
+            seen.AddRange(EventTimes(body));
+            cursor = body.GetProperty("nextCursor").ValueKind == JsonValueKind.Null ? null : body.GetProperty("nextCursor").GetString();
+            if (cursor is null) break;
+        }
+
+        Assert.Equal(new[] { Base + 3000, Base + 2000 }, EventTimes(range));
+        Assert.Equal(new[] { Base + 3000, Base + 1000 }, EventTimes(byType));
+        Assert.Equal(new[] { Base + 1000 }, EventTimes(byState));
+        Assert.Equal(new[] { Base + 3000, Base + 2000, Base + 1000 }, seen);
+    }
+
+    [Fact]
+    public async Task ListTenant_Viewer_Returns403()
+    {
+        var response = await Client("tenant-a", "Viewer").GetAsync("/api/v1/alerts");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private HttpClient Client(string tenant, string role) =>
         _factory.CreateClient().WithToken(TestTokens.Create(tenant, [role]));
 
@@ -160,6 +224,14 @@ public sealed class AlertsEndpointTests : IClassFixture<ApiFactory>
     private static async Task<JsonElement> GetListAsync(HttpClient client, string site, string query)
     {
         var response = await client.GetAsync($"/api/v1/sites/{site}/alerts?{query}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.Clone();
+    }
+
+    private static async Task<JsonElement> GetTenantListAsync(HttpClient client, string query)
+    {
+        var response = await client.GetAsync($"/api/v1/alerts?{query}");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         return doc.RootElement.Clone();

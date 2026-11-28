@@ -11,14 +11,14 @@ using SiteSense.Api.Models;
 namespace SiteSense.Api.Controllers;
 
 [ApiController]
-[Route("api/v1/sites/{siteId}/alerts")]
+[Route("api/v1")]
 public sealed class AlertsController : ControllerBase
 {
     private const int DefaultLimit = 100;
     private const int MaxLimit = 500;
 
     // Newest first (eventTimeMs, then alertId). fromMs and toMs are both inclusive. Same audience as AlertRaised (Q36).
-    [HttpGet]
+    [HttpGet("sites/{siteId}/alerts")]
     [Authorize(Policy = SiteSensePolicies.CanSeeIndividuals)]
     [ProducesResponseType<AlertListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
@@ -31,7 +31,23 @@ public sealed class AlertsController : ControllerBase
         var tenantId = User.TenantId();
         if (await Site.GetAsync(tenantId, siteId, ct) is null)
             return Problem(statusCode: StatusCodes.Status404NotFound, title: "Site not found");
+        return await ListAsync(tenantId, siteId, fromMs, toMs, type, state, limit, cursor, ct);
+    }
 
+    // Same as the per-site list, over every site of the tenant; each item carries siteId.
+    [HttpGet("alerts")]
+    [Authorize(Policy = SiteSensePolicies.CanSeeIndividuals)]
+    [ProducesResponseType<AlertListResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public Task<IActionResult> ListTenant([FromQuery] long? fromMs, [FromQuery] long? toMs,
+        [FromQuery] string? type, [FromQuery] string? state, [FromQuery] int limit = DefaultLimit, [FromQuery] string? cursor = null,
+        CancellationToken ct = default) =>
+        ListAsync(User.TenantId(), null, fromMs, toMs, type, state, limit, cursor, ct);
+
+    private async Task<IActionResult> ListAsync(string tenantId, string? siteId, long? fromMs, long? toMs, string? type, string? state,
+        int limit, string? cursor, CancellationToken ct)
+    {
         if (limit is < 1 or > MaxLimit)
             ModelState.AddModelError(nameof(limit), $"limit must be between 1 and {MaxLimit}.");
         if (type is not null && type is not (AlertTypes.AreaIntrusion or AlertTypes.ZoneAnomaly or AlertTypes.SuddenImmobility or AlertTypes.DeviceSilent))

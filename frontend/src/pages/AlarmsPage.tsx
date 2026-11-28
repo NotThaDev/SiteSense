@@ -3,9 +3,9 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api, toastError, type Site } from '@/api'
-import { useSiteEvents, type AlertState } from '@/realtime'
+import { useTenantAlerts, type AlertState } from '@/realtime'
 
-type Row = { alertId: string; type: string; eventTimeMs: number; deviceId: string | null; areaId: string | null; late: boolean; state: AlertState; endTimeMs: number | null }
+type Row = { alertId: string; siteId: string; type: string; eventTimeMs: number; deviceId: string | null; areaId: string | null; late: boolean; state: AlertState; endTimeMs: number | null }
 type Page = { items: Row[]; nextCursor: string | null }
 const PAGE = 50
 
@@ -20,27 +20,27 @@ const SEVERITY_CLASS: Record<Severity, string> = {
 }
 const severityOf = (type: string): Severity => SEVERITY[type] ?? 'Low'
 
-// Mounted per site (keyed), so the hub subscription and the rows follow the selected site.
-function AlarmsTable({ siteId, state }: { siteId: string; state: AlertState }) {
+// Mounted per tab (keyed). Loads every site of the tenant; the site filter is applied here, in the browser.
+function AlarmsTable({ siteId, state, siteNames }: { siteId: string; state: AlertState; siteNames: Map<string, string> }) {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
-  const live = useSiteEvents(siteId)
+  const live = useTenantAlerts()
 
   useEffect(() => {
     let stale = false
-    api<Page>('GET', `/sites/${siteId}/alerts?limit=${PAGE}&state=${state}`)
+    api<Page>('GET', `/alerts?limit=${PAGE}&state=${state}`)
       .then(r => { if (!stale) { setRows(r.data.items); setNextCursor(r.data.nextCursor) } })
       .catch(e => { if (!stale) { setRows([]); toastError(e) } })
     return () => { stale = true }
     // History also reloads when a live update ends an alarm that was not loaded on this page.
-  }, [siteId, state, state === 'NotActive' ? live.updates.size : 0])
+  }, [state, state === 'NotActive' ? live.updates.size : 0])
 
   const loadMore = async () => {
     if (!nextCursor) return
     setLoadingMore(true)
     try {
-      const r = await api<Page>('GET', `/sites/${siteId}/alerts?limit=${PAGE}&state=${state}&cursor=${encodeURIComponent(nextCursor)}`)
+      const r = await api<Page>('GET', `/alerts?limit=${PAGE}&state=${state}&cursor=${encodeURIComponent(nextCursor)}`)
       setRows(prev => [...(prev ?? []), ...r.data.items])
       setNextCursor(r.data.nextCursor)
     } catch (e) { toastError(e) } finally { setLoadingMore(false) }
@@ -50,11 +50,11 @@ function AlarmsTable({ siteId, state }: { siteId: string; state: AlertState }) {
   const loadedIds = new Set(rows?.map(r => r.alertId))
   const liveRows: Row[] = live.alerts
     .filter(a => !loadedIds.has(a.alertId))
-    .map(a => ({ alertId: a.alertId, type: a.type, eventTimeMs: a.eventTimeMs, deviceId: a.deviceId, areaId: a.areaId, late: a.late, state: a.state, endTimeMs: null }))
+    .map(a => ({ alertId: a.alertId, siteId: a.siteId, type: a.type, eventTimeMs: a.eventTimeMs, deviceId: a.deviceId, areaId: a.areaId, late: a.late, state: a.state, endTimeMs: null }))
   const shown = [...liveRows, ...(rows ?? [])].map(r => {
     const u = live.updates.get(r.alertId)
     return u ? { ...r, state: u.state, endTimeMs: u.endTimeMs } : r
-  }).filter(r => r.state === state)
+  }).filter(r => r.state === state && (siteId === '' || r.siteId === siteId))
 
   return (
     <div className="grid gap-3">
@@ -62,7 +62,7 @@ function AlarmsTable({ siteId, state }: { siteId: string; state: AlertState }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Time</TableHead><TableHead>Type</TableHead><TableHead>Device</TableHead>
+            <TableHead>Time</TableHead><TableHead>Site</TableHead><TableHead>Type</TableHead><TableHead>Device</TableHead>
             <TableHead>Area</TableHead><TableHead>Severity</TableHead><TableHead>Late</TableHead><TableHead>State</TableHead>
             {state === 'NotActive' && <TableHead>Ended</TableHead>}
           </TableRow>
@@ -71,6 +71,7 @@ function AlarmsTable({ siteId, state }: { siteId: string; state: AlertState }) {
           {shown.map(r => (
             <TableRow key={r.alertId}>
               <TableCell>{new Date(r.eventTimeMs).toLocaleString()}</TableCell>
+              <TableCell>{siteNames.get(r.siteId) ?? r.siteId}</TableCell>
               <TableCell>{r.type}</TableCell>
               <TableCell className="font-mono text-xs">{r.deviceId ?? '—'}</TableCell>
               <TableCell className="font-mono text-xs">{r.areaId ?? '—'}</TableCell>
@@ -80,8 +81,8 @@ function AlarmsTable({ siteId, state }: { siteId: string; state: AlertState }) {
               {state === 'NotActive' && <TableCell>{r.endTimeMs ? new Date(r.endTimeMs).toLocaleString() : '—'}</TableCell>}
             </TableRow>
           ))}
-          {rows && shown.length === 0 && <TableRow><TableCell colSpan={8} className="text-muted-foreground">{state === 'Active' ? 'No active alarms.' : 'No past alarms.'}</TableCell></TableRow>}
-          {rows === null && <TableRow><TableCell colSpan={8} className="text-muted-foreground">Loading…</TableCell></TableRow>}
+          {rows && shown.length === 0 && <TableRow><TableCell colSpan={9} className="text-muted-foreground">{state === 'Active' ? 'No active alarms.' : 'No past alarms.'}</TableCell></TableRow>}
+          {rows === null && <TableRow><TableCell colSpan={9} className="text-muted-foreground">Loading…</TableCell></TableRow>}
         </TableBody>
       </Table>
       {nextCursor && <div><Button variant="outline" onClick={loadMore} disabled={loadingMore}>{loadingMore ? 'Loading…' : 'Load more'}</Button></div>}
@@ -96,7 +97,7 @@ export default function AlarmsPage() {
 
   useEffect(() => {
     api<{ items: Site[] }>('GET', '/sites')
-      .then(r => { setSites(r.data.items); setSiteId(r.data.items[0]?.siteId ?? '') })
+      .then(r => { setSites(r.data.items) })
       .catch(toastError)
   }, [])
 
@@ -109,17 +110,16 @@ export default function AlarmsPage() {
           className="h-9 min-w-48 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
           value={siteId}
           onChange={e => setSiteId(e.target.value)}
-          disabled={!sites?.length}
         >
+          <option value="">All sites</option>
           {sites?.map(s => <option key={s.siteId} value={s.siteId}>{s.name}</option>)}
         </select>
       </div>
-      {sites?.length === 0 && <p className="text-muted-foreground">No sites yet.</p>}
       <div className="flex gap-1" role="tablist">
         <Button role="tab" aria-selected={tab === 'Active'} variant={tab === 'Active' ? 'default' : 'outline'} onClick={() => setTab('Active')}>Active</Button>
         <Button role="tab" aria-selected={tab === 'NotActive'} variant={tab === 'NotActive' ? 'default' : 'outline'} onClick={() => setTab('NotActive')}>History</Button>
       </div>
-      {siteId && <AlarmsTable key={`${siteId}:${tab}`} siteId={siteId} state={tab} />}
+      <AlarmsTable key={tab} siteId={siteId} state={tab} siteNames={new Map(sites?.map(s => [s.siteId, s.name]))} />
     </div>
   )
 }
