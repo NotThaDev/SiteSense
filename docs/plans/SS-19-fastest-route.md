@@ -87,7 +87,7 @@ POST /api/v1/sites/s1/routes
 | 6 | `RoutesController`: `POST api/v1/sites/{siteId}/routes`, policy `CanSeeAggregates` (Admin, Safety, Viewer; the response has no personal data); maps the service result to DTOs. 200; 400 `ValidationProblemDetails`; 404 site or map missing; 422 via `ProblemDetailsFactory` with `reason` in `Extensions` (`START_TOO_FAR` or `UNREACHABLE`) as in `MapController`. `[Produces]` and `[ProducesResponseType]` for 200, 400, 401, 403, 404, 422 | `backend/SiteSense.Api/Controllers/RoutesController.cs` | API tests in step 7 pass | backend |
 | 7 | API tests (listed under Tests), setup as in `MapEndpointTests` (seed site, PUT map as Admin, tokens per role and tenant); one OpenAPI case for the new path | `tests/SiteSense.Tests/Api/RoutesTests.cs`, `tests/SiteSense.Tests/Api/OpenApiTests.cs` | `dotnet test` green | backend |
 | 8 | `.http` entry for the new endpoint | `backend/SiteSense.Api/SiteSense.Api.http` | entry present | backend |
-| 9 | Docs: ASSUMPTIONS Q22, Q23, Q24, Q119, Q120; KNOWN_ISSUES (cache done, router done, off-path legs not checked, O(E) snap); README routing line names the endpoint and the 422 reasons, Admin UI section names the route tool and filters; AI_LOG entry. No `docs/` page covers the API or the UI, so none to update | `ASSUMPTIONS.md`, `KNOWN_ISSUES.md`, `README.md`, `AI_LOG.md` | entries present | backend (UI lines in the UI PR) |
+| 9 | Docs: ASSUMPTIONS Q22, Q23, Q24, Q124, Q125; KNOWN_ISSUES (cache done, router done, off-path legs not checked, O(E) snap); README routing line names the endpoint and the 422 reasons, Admin UI section names the route tool and filters; AI_LOG entry. No `docs/` page covers the API or the UI, so none to update | `ASSUMPTIONS.md`, `KNOWN_ISSUES.md`, `README.md`, `AI_LOG.md` | entries present | backend (UI lines in the UI PR) |
 | 10 | UI types: `reason?: string` on `Problem`, `RouteResponse` type; the existing `toastError` shows title and detail | `frontend/src/api.ts` | `npm run build` green | UI |
 | 11 | UI layer filters: checkbox panel (keyboard accessible), features filtered by kind/areaType; `GeoJSON` and `LiveLayers` keyed on `${etag}-${filterKey}` so occupancy labels re-apply; perimeter always on | `frontend/src/pages/MapView.tsx` | browser: unchecking Entrance hides entrances, dots and perimeter stay | UI |
 | 12 | UI route tool: "Show route" / "Clear" buttons; clicks via `useMapEvents`; feature popups off while in route mode; route drawn as a `Polyline` in its own layer (survives filter changes) with a distance/time label; cleared when the map changes | `frontend/src/pages/MapView.tsx` | browser: route drawn on the real map as admin and viewer; START_TOO_FAR toast outside the site | UI |
@@ -124,8 +124,8 @@ POST /api/v1/sites/s1/routes
 | Q22 | Start snapped to which path? | A. Nearest traversable stretch within `maxSnapDistanceM`. B. Nearest of any kind | A (user, 2026-11-28) |
 | Q23 | Destination snap and error | A. Same snap, too far → 422 `UNREACHABLE`. B. New reason `DESTINATION_TOO_FAR`. C. No limit | A (user, 2026-11-28) |
 | Q24 | Off-path legs in the response? | A. Included in geometry, distance and time at walking speed. B. Excluded | A (user, 2026-11-28) |
-| Q119 | Request format of `from` / `to` | A. `{ lat, lon }` objects. B. GeoJSON Point | A (user, 2026-11-28) |
-| Q120 | UI: route tool and filters | A. Route tool A→B; one checkbox per legend item, not remembered; perimeter and devices always on. B. Grouped filters, remembered | A (user, 2026-11-28) |
+| Q124 | Request format of `from` / `to` | A. `{ lat, lon }` objects. B. GeoJSON Point | A (user, 2026-11-28) |
+| Q125 | UI: route tool and filters | A. Route tool A→B; one checkbox per legend item, not remembered; perimeter and devices always on. B. Grouped filters, remembered | A (user, 2026-11-28) |
 
 ## Changelog
 

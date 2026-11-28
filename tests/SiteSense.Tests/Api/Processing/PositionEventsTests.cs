@@ -1,7 +1,10 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SiteSense.Api.Auth;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Models.Map;
 using SiteSense.Api.Realtime;
 using SiteSense.Api.Services;
 using SiteSense.Api.Store;
@@ -30,7 +33,7 @@ public sealed class PositionEventsTests : IAsyncLifetime
         _store = new HookStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(_publisher, NullLogger<PositionProcessor>.Instance);
+        _p = new PositionProcessor(_publisher, new AlarmManager(_publisher, NullLogger<AlarmManager>.Instance), NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
     }
 
     public async Task InitializeAsync()
@@ -169,6 +172,36 @@ public sealed class PositionEventsTests : IAsyncLifetime
 
         Assert.Equal(2, (await TrackPoint.ReadAsync(Tenant, Dev, 0, long.MaxValue, CancellationToken.None)).Count);
         Assert.Null((await DeviceProcessing.GetAsync(Tenant, Dev, CancellationToken.None))!.DirtyFromMs);
+    }
+
+    [Fact]
+    public async Task Jump_IsNotInTheTrackAndNotPublished()
+    {
+        await Position.AppendNewAsync(Tenant, Dev,
+            [new Position(Dev, T0 + 1000, 45.5, 9.2, 4.5), new Position(Dev, T0 + 2000, 45.6, 9.2, 4.5), new Position(Dev, T0 + 3000, 45.5, 9.2, 4.5)],
+            CancellationToken.None);
+        await DeviceProcessing.MarkDirtyAsync(Tenant, Dev, T0 + 1000, CancellationToken.None);
+        _p.Enqueue(Tenant, Dev);
+
+        Assert.True(await DrainAsync());
+
+        Assert.Equal([T0 + 1000, T0 + 3000], await TimestampsAsync());
+        Assert.Equal([T0 + 1000, T0 + 3000], (await TrackPoint.ReadAsync(Tenant, Dev, 0, long.MaxValue, CancellationToken.None)).Select(t => t.TimestampMs));
+    }
+
+    [Fact]
+    public async Task PositionUpdated_CarriesAreaId()
+    {
+        // Arrange: the device's site has a perimeter that holds the test fixes (lat 45.5, lon 9.2).
+        var perimeter = new MapArea("perimeter", "Site", "perimeter", null, [[[9.1, 45.4], [9.3, 45.4], [9.3, 45.6], [9.1, 45.6]]]);
+        await SiteSenseContext.Store.SaveAsync(Tenant, new SiteMap { Id = "site-01", TenantId = Tenant, Areas = [perimeter] }, CancellationToken.None);
+
+        // Act
+        await IngestAsync(1000);
+        Assert.True(await DrainAsync());
+
+        // Assert
+        Assert.Equal("perimeter", (await EventsAsync()).Single().Data.GetProperty("areaId").GetString());
     }
 
     private sealed class TestPublisher(EventPublisher events) : IRealtimePublisher

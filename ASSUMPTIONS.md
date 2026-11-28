@@ -648,6 +648,64 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: IDN-03
 - Status: Accepted
 
+## Q26 — Which plausibility and noise filter does the track use?
+- Assumption: a speed gate plus an accuracy-weighted average. A position is dropped when `distance − (accuracy1 + accuracy2) > vMax · Δt` against the last kept point (`vMax` = 7 m/s, configurable). Kept points are averaged with the previous kept point, weights `1 / accuracyM²`. After `K` = 3 consecutive drops that agree with each other, the last one is kept and the filter restarts from it (recovery from a false drop).
+- Why: simple, deterministic (a replay gives the same track) and easy to test; accuracy is used twice, as the gate tolerance and as the weight.
+- Alternatives rejected:
+  - Kalman 2D: more code and parameters to tune for the same visible result.
+  - Gate only: drops jumps but leaves the GPS noise in the track.
+- Requirement IDs: TRK-03
+
+## Q120 — What states does an alarm have, and what does a state change publish?
+- Assumption: `Active` then `NotActive`, nothing else. `DeactivateAlarmAsync` saves `NotActive` with `EndTimeMs`, then publishes `AlertUpdated { alertId, state, endTimeMs }` (same audience as `AlertRaised`). Deactivating an unknown or already `NotActive` alarm does nothing.
+- Why: the Alarms page needs to show when a stay ended; acknowledged or closed-by-user states are out of scope.
+- Requirement IDs: EVT-01, EVT-03, RTM-03
+- Status: Accepted
+
+## Q121 — When does `AreaIntrusion` raise and end an alarm?
+- Assumption: a point is in a restricted or hazard area when it is inside or within 0.5 m of its edge. A stable entry raises one alarm at the entry time; a stable exit ends the device's active alarms for that area at the exit time (stability: see Q122). The previous point is read from the track within 10 minutes before the run's first new point; none means outside. A replay marks `late`.
+- Why: touching a hazard edge counts as an entry; no new per-device state, so the rule is the same on a replay.
+- Requirement IDs: EVT-02, TRK-02
+- Status: Accepted
+
+## Q122 — How is an alarm id built, and what is the status of the first version?
+- Assumption: id = SHA-256 of type, site, device, area and event time, as lowercase hex. The same entry always gives the same id, so a retried run or a replay creates nothing twice.
+- Why: dedupe without a lookup; the detector runs before the save and may run twice (JOB-02, EVT-03).
+- Requirement IDs: EVT-03, JOB-02
+- Status: Accepted
+
+## Q123 — How does `AreaIntrusion` ignore GPS jitter at an area edge?
+- Assumption: a dwell of 30 s. The device counts as inside an area only after 30 s of samples inside, and as outside only after 30 s of samples outside; a sample that agrees with the current state cancels a pending change. The alarm's `eventTimeMs` is the first sample of the stay (the entry instant), its end time is the first outside sample of the exit. A closed alarm is never reopened: a new stay is a new alarm.
+- Why: edge jitter must not flood the table, and the ids stay stable for retries and replays (EVT-03, JOB-02).
+- Requirement IDs: EVT-02, EVT-03
+- Status: Accepted
+
+## Q27 — Which hysteresis keeps the current area?
+- Assumption: a point switches to its candidate area when it is inside that area by at least `m = max(AccuracyM, 2 m)`, or when `AreaConfirmPoints` = 3 consecutive points name the same candidate. A sub-area is left only when the point is outside it by more than `m`. Entering and leaving use the same rule (symmetric). Both values are configurable (`Tracking:AreaMarginM`, `Tracking:AreaConfirmPoints`).
+- Why: GPS noise on a border flips a naive locate every few seconds; a margin and a short confirmation keep the area stable and still switch within a few points on a real move.
+- Alternatives rejected:
+  - Naive locate: a fake entry and exit at every border crossing.
+  - Fixed time delay: depends on the reporting rate, which varies by device.
+- Requirement IDs: TRK-04
+- Status: Accepted
+
+## Q28 — Which area does a point get between sub-areas?
+- Assumption: a point inside the perimeter but outside every sub-area gets the perimeter id. A kept point outside the perimeter also gets the perimeter id.
+- Why: a device on site is always in one area, so occupancy and alarms never see a gap; the perimeter is the site itself.
+- Alternatives rejected:
+  - `null` for gaps: every consumer would need a second "no area" rule.
+  - A separate gap area: not in the map, so the map would need a new area type.
+- Requirement IDs: TRK-04
+- Status: Accepted
+
+## Q119 — What happens when areas overlap?
+- Assumption: for a new candidate, the first area in map order wins. A device already inside its current sub-area by more than the margin stays there (Q27).
+- Why: the import does not validate overlaps (not requested); this rule gives the same areas on every replay.
+- Alternatives rejected:
+  - Reject overlaps at import: a change to map validation that was not requested.
+  - Smallest area wins: needs area sizes and a tie rule.
+- Requirement IDs: TRK-04
+
 ## Q22 — The route start is snapped to which path?
 - Assumption: to the nearest point on a traversable stretch within the site's `maxSnapDistanceM`; stretches through `restricted` or `hazard` areas are ignored. None in range → `422` with `reason: START_TOO_FAR`.
 - Why: snapping onto a blocked stretch would give a route that cannot be walked.
@@ -666,13 +724,13 @@ Points the requirements leave open, and what we decided. Each decision is taken 
 - Requirement IDs: NAV-01, API-03
 - Status: Accepted
 
-## Q119 — What is the request format of `from` and `to`?
+## Q124 — What is the request format of `from` and `to`?
 - Assumption: `{ "lat", "lon" }` objects, the same names as position batches; out-of-range values give `400`.
 - Why: one coordinate shape for all inputs.
 - Requirement IDs: API-03, API-05
 - Status: Accepted
 
-## Q120 — What does the map page offer for routes and layers?
+## Q125 — What does the map page offer for routes and layers?
 - Assumption: a "Show route" tool (click start, click destination; the route is drawn with distance and time, a `422` shows its reason) and one show/hide checkbox per legend item, all on at load and not remembered. The perimeter and the live device dots are always shown.
 - Why: the user asked for it; fewer layers make a route easier to read.
 - Requirement IDs: API-06, NAV-01
