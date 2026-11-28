@@ -270,7 +270,8 @@ export default function MapView({ siteId, reloadKey, actionsEl }: { siteId: stri
         <Dialog open={large} onOpenChange={setLarge}>
           <DialogContent className="flex h-[90vh] w-[95vw] max-w-[95vw] flex-col p-2 sm:max-w-[95vw]">
             <DialogTitle className="sr-only">Site map</DialogTitle>
-            {buttons}
+            {/* Right padding keeps the buttons clear of the dialog's close X. */}
+            <div className="pr-10">{buttons}</div>
             <div className="min-h-0 flex-1">{large && canvas}</div>
           </DialogContent>
         </Dialog>
