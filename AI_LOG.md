@@ -134,6 +134,12 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - AI produced: `TrackingOptions` and validator, `TrackFilter`, `Dropped` tombstones in `TrackPoint`, processor wiring, unit and API tests (Haiku).
 - Corrected or discarded: `NewPositionsAsync` keeps the raw-log revision check instead of folding all revisions, because a fold would republish a point kept under an older revision; only kept points are published.
 
+## 2026-11-28 — SS-25: Area with hysteresis
+- Goal: give every kept track point an area with hysteresis, so GPS noise on a border does not flip the area (TRK-04, Q27, Q28, Q119).
+- Prompt (summary): implement the SS-25 plan (`SiteAreas`, `AreaAssigner`, options, processor wiring, tests, records) without commit or push.
+- AI produced: `SiteAreas`, `AreaAssigner`, the two options and their validation, processor wiring, unit and API tests, and the Q27, Q28, Q119 records (Haiku subagent).
+- Corrected or discarded: none in the code. The plan's "inside by m" uses the boundary tolerance of `PlanarGeometry.Locate`, so it means inside and more than m from every edge.
+
 ## 2026-11-28 — SS-28: Alarm core and AreaIntrusion
 - Goal: one entry point for alarms (`AlarmManager`), an alerts endpoint and page, and the `AreaIntrusion` alarm raised from position processing.
 - Prompt (summary): plan SS-28 with the plan / validate / approve / implement / verify workflow, two stacked PRs (core, then the detector).

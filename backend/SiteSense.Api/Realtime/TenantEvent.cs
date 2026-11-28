@@ -12,7 +12,7 @@ public static class EventTypes
     public const string AlertUpdated = "AlertUpdated";
 }
 
-// Payload of PositionUpdated (Q115): a track point plus the device. AreaId is null until SS-25.
+// Payload of PositionUpdated (Q115): a track point plus the device. AreaId is the point's area (SS-25); null when the site has no map.
 public sealed record PositionUpdatedData(string DeviceId, long TimestampMs, double Lat, double Lon, string? AreaId);
 
 // Payload of AlertRaised (Q116): the alert's fields, state is always Active at creation.

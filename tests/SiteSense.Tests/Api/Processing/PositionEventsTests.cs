@@ -4,6 +4,7 @@ using SiteSense.Api.Auth;
 using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Models.Map;
 using SiteSense.Api.Realtime;
 using SiteSense.Api.Services;
 using SiteSense.Api.Store;
@@ -186,6 +187,21 @@ public sealed class PositionEventsTests : IAsyncLifetime
 
         Assert.Equal([T0 + 1000, T0 + 3000], await TimestampsAsync());
         Assert.Equal([T0 + 1000, T0 + 3000], (await TrackPoint.ReadAsync(Tenant, Dev, 0, long.MaxValue, CancellationToken.None)).Select(t => t.TimestampMs));
+    }
+
+    [Fact]
+    public async Task PositionUpdated_CarriesAreaId()
+    {
+        // Arrange: the device's site has a perimeter that holds the test fixes (lat 45.5, lon 9.2).
+        var perimeter = new MapArea("perimeter", "Site", "perimeter", null, [[[9.1, 45.4], [9.3, 45.4], [9.3, 45.6], [9.1, 45.6]]]);
+        await SiteSenseContext.Store.SaveAsync(Tenant, new SiteMap { Id = "site-01", TenantId = Tenant, Areas = [perimeter] }, CancellationToken.None);
+
+        // Act
+        await IngestAsync(1000);
+        Assert.True(await DrainAsync());
+
+        // Assert
+        Assert.Equal("perimeter", (await EventsAsync()).Single().Data.GetProperty("areaId").GetString());
     }
 
     private sealed class TestPublisher(EventPublisher events) : IRealtimePublisher
