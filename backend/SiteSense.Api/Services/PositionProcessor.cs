@@ -1,6 +1,9 @@
 using System.Threading.Channels;
+using Microsoft.Extensions.Options;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
+using SiteSense.Api.Models.Map;
 using SiteSense.Api.Realtime;
 using SiteSense.Api.Store;
 
@@ -8,7 +11,7 @@ namespace SiteSense.Api.Services;
 
 // Ordered processing (TRK-02, Q06, Q100): one worker, so each device runs alone and in timestamp order. Drain is per tenant (Q102).
 // Reads SiteSenseContext on every call, never in a field (Q38): test hosts replace it.
-public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<PositionProcessor> logger) : BackgroundService
+public sealed class PositionProcessor(IRealtimePublisher publisher, AlarmManager alarms, ILogger<PositionProcessor> logger, IOptions<TrackingOptions> tracking) : BackgroundService
 {
     // A device missing from _devices is idle.
     private enum RunState { Queued, Running, RunningDirty }
@@ -126,19 +129,31 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
             // Upper bound is exclusive; long.MaxValue also covers timestamps ahead of the clock (Q39).
             var raw = await Position.ReadAsync(tenantId, deviceId, from, long.MaxValue, ct);
             var fresh = await NewPositionsAsync(tenantId, deviceId, doc, late, from, raw, ct);
+            var decided = new List<TrackPoint>();
+            Device? device = null;
             if (raw.Count > 0)
             {
-                // Pass-through until the filter (SS-24, Q101).
-                await TrackPoint.AppendAsync(tenantId, deviceId,
-                    raw.Select(p => new TrackPoint(p.DeviceId, p.TimestampMs, p.Lat, p.Lon, p.AccuracyM, revision)).ToList(), ct);
+                // Device and map are read once per run; no device or map means no area (SS-25).
+                device = await Device.GetAsync(tenantId, deviceId, ct);
+                var map = device is null ? null : await SiteMap.GetAsync(tenantId, device.SiteId, ct);
+                var areas = map is null ? null : SiteAreas.From(map);
+                // Seed: the last kept point before this run, so the filter continues the track (SS-24, Q26).
+                var seed = (await TrackPoint.ReadAsync(tenantId, deviceId, 0, from, ct)).LastOrDefault();
+                decided = AreaAssigner.Assign(seed?.AreaId, TrackFilter.Apply(seed, raw, revision, tracking.Value), areas, tracking.Value).ToList();
+                await TrackPoint.AppendAsync(tenantId, deviceId, decided, ct);
                 doc.CursorMs = Math.Max(doc.CursorMs ?? long.MinValue, raw[^1].TimestampMs);
             }
+            // Only kept points of positions not handled before; a dropped (implausible) one never counts, nor is it published (SS-24).
+            var freshMs = fresh.Select(p => p.TimestampMs).ToHashSet();
+            var keptFresh = decided.Where(t => !t.Dropped && freshMs.Contains(t.TimestampMs)).ToList();
+            // Before the save: a throw keeps the dirty marker and the run retries; the alarm id is stable (SS-28).
+            await AreaIntrusionDetector.RunAsync(alarms, tenantId, deviceId, keptFresh, late, ct);
             doc.Revision = revision;
             doc.DirtyFromMs = null;
             try
             {
                 await DeviceProcessing.SaveAsync(tenantId, doc, ct);
-                await PublishAsync(tenantId, deviceId, fresh, ct);
+                await PublishAsync(tenantId, deviceId, device, keptFresh, ct);
                 return;
             }
             catch (ConcurrencyException)
@@ -149,7 +164,8 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
     }
 
     // From the saved state only (cursor, revision), so a retry after a failed save computes the same set.
-    // Raw log records, not TrackPoint.ReadAsync: its fold would hide points written by a failed attempt.
+    // Raw log records, tombstones included, not TrackPoint.ReadAsync: its fold would hide points written by a failed attempt
+    // and a fold of all revisions would hide a point published under an older revision.
     private static async Task<IReadOnlyList<Position>> NewPositionsAsync(string tenantId, string deviceId, DeviceProcessing saved, bool late, long from, IReadOnlyList<Position> raw, CancellationToken ct)
     {
         if (saved.CursorMs is not { } cursor) return raw;
@@ -163,17 +179,15 @@ public sealed class PositionProcessor(IRealtimePublisher publisher, ILogger<Posi
     }
 
     // At most once: a crash before this loses the events (KNOWN_ISSUES). A failure is logged and skipped, never fails the run.
-    private async Task PublishAsync(string tenantId, string deviceId, IReadOnlyList<Position> fresh, CancellationToken ct)
+    private async Task PublishAsync(string tenantId, string deviceId, Device? device, IReadOnlyList<TrackPoint> kept, CancellationToken ct)
     {
-        if (fresh.Count == 0) return;
-        var device = await Device.GetAsync(tenantId, deviceId, ct);
-        if (device is null) return;
-        foreach (var p in fresh)
+        if (kept.Count == 0 || device is null) return;
+        foreach (var p in kept)
         {
             try
             {
                 await publisher.PublishAsync(tenantId, device.SiteId, EventTypes.PositionUpdated,
-                    new PositionUpdatedData(deviceId, p.TimestampMs, p.Lat, p.Lon, null), ct);
+                    new PositionUpdatedData(deviceId, p.TimestampMs, p.Lat, p.Lon, p.AreaId), ct);
             }
             catch (OperationCanceledException)
             {

@@ -14,6 +14,24 @@ public sealed class SiteHub(IAuthorizationService auth) : Hub
     // Q108: one group per audience policy; a valid site name has no ':', so a group name cannot be forged.
     public static string GroupName(string tenantId, string siteId, string policy) => $"tenant:{tenantId}:site:{siteId}:audience:{policy}";
 
+    // Every site of the tenant (the Alarms page). "all" cannot be a site name, so it never collides with a site group.
+    public static string TenantGroupName(string tenantId, string policy) => $"tenant:{tenantId}:all:audience:{policy}";
+
+    public async Task JoinTenant()
+    {
+        var user = Context.User!;
+        var tenantId = user.TenantId();
+        foreach (var policy in await EventAudience.PassedPoliciesAsync(auth, user))
+            await Groups.AddToGroupAsync(Context.ConnectionId, TenantGroupName(tenantId, policy), Context.ConnectionAborted);
+    }
+
+    public async Task LeaveTenant()
+    {
+        var tenantId = Context.User!.TenantId();
+        foreach (var policy in EventAudience.Policies)
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, TenantGroupName(tenantId, policy), Context.ConnectionAborted);
+    }
+
     public async Task JoinSite(string siteId)
     {
         var user = Context.User!;

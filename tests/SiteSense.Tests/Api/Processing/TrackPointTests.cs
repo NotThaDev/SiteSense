@@ -1,3 +1,4 @@
+using System.Text.Json;
 using SiteSense.Api.Helpers;
 using SiteSense.Api.Models;
 using SiteSense.Api.Store;
@@ -66,6 +67,18 @@ public sealed class TrackPointTests : IDisposable
         var read = await TrackPoint.ReadAsync(Tenant, Device, 0, long.MaxValue, CancellationToken.None);
 
         Assert.Equal([T0 + 1000, T0 + 2000, T0 + 3000], read.Select(p => p.TimestampMs));
+    }
+
+    [Fact]
+    public void Json_RowWithoutAreaId_ReadsAsNull()
+    {
+        // A row written before SS-25 has no areaId field.
+        const string row = """{"deviceId":"dev-1","timestampMs":1000,"lat":45.5,"lon":9.2,"accuracyM":4.5,"revision":0,"dropped":false}""";
+
+        var point = JsonSerializer.Deserialize<TrackPoint>(row, JsonSerializerOptions.Web);
+
+        Assert.NotNull(point);
+        Assert.Null(point.AreaId);
     }
 
     [Fact]

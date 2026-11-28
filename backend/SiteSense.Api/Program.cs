@@ -1,5 +1,7 @@
 using Hangfire;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
+using SiteSense.Api.Alarms;
 using SiteSense.Api.Auth;
 using SiteSense.Api.BackgroundJobs;
 using SiteSense.Api.Helpers;
@@ -16,6 +18,9 @@ builder.AddSiteSenseAuth(testMode);
 builder.Services.AddHealthChecks();
 builder.AddSiteSenseJobs();
 // Ordered processing (TRK-02): one singleton, also a hosted service so its startup scan runs before the server starts.
+// Plausibility filter settings (SS-24, Q26): checked at startup, like Store.
+builder.Services.AddOptions<TrackingOptions>().BindConfiguration(TrackingOptions.Section).ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<TrackingOptions>, TrackingOptionsValidator>();
 builder.Services.AddSingleton<PositionProcessor>();
 builder.Services.AddSingleton<RouteService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
@@ -32,6 +37,8 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IEventSender, SignalRSender>();
 builder.Services.AddSingleton<EventPublisher>();
 builder.Services.AddSingleton<IRealtimePublisher>(sp => sp.GetRequiredService<EventPublisher>());
+// Every alarm, from a job or from processing, goes through this one manager (SS-28).
+builder.Services.AddSingleton<AlarmManager>();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
