@@ -11,6 +11,7 @@ public sealed record MapArea(string Id, string Name, string AreaType, int? Capac
 public sealed record MapPath(string Id, string Surface, bool Steps, double SlopePercent, double WidthM, double[][] Coordinates);
 public sealed record MapAssemblyPoint(string Id, string Name, int Capacity, double[] Coordinates);
 public sealed record MapEntrance(string Id, string Name, double[] Coordinates);
+public sealed record ProjectedArea(string Id, IReadOnlyList<IReadOnlyList<(double X, double Y)>> Rings);
 public sealed record MapImportResult(long? MapVersion, IReadOnlyList<MapError> Errors);
 
 public sealed class SiteMap : IDocument
@@ -96,17 +97,26 @@ public sealed class SiteMap : IDocument
     }
 
     // Local metres from the perimeter centroid: the same origin MapValidator uses for its tolerance check (MAP-02).
-    public RouteGraph BuildRouteGraph(NavigationSettings nav)
+    // Shared by the route graph and the intrusion detector. Restricted and hazard areas, rings in local metres.
+    public (LocalProjection Projection, IReadOnlyList<ProjectedArea> Blocked) ProjectBlockedAreas()
     {
         var perimeter = Areas.Single(a => a.AreaType == "perimeter").Coordinates[0];
         var projection = LocalProjection.FromCentroid(perimeter.Select(p => (Lon: p[0], Lat: p[1])).ToList());
+        var blocked = Areas
+            .Where(a => a.AreaType is "restricted" or "hazard")
+            .Select(a => new ProjectedArea(a.Id,
+                a.Coordinates.Select(r => (IReadOnlyList<(double X, double Y)>)r.Select(p => projection.ToLocal(p[0], p[1])).ToList()).ToList()))
+            .ToList();
+        return (projection, blocked);
+    }
+
+    public RouteGraph BuildRouteGraph(NavigationSettings nav)
+    {
+        var (projection, blockedAreas) = ProjectBlockedAreas();
         IReadOnlyList<(double X, double Y)> Local(double[][] line) => line.Select(p => projection.ToLocal(p[0], p[1])).ToList();
 
         var paths = Paths.Select(p => new GraphPath(p.Id, p.Surface == "unpaved", p.Steps, Local(p.Coordinates))).ToList();
-        var blocked = Areas
-            .Where(a => a.AreaType is "restricted" or "hazard")
-            .Select(a => (IReadOnlyList<IReadOnlyList<(double X, double Y)>>)a.Coordinates.Select(Local).ToList())
-            .ToList();
+        var blocked = blockedAreas.Select(a => a.Rings).ToList();
         return RouteGraphBuilder.Build(paths, blocked,
             new GraphSettings(nav.WalkingSpeedMps, nav.UnpavedSpeedFactor, nav.StepsSpeedFactor, nav.ConnectToleranceM));
     }
