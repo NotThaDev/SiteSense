@@ -26,13 +26,16 @@ public sealed class PositionEventsTests : IAsyncLifetime
     private readonly HookStore _store;
     private readonly TestPublisher _publisher = new(new EventPublisher(new NullEventSender(), NullLogger<EventPublisher>.Instance));
     private readonly PositionProcessor _p;
+    private readonly OccupancyService _occupancy;
+    private readonly TimeProvider _prevTime = SiteSenseContext.Time;
 
     public PositionEventsTests()
     {
         _store = new HookStore(new FileDocumentStore(_root));
         SiteSenseContext.Store = _store;
         SiteSenseContext.Log = new FileAppendLog(_root);
-        _p = new PositionProcessor(_publisher, NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
+        _occupancy = new OccupancyService(_publisher, NullLogger<OccupancyService>.Instance);
+        _p = new PositionProcessor(_publisher, _occupancy, NullLogger<PositionProcessor>.Instance, Options.Create(new TrackingOptions()));
     }
 
     public async Task InitializeAsync()
@@ -46,6 +49,7 @@ public sealed class PositionEventsTests : IAsyncLifetime
         await _p.StopAsync(CancellationToken.None);
         SiteSenseContext.Store = _prevStore;
         SiteSenseContext.Log = _prevLog;
+        SiteSenseContext.Time = _prevTime;
         if (Directory.Exists(_root)) Directory.Delete(_root, true);
     }
 
@@ -60,8 +64,17 @@ public sealed class PositionEventsTests : IAsyncLifetime
 
     private Task<bool> DrainAsync() => _p.DrainAsync(Tenant, CancellationToken.None).WaitAsync(Limit);
 
-    private async Task<IReadOnlyList<TenantEvent>> EventsAsync(string[]? policies = null) =>
+    private async Task<IReadOnlyList<TenantEvent>> AllEventsAsync(string[]? policies = null) =>
         (await _publisher.Inner.ReadAfterAsync(Tenant, 0, policies ?? Safety, CancellationToken.None)).Items;
+
+    private async Task<IReadOnlyList<TenantEvent>> EventsAsync(string[]? policies = null) =>
+        (await AllEventsAsync(policies)).Where(e => e.Type == EventTypes.PositionUpdated).ToList();
+
+    private async Task<List<TenantEvent>> OccupancyAsync(string[]? policies = null) =>
+        (await AllEventsAsync(policies ?? [SiteSensePolicies.CanSeeAggregates])).Where(e => e.Type == EventTypes.OccupancyChanged).ToList();
+
+    private static List<(string AreaId, int Count)> Counts(TenantEvent e) =>
+        e.Data.GetProperty("areas").EnumerateArray().Select(a => (a.GetProperty("areaId").GetString()!, a.GetProperty("count").GetInt32())).ToList();
 
     private async Task<List<long>> TimestampsAsync() =>
         (await EventsAsync()).Select(e => e.Data.GetProperty("timestampMs").GetInt64()).ToList();
@@ -201,6 +214,71 @@ public sealed class PositionEventsTests : IAsyncLifetime
 
         // Assert
         Assert.Equal("perimeter", (await EventsAsync()).Single().Data.GetProperty("areaId").GetString());
+    }
+
+    // A map with a perimeter and one sub-area; the clock is frozen at T0 + nowOffsetMs.
+    private static async Task SeedMapAsync(long nowOffsetMs)
+    {
+        var perimeter = new MapArea("perimeter", "Site", "perimeter", null, [[[9.1, 45.4], [9.3, 45.4], [9.3, 45.6], [9.1, 45.6]]]);
+        var work = new MapArea("work-1", "Yard", "work", null, [[[9.15, 45.45], [9.25, 45.45], [9.25, 45.55], [9.15, 45.55]]]);
+        await SiteSenseContext.Store.SaveAsync(Tenant, new SiteMap { Id = "site-01", TenantId = Tenant, Areas = [perimeter, work] }, CancellationToken.None);
+        SiteSenseContext.Time = new FrozenTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(T0 + nowOffsetMs));
+    }
+
+    [Fact]
+    public async Task Occupancy_DeviceEnters_PublishesOneSnapshot()
+    {
+        await SeedMapAsync(1000);
+
+        await IngestAsync(1000);
+        Assert.True(await DrainAsync());
+
+        // 45.5, 9.2 is inside work-1.
+        Assert.Equal([("perimeter", 0), ("work-1", 1)], Counts(Assert.Single(await OccupancyAsync())));
+    }
+
+    [Fact]
+    public async Task Occupancy_SecondPointSameArea_PublishesNothingMore()
+    {
+        await SeedMapAsync(2000);
+        await IngestAsync(1000);
+        Assert.True(await DrainAsync());
+
+        await IngestAsync(2000);
+        Assert.True(await DrainAsync());
+
+        Assert.Single(await OccupancyAsync());
+    }
+
+    [Fact]
+    public async Task Occupancy_BackAfterSixSilentMinutes_PublishesAgain()
+    {
+        await SeedMapAsync(1000);
+        await IngestAsync(1000);
+        Assert.True(await DrainAsync());
+        // Six minutes later the old point is stale: the job-less snapshot is 0, then the device resumes in the same area.
+        SiteSenseContext.Time = new FrozenTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(T0 + 6 * 60_000));
+        await _occupancy.PublishIfChangedAsync(Tenant, "site-01", CancellationToken.None);
+
+        await IngestAsync(6 * 60_000);
+        Assert.True(await DrainAsync());
+
+        var events = await OccupancyAsync();
+        Assert.Equal(3, events.Count);
+        Assert.Equal([("perimeter", 0), ("work-1", 1)], Counts(events[2]));
+    }
+
+    [Fact]
+    public async Task Occupancy_ViewerSeesItWithoutIndividualData()
+    {
+        await SeedMapAsync(1000);
+        await IngestAsync(1000);
+        Assert.True(await DrainAsync());
+
+        var e = Assert.Single(await OccupancyAsync([SiteSensePolicies.CanSeeAggregates]));
+
+        Assert.DoesNotContain(Dev, e.Data.GetRawText());
+        Assert.DoesNotContain("lat", e.Data.GetRawText());
     }
 
     private sealed class TestPublisher(EventPublisher events) : IRealtimePublisher

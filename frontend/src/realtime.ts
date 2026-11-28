@@ -9,6 +9,7 @@ export type Alert = { alertId: string; type: string; eventTimeMs: number; device
 export type SiteEvents = { status: Status; occupancy: Map<string, number>; devices: Map<string, Device>; alerts: Alert[] }
 
 type Evt = { seq: number; type: string; siteId: string; atMs: number; data: any }
+type OccupancyResponse = { atMs: number; areas: { areaId: string; count: number }[] }
 type View = Omit<SiteEvents, 'status'>
 
 const TYPES = ['PositionUpdated', 'OccupancyChanged', 'AlertRaised']
@@ -65,6 +66,11 @@ export function useSiteEvents(siteId: string): SiteEvents {
     const sync = async () => {
       ready = false
       await conn.invoke('JoinSite', siteId)
+      // Snapshot first: buffered events are applied after it, so newer events win.
+      try {
+        const r = await api<OccupancyResponse>('GET', `/sites/${siteId}/occupancy`)
+        setView(v => ({ ...v, occupancy: new Map(r.data.areas.map(a => [a.areaId, a.count] as const)) }))
+      } catch { /* best effort: a failed snapshot must not break sync */ }
       // Catch up only after a reconnect: from seq 0 it would replay every retained event of the tenant.
       for (let more = lastSeq > 0; more && !stopped;) {
         const r = await api<{ items: Evt[]; lastSeq: number; hasMore: boolean }>('GET', `/events?after=${lastSeq}`)

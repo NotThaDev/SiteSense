@@ -20,10 +20,12 @@ builder.AddSiteSenseJobs();
 // Plausibility filter settings (SS-24, Q26): checked at startup, like Store.
 builder.Services.AddOptions<TrackingOptions>().BindConfiguration(TrackingOptions.Section).ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<TrackingOptions>, TrackingOptionsValidator>();
+builder.Services.AddSingleton<OccupancyService>();
 builder.Services.AddSingleton<PositionProcessor>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
 // Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
 builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);
+builder.Services.AddKeyedTransient<ISiteJob, OccupancySiteJob>(OccupancySiteJob.Name);
 builder.Services.AddControllers()
     // A missing required field fails as 400 instead of defaulting to 0 or null.
     .AddJsonOptions(o => o.JsonSerializerOptions.RespectRequiredConstructorParameters = true);
@@ -100,6 +102,9 @@ app.MapHub<SiteHub>(SiteHub.RealtimePath, o => o.CloseOnAuthenticationExpiration
 // SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), "silent-devices");
 // Retention runs hourly per tenant (Q96). Not on the InMemory test host: a wall-clock run must not delete test data mid-test.
 if (builder.Configuration["Hangfire:Storage"] != "InMemory")
+{
     SiteJobRunner.ScheduleTenantJob(app.Services.GetRequiredService<IRecurringJobManager>(), RetentionJob.Name, Cron.Hourly());
+    SiteJobRunner.Schedule(app.Services.GetRequiredService<IRecurringJobManager>(), OccupancySiteJob.Name);
+}
 
 app.Run();

@@ -683,3 +683,35 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Smallest area wins: needs area sizes and a tie rule.
 - Requirement IDs: TRK-04
 - Status: Accepted
+
+## Q46 — Does the occupancy response list empty areas and the perimeter?
+- Assumption: every area of the current map is listed, the perimeter included, with count 0 when empty.
+- Why: the contract is silent; a fixed list lets a client clear a label and reconcile with `OccupancyChanged`.
+- Alternatives rejected:
+  - Only areas with count > 0: a client cannot tell "0" from "unknown".
+- Requirement IDs: EVT-01
+- Status: Accepted
+
+## Q120 — Which devices does the occupancy count skip?
+- Assumption: a device with no map, or whose last point has an `AreaId` not in the current map, is not counted.
+- Why: a count must name an area of the map the client sees; Q28 already gives every point of a mapped site an area.
+- Alternatives rejected:
+  - Count it under the perimeter: it would hide a map replaced after the point was written.
+- Requirement IDs: EVT-01
+- Status: Accepted
+
+## Q121 — What does `OccupancyChanged` carry?
+- Assumption: the full snapshot of the site, `{ areas: [{ areaId, count }] }`, the same as `GET /occupancy`; sent only when it differs from the last one published for the site.
+- Why: a client that missed an event is corrected by the next one, and the payload is the same on the hub and on the endpoint.
+- Alternatives rejected:
+  - Only changed areas: a missed event leaves a wrong count until a full refresh.
+- Requirement IDs: EVT-01, RTM-02
+- Status: Accepted
+
+## Q122 — Who drops a silent device from the count?
+- Assumption: a per-minute site job (`occupancy`) recomputes and publishes when the snapshot changed, so a device older than 5 minutes leaves the count without a new position.
+- Why: the push and `GET /occupancy` agree within a minute (SS-35 plan).
+- Alternatives rejected:
+  - Only on the next position: a site where everyone went silent would show stale counts.
+- Requirement IDs: EVT-01
+- Status: Accepted

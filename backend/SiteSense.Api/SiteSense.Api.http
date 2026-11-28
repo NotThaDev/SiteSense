@@ -71,3 +71,7 @@ Authorization: Bearer {{gatewayToken}}
 Content-Type: application/json
 
 {"deviceId":"dev-001","positions":[{"timestampMs":1793268000000,"lat":37.5250,"lon":15.0710,"accuracyM":4.5}]}
+
+### Occupancy per area of a site (Admin, Safety, Viewer): devices counted by last valid point, under 5 minutes old
+GET {{host}}/api/v1/sites/cittadella-catania/occupancy
+Authorization: Bearer {{token}}
