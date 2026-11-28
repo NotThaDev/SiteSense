@@ -1,7 +1,7 @@
 # SS-26 — Track query
 
 - Status: Draft
-- Issue: #<n> (to be created before the plan PR)
+- Issue: #167
 - Plan PR: #<n>   Implementation PRs: #<n>
 - Depends on: SS-25 (area per track point, merged). SS-11 (opaque cursor) is not needed: Q37 uses a simple cursor.
 
