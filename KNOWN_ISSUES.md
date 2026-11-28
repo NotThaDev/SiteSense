@@ -35,7 +35,6 @@ Known limits and what to do with more time.
 - A path end that touches the middle of another path without a shared vertex is not joined (Q18): only endpoint pairs closer than `connectToleranceM` get a connector.
 - Two vertices less than 1 cm apart can stay separate nodes if they fall on each side of a 1 cm grid line (Q19); identical coordinates always join.
 - Connectors compare all endpoint pairs (O(n²)) and each edge is tested against every blocked polygon (with a bounding-box reject); fine for hundreds of paths, add a grid index for thousands.
-- The graph is not cached yet: SS-19 adds the per-map-version cache (Q86).
 ## SS-23 — Ordered processing and drain
 - Drain waits until the tenant has zero pending runs, so a constant load (a running simulator) can delay it. With more time: a per-tenant sequence number, wait only for runs queued before the drain.
 - A late position replays every later point of that device; the track log grows by one revision per late batch. Retention removes old hours.
@@ -75,7 +74,9 @@ Known limits and what to do with more time.
 
 ## Delivery — not implemented
 These requirements are not in the delivered version. The API answers `404` for their endpoints.
-- Navigation: `POST /sites/{id}/routes` and `/evacuation-route` (NAV-01…04, API-03). The route graph exists (SS-17, ADR 0001); the router, the snapping and the per-map-version graph cache do not. With more time: A* on the existing graph, with time cost from the site parameters.
+- Navigation: `POST /sites/{id}/evacuation-route` (NAV-04). The router (SS-19, A* on the route graph with a per-map-version cache) exists; evacuation would run it to each assembly point.
+- Routes: the straight legs from `from` to the path and from the path to `to` are not checked against restricted or hazard areas (Q24); each is at most `maxSnapDistanceM` long. With more time: reject a start inside a blocked area.
+- Routes: snapping scans every edge (O(E)) per request. Fine for the real map (a few thousand edges); with more time: a grid index.
 - Tracking filter and area hysteresis (TRK-03, TRK-04): stored track points are ordered and deduplicated, but not filtered, and `areaId` is `null`. With more time: a speed gate scaled by `accuracyM` and the real time gap, an accuracy-weighted smoother, and an enter/exit margin on area borders.
 - `GET /devices/{id}/track`, `GET /sites/{id}/occupancy` (API-04, EVT-01): the stored data exists (track log, event log), but the query endpoints do not.
 - AI: `ZoneAnomaly` (AI-01, AI-03) and `SuddenImmobility` (AI-02) are not implemented. ADR 0004 records the parameters we would use. The `anomaly-detection` and `silent-devices` jobs answer `404` on the test endpoint (TRK-06 not implemented).

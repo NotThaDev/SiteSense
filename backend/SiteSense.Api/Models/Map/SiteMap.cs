@@ -110,15 +110,19 @@ public sealed class SiteMap : IDocument
         return (projection, blocked);
     }
 
-    public RouteGraph BuildRouteGraph(NavigationSettings nav)
+    public RouteGraph BuildRouteGraph(NavigationSettings nav) => BuildRouteContext(nav).Graph;
+
+    // The graph and the projection it was built with: one projection, so route points convert back exactly.
+    public (RouteGraph Graph, LocalProjection Projection) BuildRouteContext(NavigationSettings nav)
     {
         var (projection, blockedAreas) = ProjectBlockedAreas();
         IReadOnlyList<(double X, double Y)> Local(double[][] line) => line.Select(p => projection.ToLocal(p[0], p[1])).ToList();
 
         var paths = Paths.Select(p => new GraphPath(p.Id, p.Surface == "unpaved", p.Steps, Local(p.Coordinates))).ToList();
         var blocked = blockedAreas.Select(a => a.Rings).ToList();
-        return RouteGraphBuilder.Build(paths, blocked,
+        var graph = RouteGraphBuilder.Build(paths, blocked,
             new GraphSettings(nav.WalkingSpeedMps, nav.UnpavedSpeedFactor, nav.StepsSpeedFactor, nav.ConnectToleranceM));
+        return (graph, projection);
     }
 
     private const int MaxLatestAttempts = 3;

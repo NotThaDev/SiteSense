@@ -22,6 +22,7 @@ builder.AddSiteSenseJobs();
 builder.Services.AddOptions<TrackingOptions>().BindConfiguration(TrackingOptions.Section).ValidateOnStart();
 builder.Services.AddSingleton<IValidateOptions<TrackingOptions>, TrackingOptionsValidator>();
 builder.Services.AddSingleton<PositionProcessor>();
+builder.Services.AddSingleton<RouteService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<PositionProcessor>());
 // Site jobs: one keyed registration per job name, e.g. AddKeyedTransient<ISiteJob, SilentDevicesJob>("silent-devices") (SS-30, SS-33).
 builder.Services.AddKeyedTransient<ITenantJob, RetentionJob>(RetentionJob.Name);

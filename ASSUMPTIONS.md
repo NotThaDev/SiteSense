@@ -705,4 +705,33 @@ Points the requirements leave open, and what we decided. Each decision is taken 
   - Reject overlaps at import: a change to map validation that was not requested.
   - Smallest area wins: needs area sizes and a tie rule.
 - Requirement IDs: TRK-04
+
+## Q22 — The route start is snapped to which path?
+- Assumption: to the nearest point on a traversable stretch within the site's `maxSnapDistanceM`; stretches through `restricted` or `hazard` areas are ignored. None in range → `422` with `reason: START_TOO_FAR`.
+- Why: snapping onto a blocked stretch would give a route that cannot be walked.
+- Requirement IDs: NAV-01, NAV-02
+- Status: Accepted
+
+## Q23 — How is the destination snapped, and which error when it is too far?
+- Assumption: the same rule and the same `maxSnapDistanceM` as the start; a destination too far from a walkable stretch gives `422` with `reason: UNREACHABLE` and a detail saying the destination is too far.
+- Why: the contract has two reasons only; a too-far destination is not reachable on foot along the paths.
+- Requirement IDs: NAV-01, API-03
+- Status: Accepted
+
+## Q24 — Are the off-path legs part of the route?
+- Assumption: yes. The line starts at `from` and ends at `to`; the straight legs to and from the snap points count in `distanceM` and in `durationS` at plain `walkingSpeedMps`. They are not checked against blocked areas.
+- Why: the user walks from where they are; each leg is at most `maxSnapDistanceM` long.
+- Requirement IDs: NAV-01, API-03
+- Status: Accepted
+
+## Q124 — What is the request format of `from` and `to`?
+- Assumption: `{ "lat", "lon" }` objects, the same names as position batches; out-of-range values give `400`.
+- Why: one coordinate shape for all inputs.
+- Requirement IDs: API-03, API-05
+- Status: Accepted
+
+## Q125 — What does the map page offer for routes and layers?
+- Assumption: a "Show route" tool (click start, click destination; the route is drawn with distance and time, a `422` shows its reason) and one show/hide checkbox per legend item, all on at load and not remembered. The perimeter and the live device dots are always shown.
+- Why: the user asked for it; fewer layers make a route easier to read.
+- Requirement IDs: API-06, NAV-01
 - Status: Accepted

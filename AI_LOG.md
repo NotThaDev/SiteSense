@@ -145,3 +145,9 @@ Significant AI use on SiteSense. Entry format and rules: `.claude/skills/ai-proc
 - Prompt (summary): plan SS-28 with the plan / validate / approve / implement / verify workflow, two stacked PRs (core, then the detector).
 - AI produced: plan, `Alert`, `AlarmManager`, alerts endpoint, Alarms page, shared area projection, `AreaIntrusionDetector`, tests, these records.
 - Corrected or discarded: the detector runs before the device state is saved (an exception keeps the dirty marker) instead of after, so a crash cannot lose an alarm for good.
+
+## 2026-11-28 — SS-19 Fastest route
+- Goal: fastest walking route endpoint on the SS-17 graph, plus a route tool and layer filters on the map page.
+- Prompt (summary): plan file, Sonnet validation, then subagents for the A* router, the endpoint with its cache, docs and the UI.
+- AI produced: `RouteFinder` (A* with snapping), `RouteService` (graph cache), `RoutesController`, DTOs, tests, plan `docs/plans/SS-19-fastest-route.md`, these docs.
+- Corrected or discarded: the validation added versions and `Lazy` to the cache, a route context from one projection, and the cache, auth and OpenAPI tests; `[Produces]` was dropped so the 422 keeps `application/problem+json`.
